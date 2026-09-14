@@ -1,0 +1,14 @@
+{$DOMAIN:localhost} {
+	root * /srv
+	encode zstd gzip
+	file_server
+
+	header {
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		-Server
+	}
+
+	@html path / /index.html
+	header @html Cache-Control "no-cache"
+}

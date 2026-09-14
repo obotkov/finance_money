@@ -1,0 +1,1443 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+  :root {
+    --bg: #f5f5f7; --card: #ffffff; --ink: #1d1d1f; --ink2: #6e6e73; --ink3: #8e8e93;
+    --line: rgba(0,0,0,.08); --fill: #f2f2f7; --accent: #0071e3; --accent-soft: #e8f1fd;
+    --pos: #1a8b3c; --neg: #d70015;
+    --sh: 0 1px 2px rgba(0,0,0,.05), 0 4px 14px rgba(0,0,0,.04);
+  }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", "Segoe UI", sans-serif;
+    font-size: 15px; line-height: 1.45; -webkit-font-smoothing: antialiased; }
+  * { box-sizing: border-box; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { color: #0062c4; }
+  button, input, select { font: inherit; color: inherit; }
+  :focus-visible { outline: 3px solid rgba(0,113,227,.45); outline-offset: 2px; }
+  .num { font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+  .big { font-weight: 600; letter-spacing: -.022em; }
+  .btn { border: 0; border-radius: 980px; padding: 8px 16px; font-size: 14px; font-weight: 500; cursor: pointer; transition: background .15s, opacity .15s; }
+  .btn-p { background: var(--accent); color: #fff; }
+  .btn-p:hover { background: #0062c4; }
+  .btn-s { background: rgba(0,0,0,.05); color: var(--ink); }
+  .btn-s:hover { background: rgba(0,0,0,.09); }
+  .btn-t { background: transparent; color: var(--accent); padding: 8px 10px; }
+  .btn-t:hover { background: var(--accent-soft); }
+  .navitem { display: block; padding: 7px 12px; border-radius: 9px; font-size: 14px; font-weight: 500; color: var(--ink); }
+  .navitem:hover { background: rgba(0,0,0,.045); color: var(--ink); }
+  .navitem[data-on="1"] { background: #fff; color: var(--accent); box-shadow: 0 1px 2px rgba(0,0,0,.06); }
+  .card { background: var(--card); border-radius: 18px; box-shadow: var(--sh); }
+  .rowline + .rowline { border-top: 1px solid var(--line); }
+  .rowline:hover { background: rgba(0,0,0,.02); }
+  .inp { width: 100%; background: var(--fill); border: 1px solid transparent; border-radius: 11px; padding: 9px 12px; font-size: 15px; }
+  .inp:focus { background: #fff; border-color: var(--accent); outline: none; }
+  .lbl { display: block; font-size: 12px; font-weight: 500; color: var(--ink2); margin-bottom: 5px; }
+  .seg { display: inline-flex; background: var(--fill); border-radius: 10px; padding: 2px; gap: 2px; }
+  .segopt { padding: 5px 14px; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer; color: var(--ink2); }
+  .segopt[data-on="1"] { background: #fff; color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,.1); }
+  .chip { display: inline-flex; align-items: center; padding: 6px 13px; border-radius: 980px; font-size: 13px; cursor: pointer; background: var(--fill); color: var(--ink); }
+  .chip[data-on="1"] { background: var(--accent); color: #fff; }
+  .day:hover { background: rgba(0,0,0,.05); }
+  .day[data-on="1"] { background: var(--accent); color: #fff; }
+</style>
+</helmet>
+
+<div style="min-height:100vh;padding:26px 20px 60px">
+  <div style="max-width:1240px;margin:0 auto">
+
+    <sc-if value="{{ isDesktop }}" hint-placeholder-val="{{ true }}">
+    <div class="card" style="overflow:hidden;border-radius:20px">
+      <div style="display:flex;align-items:center;gap:8px;padding:11px 16px;background:rgba(246,246,248,.9);border-bottom:1px solid var(--line)">
+        <div style="display:flex;gap:7px">
+          <span style="width:11px;height:11px;border-radius:50%;background:#ff5f57"></span>
+          <span style="width:11px;height:11px;border-radius:50%;background:#febc2e"></span>
+          <span style="width:11px;height:11px;border-radius:50%;background:#28c840"></span>
+        </div>
+        <span class="num" style="margin-left:8px;font-size:12px;color:var(--ink3)">Ведомость</span>
+      </div>
+
+      <div style="display:grid;grid-template-columns:230px minmax(0,1fr)">
+        <!-- боковая навигация -->
+        <div style="background:#fafafc;border-right:1px solid var(--line);padding:20px 12px 22px;display:flex;flex-direction:column;gap:16px">
+          <div style="padding:0 10px">
+            <div class="big" style="font-size:19px">Ведомость</div>
+            <div style="font-size:12px;color:var(--ink3)">личный учёт</div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:2px">
+            <sc-for list="{{ nav }}" as="n" hint-placeholder-count="8">
+              <a class="navitem" href="#" data-on="{{ n.on }}" onClick="{{ n.go }}">{{ n.label }}</a>
+            </sc-for>
+          </div>
+          <div style="margin-top:auto;padding:14px 10px 0;border-top:1px solid var(--line)">
+            <div style="font-size:12px;color:var(--ink3)">Всего</div>
+            <div class="num big" style="font-size:22px;margin-top:2px">{{ totalLabel }}</div>
+          </div>
+        </div>
+
+        <!-- содержимое -->
+        <div>
+          <div style="display:flex;align-items:center;gap:14px;padding:22px 28px 18px">
+            <div>
+              <div class="big" style="font-size:27px">{{ title }}</div>
+              <div style="font-size:13px;color:var(--ink3)">{{ subtitle }}</div>
+            </div>
+            <div style="margin-left:auto;display:flex;gap:10px;flex:none">
+              <button class="btn btn-s" style="white-space:nowrap" onClick="{{ openAcc }}">Добавить счёт</button>
+              <button class="btn btn-p" style="white-space:nowrap" onClick="{{ openOp }}">Новая операция</button>
+            </div>
+          </div>
+
+          <!-- Сводка -->
+          <sc-if value="{{ isSummary }}" hint-placeholder-val="{{ true }}">
+          <div style="padding:6px 28px 32px;display:flex;flex-direction:column;gap:22px">
+            <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px">
+              <div class="card" style="padding:20px 22px">
+                <div style="font-size:13px;color:var(--ink2)">Свободные деньги</div>
+                <div class="num big" style="font-size:clamp(22px,2.3vw,32px);margin-top:4px;white-space:nowrap">{{ freeLabel }}</div>
+                <div style="font-size:12px;color:var(--ink3)">карты и наличные</div>
+              </div>
+              <div class="card" style="padding:20px 22px">
+                <div style="font-size:13px;color:var(--ink2)">Доход за сентябрь</div>
+                <div class="num big" style="font-size:clamp(22px,2.3vw,32px);margin-top:4px;white-space:nowrap;color:var(--pos)">{{ incomeLabel }}</div>
+                <div style="font-size:12px;color:var(--ink3)">зарплата и подработка</div>
+              </div>
+              <div class="card" style="padding:20px 22px">
+                <div style="font-size:13px;color:var(--ink2)">Расход за сентябрь</div>
+                <div class="num big" style="font-size:clamp(22px,2.3vw,32px);margin-top:4px;white-space:nowrap">{{ expenseLabel }}</div>
+                <div style="font-size:12px;color:var(--ink3)">{{ savedLabel }}</div>
+              </div>
+            </div>
+
+            <div style="display:grid;grid-template-columns:minmax(0,1.55fr) minmax(0,1fr);gap:16px;align-items:start">
+              <div class="card" style="padding:8px 4px 4px">
+                <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 18px 12px">
+                  <span class="big" style="font-size:17px">Последние операции</span>
+                  <a href="#" onClick="{{ goOps }}" style="font-size:13px">Все</a>
+                </div>
+                <sc-for list="{{ recent }}" as="t" hint-placeholder-count="6">
+                  <div class="rowline" style="display:flex;align-items:center;gap:14px;padding:11px 18px;margin:0 4px;border-radius:12px">
+                    <div style="flex:1;min-width:0">
+                      <div style="font-size:15px">{{ t.title }}</div>
+                      <div class="num" style="font-size:12px;color:var(--ink3)">{{ t.dateLabel }} · {{ t.cat }}</div>
+                    </div>
+                    <div class="num" style="font-size:15px;font-weight:500;white-space:nowrap;color:{{ t.color }}">{{ t.amountLabel }}</div>
+                  </div>
+                </sc-for>
+              </div>
+
+              <div style="display:flex;flex-direction:column;gap:16px">
+                <div class="card" style="padding:8px 4px 10px">
+                  <div class="big" style="font-size:17px;padding:10px 18px 8px">Счета</div>
+                  <sc-for list="{{ accounts }}" as="a" hint-placeholder-count="5">
+                    <div class="rowline" style="display:flex;justify-content:space-between;gap:12px;padding:10px 18px;margin:0 4px;border-radius:12px">
+                      <span style="font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ a.name }}</span>
+                      <span class="num" style="font-size:14px;font-weight:500;white-space:nowrap;color:{{ a.color }}">{{ a.balanceLabel }}</span>
+                    </div>
+                  </sc-for>
+                </div>
+                <sc-if value="{{ showForecast }}" hint-placeholder-val="{{ true }}">
+                <div class="card" style="padding:20px 22px">
+                  <div style="font-size:12px;font-weight:500;color:var(--accent)">Прогноз</div>
+                  <div class="big" style="font-size:17px;margin-top:4px">К концу месяца останется 41 200 ₽</div>
+                  <p style="margin:6px 0 0;font-size:13px;color:var(--ink2)">При текущем темпе трат. Обязательные платежи до 30 сентября — 18 400 ₽.</p>
+                </div>
+                </sc-if>
+              </div>
+            </div>
+          </div>
+          </sc-if>
+
+          <!-- Операции -->
+          <sc-if value="{{ isOps }}" hint-placeholder-val="{{ false }}">
+          <div style="padding:6px 28px 32px">
+            <div style="display:grid;grid-template-columns:minmax(260px,320px) minmax(0,1fr);gap:16px;align-items:start;margin-bottom:18px">
+              <div class="card" style="padding:14px 16px 16px">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+                  <button class="btn btn-t" onClick="{{ opsPrev }}">‹</button>
+                  <span class="big" style="font-size:15px">{{ opsMonthLabel }}</span>
+                  <button class="btn btn-t" onClick="{{ opsNext }}">›</button>
+                </div>
+                <div class="num" style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;font-size:11px;color:var(--ink3);text-align:center;margin-bottom:4px">
+                  <span>пн</span><span>вт</span><span>ср</span><span>чт</span><span>пт</span><span>сб</span><span>вс</span>
+                </div>
+                <div class="num" style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px">
+                  <sc-for list="{{ opsCells }}" as="d" hint-placeholder-count="35">
+                    <span class="day" data-on="{{ d.on }}" onClick="{{ d.pick }}" style="position:relative;text-align:center;font-size:13px;padding:8px 0;border-radius:980px;cursor:{{ d.cursor }};color:{{ d.color }}">{{ d.label }}<span style="position:absolute;left:50%;bottom:3px;transform:translateX(-50%);width:4px;height:4px;border-radius:50%;background:{{ d.dot }}"></span></span>
+                  </sc-for>
+                </div>
+              </div>
+              <div class="card" style="padding:18px 20px;display:flex;flex-direction:column;gap:12px">
+                <div style="display:flex;align-items:baseline;gap:10px">
+                  <span class="big" style="font-size:17px">{{ periodLabel }}</span>
+                  <sc-if value="{{ dateSelected }}" hint-placeholder-val="{{ false }}">
+                    <button class="btn btn-t" onClick="{{ clearOpsDate }}">весь месяц</button>
+                  </sc-if>
+                </div>
+                <div style="display:flex;gap:28px">
+                  <div>
+                    <div style="font-size:12px;color:var(--ink3)">поступления</div>
+                    <div class="num big" style="font-size:20px;white-space:nowrap;color:var(--pos)">{{ periodIncome }}</div>
+                  </div>
+                  <div>
+                    <div style="font-size:12px;color:var(--ink3)">траты</div>
+                    <div class="num big" style="font-size:20px;white-space:nowrap">{{ periodExpense }}</div>
+                  </div>
+                </div>
+                <button class="btn btn-p" style="align-self:flex-start;margin-top:2px" onClick="{{ openOpForDate }}">{{ addLabel }}</button>
+              </div>
+            </div>
+            <div style="display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-bottom:16px">
+              <div class="seg">
+                <span class="segopt" data-on="{{ fAll }}" onClick="{{ setFilterAll }}">Все</span>
+                <span class="segopt" data-on="{{ fIncome }}" onClick="{{ setFilterIncome }}">Доходы</span>
+                <span class="segopt" data-on="{{ fExpense }}" onClick="{{ setFilterExpense }}">Расходы</span>
+                <span class="segopt" data-on="{{ fTransfer }}" onClick="{{ setFilterTransfer }}">Переводы</span>
+              </div>
+              <input class="inp" style="width:230px" placeholder="Поиск" value="{{ query }}" onChange="{{ onQuery }}">
+              <div style="margin-left:auto;display:flex;align-items:center;gap:10px">
+                <span class="num" style="font-size:13px;color:var(--ink3)">{{ countLabel }}</span>
+                <button class="btn btn-s" onClick="{{ openExport }}">Экспорт</button>
+                <button class="btn btn-s" onClick="{{ openImport }}">Импорт</button>
+              </div>
+            </div>
+            <div class="card" style="padding:6px 4px">
+              <div style="display:grid;grid-template-columns:50px minmax(0,1.7fr) minmax(0,1fr) minmax(0,1fr) minmax(0,auto);gap:12px;padding:10px 14px 8px;margin:0 4px;font-size:12px;color:var(--ink3);border-bottom:1px solid var(--line)">
+                <span>Дата</span><span>Назначение</span><span>Категория</span><span>Счёт</span><span style="text-align:right">Сумма</span>
+              </div>
+              <sc-for list="{{ visibleTxs }}" as="t" hint-placeholder-count="10">
+                <div class="rowline" style="display:grid;grid-template-columns:50px minmax(0,1.7fr) minmax(0,1fr) minmax(0,1fr) minmax(0,auto);align-items:center;gap:12px;padding:12px 14px;margin:0 4px;border-radius:12px">
+                  <span class="num" style="font-size:13px;color:var(--ink3)">{{ t.dateLabel }}</span>
+                  <span style="font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ t.title }}</span>
+                  <span style="font-size:13px;color:var(--ink2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="{{ t.catPath }}">{{ t.catPath }}</span>
+                  <span style="font-size:13px;color:var(--ink3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ t.acc }}</span>
+                  <span class="num" style="text-align:right;font-size:15px;font-weight:500;white-space:nowrap;color:{{ t.color }}">{{ t.amountLabel }}</span>
+                </div>
+              </sc-for>
+            </div>
+            <sc-if value="{{ noTxs }}" hint-placeholder-val="{{ false }}">
+              <div style="padding:26px 4px;font-size:14px;color:var(--ink3)">За {{ periodLabelLower }} операций нет. Нажмите на дату в календаре, чтобы добавить первую.</div>
+            </sc-if>
+          </div>
+          </sc-if>
+
+          <!-- Счета -->
+          <sc-if value="{{ isAccounts }}" hint-placeholder-val="{{ false }}">
+          <div style="padding:6px 28px 32px;display:grid;grid-template-columns:minmax(0,1.45fr) minmax(0,1fr);gap:16px;align-items:start">
+            <div style="display:flex;flex-direction:column;gap:12px">
+            <div style="display:flex;align-items:center;gap:10px">
+              <span style="font-size:13px;color:var(--ink2)">Группировать</span>
+              <div class="seg">
+                <span class="segopt" data-on="{{ gNone }}" onClick="{{ groupByNone }}">Все вместе</span>
+                <span class="segopt" data-on="{{ gKind }}" onClick="{{ groupByKind }}">По типу</span>
+              </div>
+            </div>
+            <sc-if value="{{ grouped }}" hint-placeholder-val="{{ true }}">
+            <div style="display:flex;flex-direction:column;gap:12px">
+              <sc-for list="{{ accountGroups }}" as="g" hint-placeholder-count="3">
+                <div class="card" style="padding:6px 4px 10px">
+                  <div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding:10px 18px 8px">
+                    <span style="font-size:12px;font-weight:500;color:var(--ink3)">{{ g.kind }}</span>
+                    <span class="num" style="font-size:13px;font-weight:500;color:var(--ink2);white-space:nowrap">{{ g.totalLabel }}</span>
+                  </div>
+                  <sc-for list="{{ g.items }}" as="a" hint-placeholder-count="2">
+                    <div class="rowline" style="display:flex;align-items:center;gap:16px;padding:14px 16px;margin:0 4px;border-radius:14px">
+                      <div style="flex:1;min-width:0">
+                        <div style="font-size:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ a.name }}</div>
+                        <div style="font-size:12px;color:var(--ink3)">{{ a.rubLabel }}</div>
+                      </div>
+                      <div class="num big" style="font-size:clamp(16px,1.6vw,20px);white-space:nowrap;color:{{ a.color }}">{{ a.balanceLabel }}</div>
+                      <button class="btn btn-s" style="flex:none" onClick="{{ a.edit }}">Изменить</button>
+                    </div>
+                  </sc-for>
+                </div>
+              </sc-for>
+            </div>
+            </sc-if>
+            <sc-if value="{{ flat }}" hint-placeholder-val="{{ false }}">
+            <div class="card" style="padding:6px 4px 16px">
+              <sc-for list="{{ accounts }}" as="a" hint-placeholder-count="5">
+                <div class="rowline" style="display:flex;align-items:center;gap:16px;padding:16px;margin:0 4px;border-radius:14px">
+                  <div style="flex:1;min-width:0">
+                    <div style="font-size:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ a.name }}</div>
+                    <div style="font-size:12px;color:var(--ink3)">{{ a.kind }}</div>
+                  </div>
+                  <div style="text-align:right">
+                    <div class="num big" style="font-size:clamp(16px,1.6vw,20px);white-space:nowrap;color:{{ a.color }}">{{ a.balanceLabel }}</div>
+                    <div class="num" style="font-size:12px;color:var(--ink3);white-space:nowrap">{{ a.rubLabel }}</div>
+                  </div>
+                  <button class="btn btn-s" style="flex:none" onClick="{{ a.edit }}">Изменить</button>
+                </div>
+              </sc-for>
+            </div>
+            </sc-if>
+            <div class="card" style="padding:16px 20px">
+              <div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
+                <span style="font-size:13px;color:var(--ink2)">Чистый капитал</span>
+                <span class="num big" style="font-size:clamp(19px,2vw,24px);white-space:nowrap">{{ totalLabel }}</span>
+              </div>
+            </div>
+            <button class="btn btn-p" style="align-self:flex-start" onClick="{{ openAcc }}">Добавить счёт</button>
+            </div>
+            <div class="card" style="padding:20px 22px">
+              <div class="big" style="font-size:17px">Где лежат деньги</div>
+              <div style="display:flex;flex-direction:column;gap:14px;margin-top:14px">
+                <sc-for list="{{ accountShares }}" as="s" hint-placeholder-count="4">
+                  <div>
+                    <div style="display:flex;justify-content:space-between;font-size:13px">
+                      <span>{{ s.kind }}</span><span class="num" style="color:var(--ink3)">{{ s.pctLabel }}</span>
+                    </div>
+                    <div style="height:8px;margin-top:6px;background:var(--fill);border-radius:980px;overflow:hidden">
+                      <div style="height:8px;background:var(--accent);border-radius:980px;width:{{ s.width }}"></div>
+                    </div>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+          </sc-if>
+
+          <!-- Бюджеты -->
+          <sc-if value="{{ isBudgets }}" hint-placeholder-val="{{ false }}">
+          <div style="padding:6px 28px 32px;display:grid;grid-template-columns:minmax(0,1.45fr) minmax(0,1fr);gap:16px;align-items:start">
+            <div class="card" style="padding:8px 4px 18px">
+              <sc-for list="{{ budgets }}" as="b" hint-placeholder-count="6">
+                <div class="rowline" style="padding:14px 18px;margin:0 4px;border-radius:14px">
+                  <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px">
+                    <span style="font-size:15px">{{ b.cat }}</span>
+                    <span class="num" style="font-size:13px;color:{{ b.textColor }}">{{ b.label }}</span>
+                  </div>
+                  <div style="height:8px;margin-top:9px;background:var(--fill);border-radius:980px;overflow:hidden">
+                    <div style="height:8px;border-radius:980px;background:{{ b.fillColor }};width:{{ b.width }}"></div>
+                  </div>
+                </div>
+              </sc-for>
+              <div style="padding:14px 20px 0"><button class="btn btn-p">Изменить лимиты</button></div>
+            </div>
+            <div class="card" style="padding:20px 22px">
+              <div style="font-size:12px;font-weight:500;color:var(--accent)">Правило</div>
+              <div class="big" style="font-size:17px;margin-top:4px">Уведомлять при 90 % лимита</div>
+              <p style="margin:6px 0 14px;font-size:13px;color:var(--ink2)">Пуш на телефон и пометка категории в сводке. Перерасход переносится в следующий месяц.</p>
+              <div style="display:flex;gap:10px"><button class="btn btn-s">Настроить</button><button class="btn btn-t">Отключить</button></div>
+            </div>
+          </div>
+          </sc-if>
+
+          <!-- Отчёты -->
+          <sc-if value="{{ isReports }}" hint-placeholder-val="{{ false }}">
+          <div style="padding:6px 28px 32px">
+            <div style="display:flex;gap:12px;align-items:center;margin-bottom:16px">
+              <div class="seg">
+                <span class="segopt" data-on="1">Месяц</span>
+                <span class="segopt">Квартал</span>
+                <span class="segopt">Год</span>
+              </div>
+              <button class="btn btn-t">Выгрузить</button>
+            </div>
+            <div class="card" style="padding:6px 18px 14px">
+              <div class="num" style="display:grid;grid-template-columns:minmax(0,1.4fr) repeat(4,minmax(0,1fr));gap:12px;padding:12px 0 10px;font-size:12px;color:var(--ink3);border-bottom:1px solid var(--line)">
+                <span style="font-variant-numeric:normal">Категория</span><span style="text-align:right">Июль</span><span style="text-align:right">Август</span><span style="text-align:right">Сентябрь</span><span style="text-align:right">Среднее</span>
+              </div>
+              <sc-for list="{{ reportRows }}" as="r" hint-placeholder-count="9">
+                <div class="num" style="display:grid;grid-template-columns:minmax(0,1.4fr) repeat(4,minmax(0,1fr));gap:12px;padding:11px 0;font-size:14px;font-weight:{{ r.weight }};border-bottom:1px solid var(--line)">
+                  <span style="font-variant-numeric:normal">{{ r.cat }}</span>
+                  <span style="text-align:right">{{ r.jul }}</span><span style="text-align:right">{{ r.aug }}</span><span style="text-align:right">{{ r.sep }}</span><span style="text-align:right;color:var(--ink2)">{{ r.avg }}</span>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+          </sc-if>
+
+          <!-- Аналитика -->
+          <sc-if value="{{ isCharts }}" hint-placeholder-val="{{ false }}">
+          <div style="padding:6px 28px 32px;display:flex;flex-direction:column;gap:16px">
+            <div class="card" style="padding:14px 18px;display:flex;flex-wrap:wrap;align-items:center;gap:12px">
+              <div style="display:flex;align-items:center;gap:8px">
+                <input class="inp" type="date" style="width:auto" value="{{ anaFrom }}" onChange="{{ onAnaFrom }}">
+                <span style="font-size:13px;color:var(--ink3)">—</span>
+                <input class="inp" type="date" style="width:auto" value="{{ anaTo }}" onChange="{{ onAnaTo }}">
+              </div>
+              <select class="inp" style="width:auto" value="{{ anaPreset }}" onChange="{{ onAnaPreset }}">
+                <sc-for list="{{ periodPresets }}" as="p" hint-placeholder-count="11"><option value="{{ p.value }}">{{ p.label }}</option></sc-for>
+              </select>
+              <span class="num" style="margin-left:auto;font-size:13px;color:var(--ink2)">{{ anaSummary }}</span>
+            </div>
+            <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:16px;align-items:start">
+            <div class="card" style="padding:20px 22px">
+              <div class="big" style="font-size:17px">Траты по категориям</div>
+              <div style="font-size:12px;color:var(--ink3)">{{ anaRangeLabel }}</div>
+              <div style="display:flex;flex-direction:column;gap:16px;margin-top:18px">
+                <sc-for list="{{ catBars }}" as="c" hint-placeholder-count="6">
+                  <div>
+                    <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px">
+                      <span style="font-size:14px">{{ c.cat }}</span>
+                      <span class="num" style="font-size:13px;color:var(--ink2)">{{ c.amountLabel }}</span>
+                    </div>
+                    <div style="height:10px;margin-top:7px;background:var(--fill);border-radius:980px;overflow:hidden">
+                      <div style="height:10px;border-radius:980px;background:var(--accent);width:{{ c.width }}"></div>
+                    </div>
+                    <sc-for list="{{ c.children }}" as="k" hint-placeholder-count="0">
+                      <div style="display:flex;align-items:center;gap:10px;padding-left:14px;margin-top:8px">
+                        <span style="font-size:13px;color:var(--ink2);flex:none">{{ k.cat }}</span>
+                        <div style="flex:1;height:6px;background:var(--fill);border-radius:980px;overflow:hidden">
+                          <div style="height:6px;border-radius:980px;background:#7fb5f0;width:{{ k.width }}"></div>
+                        </div>
+                        <span class="num" style="font-size:12px;color:var(--ink3);white-space:nowrap">{{ k.amountLabel }}</span>
+                      </div>
+                    </sc-for>
+                  </div>
+                </sc-for>
+              </div>
+              <div style="font-size:13px;color:var(--ink3);margin-top:14px;display:{{ noSpendDisplay }}">За выбранный период трат нет.</div>
+            </div>
+            <div class="card" style="padding:20px 22px">
+              <div class="big" style="font-size:17px">Доходы и траты по месяцам</div>
+              <div style="font-size:12px;color:var(--ink3)">{{ anaRangeLabel }}</div>
+              <div style="display:flex;gap:18px;font-size:12px;color:var(--ink2);margin-top:4px">
+                <span style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius:3px;background:var(--accent)"></span>доходы</span>
+                <span style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius:3px;background:#d1d1d6"></span>траты</span>
+              </div>
+              <svg viewBox="0 0 620 210" style="width:100%;height:auto;margin-top:14px" role="img" aria-label="Доходы и траты по месяцам">
+                <sc-for list="{{ monthBars }}" as="m" hint-placeholder-count="6">
+                  <g>
+                    <rect x="{{ m.x1 }}" y="{{ m.y1 }}" width="{{ m.w }}" height="{{ m.h1 }}" rx="6" fill="#0071e3"></rect>
+                    <rect x="{{ m.x2 }}" y="{{ m.y2 }}" width="{{ m.w }}" height="{{ m.h2 }}" rx="6" fill="#d1d1d6"></rect>
+                  </g>
+                </sc-for>
+                <line x1="16" y1="200" x2="604" y2="200" stroke="rgba(0,0,0,.1)"></line>
+              </svg>
+              <div style="display:flex;padding:0 2.6%;margin-top:2px">
+                <sc-for list="{{ monthBars }}" as="m" hint-placeholder-count="6">
+                  <span style="flex:1;text-align:center;font-size:12px;color:var(--ink3)">{{ m.label }}</span>
+                </sc-for>
+              </div>
+              <p style="margin:10px 0 0;font-size:13px;color:var(--ink2);max-width:52ch">{{ anaNote }}</p>
+            </div>
+            </div>
+          </div>
+          </sc-if>
+
+          <!-- Категории -->
+          <sc-if value="{{ isCategories }}" hint-placeholder-val="{{ false }}">
+          <div style="padding:6px 28px 32px;max-width:860px;display:flex;flex-direction:column;gap:14px">
+            <div class="seg" style="align-self:flex-start">
+              <span class="segopt" data-on="{{ catTabExp }}" onClick="{{ showExpenseCats }}">Расходы</span>
+              <span class="segopt" data-on="{{ catTabInc }}" onClick="{{ showIncomeCats }}">Доходы</span>
+            </div>
+            <div class="card" style="padding:6px 4px 10px">
+              <sc-for list="{{ tabCats }}" as="c" hint-placeholder-count="11">
+                <div class="rowline" style="display:flex;align-items:center;gap:8px;padding:11px 14px;margin:0 4px;border-radius:12px">
+                  <div style="flex:1;min-width:0;padding-left:{{ c.indent }}">
+                    <div style="font-size:{{ c.size }};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ c.name }}</div>
+                    <div class="num" style="font-size:12px;color:var(--ink3)">{{ c.meta }}</div>
+                  </div>
+                  <button class="btn btn-t" style="flex:none;display:{{ c.addDisplay }}" onClick="{{ c.addChild }}">+ подкатегория</button>
+                  <button class="btn btn-s" style="flex:none" onClick="{{ c.edit }}">Изменить</button>
+                  <button class="btn btn-t" style="flex:none;color:var(--neg)" onClick="{{ c.del }}">Удалить</button>
+                </div>
+              </sc-for>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px">
+              <button class="btn btn-p" onClick="{{ openNewTabCat }}">{{ addCatLabel }}</button>
+              <span style="font-size:13px;color:var(--ink3)">«Изменить» позволяет перенести категорию к другому родителю внутри своего типа</span>
+            </div>
+          </div>
+          </sc-if>
+
+          <!-- Настройки -->
+          <sc-if value="{{ isSettings }}" hint-placeholder-val="{{ false }}">
+          <div style="padding:6px 28px 32px;max-width:620px;display:flex;flex-direction:column;gap:16px">
+            <div class="card" style="padding:20px 22px;display:flex;flex-direction:column;gap:18px">
+              <div><span class="lbl">Основная валюта</span><input class="inp" value="Российский рубль (₽)" readOnly="{{ true }}"></div>
+              <div><span class="lbl">Начало финансового месяца</span>
+                <div class="seg"><span class="segopt" data-on="1">1-е число</span><span class="segopt">День зарплаты</span></div>
+              </div>
+              <div><span class="lbl">Округление сумм</span>
+                <div class="seg"><span class="segopt" data-on="1">До рубля</span><span class="segopt">С копейками</span></div>
+              </div>
+            </div>
+            <div class="card" style="padding:20px 22px;display:flex;flex-direction:column;gap:18px">
+              <div><span class="lbl">Напоминание вносить операции</span><input class="inp" value="Каждый день в 21:00" readOnly="{{ true }}"></div>
+              <div><span class="lbl">Данные</span>
+                <div style="display:flex;gap:10px;margin-top:2px"><button class="btn btn-s">Выгрузить .csv</button><button class="btn btn-t">Резервная копия</button></div>
+              </div>
+            </div>
+          </div>
+          </sc-if>
+        </div>
+      </div>
+    </div>
+    </sc-if>
+
+    <!-- мобильные экраны -->
+    <sc-if value="{{ isMobile }}" hint-placeholder-val="{{ false }}">
+    <div style="display:flex;flex-wrap:wrap;gap:40px;justify-content:center">
+      <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" title="Сводка" hint-size="390px,844px">
+        <div style="padding:16px 16px 30px">
+          <div style="font-size:13px;color:var(--ink2)">Свободные деньги</div>
+          <div class="num big" style="font-size:38px;margin-top:2px">{{ freeLabel }}</div>
+          <div style="display:flex;gap:10px;margin-top:14px">
+            <div class="card" style="flex:1;padding:12px 14px">
+              <div style="font-size:12px;color:var(--ink3)">доход</div>
+              <div class="num big" style="font-size:17px;color:var(--pos)">{{ incomeLabel }}</div>
+            </div>
+            <div class="card" style="flex:1;padding:12px 14px">
+              <div style="font-size:12px;color:var(--ink3)">расход</div>
+              <div class="num big" style="font-size:17px">{{ expenseLabel }}</div>
+            </div>
+          </div>
+          <div class="big" style="font-size:17px;margin:20px 0 8px">Операции</div>
+          <div class="card" style="padding:4px">
+            <sc-for list="{{ recent }}" as="t" hint-placeholder-count="5">
+              <div class="rowline" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:14px">
+                <div style="flex:1;min-width:0">
+                  <div style="font-size:15px">{{ t.title }}</div>
+                  <div class="num" style="font-size:12px;color:var(--ink3)">{{ t.dateLabel }} · {{ t.cat }}</div>
+                </div>
+                <div class="num" style="font-size:15px;font-weight:500;white-space:nowrap;color:{{ t.color }}">{{ t.amountLabel }}</div>
+              </div>
+            </sc-for>
+          </div>
+          <button class="btn btn-p" style="width:100%;margin-top:18px;padding:13px">Новая операция</button>
+        </div>
+      </x-import>
+
+      <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" title="Новая операция" hint-size="390px,844px">
+        <div style="padding:16px 16px 30px">
+          <div class="seg" style="width:100%">
+            <span class="segopt" data-on="1" style="flex:1;text-align:center">Расход</span>
+            <span class="segopt" style="flex:1;text-align:center">Доход</span>
+          </div>
+          <div class="num big" style="font-size:46px;text-align:center;margin:28px 0 2px">1 240 ₽</div>
+          <div style="text-align:center;font-size:13px;color:var(--ink3)">Тинькофф Black</div>
+          <div class="big" style="font-size:15px;margin:24px 0 8px">Категория</div>
+          <div style="display:flex;flex-wrap:wrap;gap:8px">
+            <span class="chip" data-on="1">Продукты</span><span class="chip">Кафе</span><span class="chip">Транспорт</span><span class="chip">Жильё</span><span class="chip">Здоровье</span><span class="chip">Подписки</span>
+          </div>
+          <div class="big" style="font-size:15px;margin:22px 0 8px">Дата</div>
+          <div style="display:flex;gap:8px"><span class="chip" data-on="1">сегодня</span><span class="chip">вчера</span><span class="chip">выбрать…</span></div>
+          <button class="btn btn-p" style="width:100%;margin-top:26px;padding:13px">Сохранить</button>
+        </div>
+      </x-import>
+
+      <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" title="Бюджеты" hint-size="390px,844px">
+        <div style="padding:16px 16px 30px">
+          <div class="card" style="padding:8px 4px">
+            <sc-for list="{{ budgets }}" as="b" hint-placeholder-count="6">
+              <div class="rowline" style="padding:13px 14px;border-radius:14px">
+                <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px">
+                  <span style="font-size:15px">{{ b.cat }}</span>
+                  <span class="num" style="font-size:12px;color:{{ b.textColor }}">{{ b.label }}</span>
+                </div>
+                <div style="height:8px;margin-top:8px;background:var(--fill);border-radius:980px;overflow:hidden">
+                  <div style="height:8px;border-radius:980px;background:{{ b.fillColor }};width:{{ b.width }}"></div>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </x-import>
+    </div>
+    </sc-if>
+
+    <!-- диалог: новая операция -->
+    <sc-if value="{{ opDialog }}" hint-placeholder-val="{{ false }}">
+    <div style="position:fixed;inset:0;display:grid;place-items:start center;padding:24px;overflow:auto;background:rgba(0,0,0,.28);backdrop-filter:blur(6px)" onClick="{{ close }}">
+      <div class="card" style="width:min(540px,100%);max-height:calc(100vh - 48px);overflow-y:auto;padding:24px;border-radius:22px;box-shadow:0 24px 60px rgba(0,0,0,.22)" onClick="{{ stop }}">
+        <div class="big" style="font-size:21px">Новая операция</div>
+        <div class="seg" style="margin-top:14px">
+          <span class="segopt" data-on="{{ expOn }}" onClick="{{ setExpense }}">Расход</span>
+          <span class="segopt" data-on="{{ incOn }}" onClick="{{ setIncome }}">Доход</span>
+          <span class="segopt" data-on="{{ trOn }}" onClick="{{ setTransfer }}">Перевод</span>
+        </div>
+        <sc-if value="{{ isTransfer }}" hint-placeholder-val="{{ false }}">
+          <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px;margin-top:16px">
+            <div><span class="lbl">Списать, {{ fromSym }}</span><input class="inp" value="{{ amount }}" onChange="{{ onAmount }}" placeholder="0"></div>
+            <div><span class="lbl">Со счёта</span>
+              <select class="inp" value="{{ acc }}" onChange="{{ onAcc }}">
+                <sc-for list="{{ accountOptions }}" as="o" hint-placeholder-count="5"><option value="{{ o.value }}">{{ o.label }}</option></sc-for>
+              </select>
+            </div>
+            <div><span class="lbl">Зачислить, {{ toSym }}</span><input class="inp" value="{{ receiveAmount }}" onChange="{{ onReceive }}" placeholder="0"></div>
+            <div><span class="lbl">На счёт</span>
+              <select class="inp" value="{{ accTo }}" onChange="{{ onAccTo }}">
+                <sc-for list="{{ accountOptions }}" as="o" hint-placeholder-count="5"><option value="{{ o.value }}">{{ o.label }}</option></sc-for>
+              </select>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--fill);border-radius:14px;padding:12px 14px;margin-top:12px">
+            <span style="font-size:13px;color:var(--ink2)">Курс сделки</span>
+            <span class="num" style="font-size:14px;font-weight:500;white-space:nowrap;color:{{ rateColor }}">{{ rateLabel }}</span>
+          </div>
+        </sc-if>
+        <sc-if value="{{ showCats }}" hint-placeholder-val="{{ true }}">
+        <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px;margin-top:16px">
+          <div><span class="lbl">{{ amountLabel }}</span><input class="inp" value="{{ amount }}" onChange="{{ onAmount }}" placeholder="0"></div>
+          <div><span class="lbl">Счёт</span>
+            <select class="inp" value="{{ acc }}" onChange="{{ onAcc }}">
+              <sc-for list="{{ accountOptions }}" as="o" hint-placeholder-count="5"><option value="{{ o.value }}">{{ o.label }}</option></sc-for>
+            </select>
+          </div>
+        </div>
+        </sc-if>
+        <div style="margin-top:14px"><span class="lbl">Назначение</span><input class="inp" value="{{ note }}" onChange="{{ onNote }}" placeholder="например, продукты на неделю"></div>
+        <sc-if value="{{ showCats }}" hint-placeholder-val="{{ true }}">
+        <div style="margin-top:14px"><span class="lbl">Категория</span>
+          <div style="display:flex;flex-wrap:wrap;gap:8px">
+            <sc-for list="{{ catChips }}" as="c" hint-placeholder-count="6">
+              <span class="chip" data-on="{{ c.on }}" onClick="{{ c.pick }}">{{ c.name }}</span>
+            </sc-for>
+          </div>
+        </div>
+        </sc-if>
+        <div style="margin-top:16px"><span class="lbl">Дата — {{ dateLabel }}</span>
+          <div style="background:var(--fill);border-radius:16px;padding:12px">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+              <button class="btn btn-t" onClick="{{ prevMonth }}">‹</button>
+              <span class="big" style="font-size:15px">{{ monthLabel }}</span>
+              <button class="btn btn-t" onClick="{{ nextMonth }}">›</button>
+            </div>
+            <div class="num" style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;font-size:11px;color:var(--ink3);text-align:center;margin-bottom:4px">
+              <span>пн</span><span>вт</span><span>ср</span><span>чт</span><span>пт</span><span>сб</span><span>вс</span>
+            </div>
+            <div class="num" style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px">
+              <sc-for list="{{ days }}" as="d" hint-placeholder-count="35">
+                <span class="day" data-on="{{ d.on }}" onClick="{{ d.pick }}" style="text-align:center;font-size:13px;padding:7px 0;border-radius:980px;cursor:{{ d.cursor }}">{{ d.label }}</span>
+              </sc-for>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px">
+          <button class="btn btn-s" onClick="{{ close }}">Отмена</button>
+          <button class="btn btn-p" onClick="{{ saveOp }}">Сохранить</button>
+        </div>
+      </div>
+    </div>
+    </sc-if>
+
+    <!-- диалог: счёт -->
+    <sc-if value="{{ accDialog }}" hint-placeholder-val="{{ false }}">
+    <div style="position:fixed;inset:0;display:grid;place-items:start center;padding:24px;overflow:auto;background:rgba(0,0,0,.28);backdrop-filter:blur(6px)" onClick="{{ close }}">
+      <div class="card" style="width:min(440px,100%);max-height:calc(100vh - 48px);overflow-y:auto;padding:24px;border-radius:22px;box-shadow:0 24px 60px rgba(0,0,0,.22)" onClick="{{ stop }}">
+        <div class="big" style="font-size:21px">{{ accDialogTitle }}</div>
+        <div style="margin-top:16px"><span class="lbl">Название</span><input class="inp" value="{{ accName }}" onChange="{{ onAccName }}" placeholder="Например, Сбербанк"></div>
+        <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px;margin-top:14px">
+          <div><span class="lbl">Тип</span>
+            <select class="inp" value="{{ accKind }}" onChange="{{ onAccKind }}">
+              <option value="Карта">Карта</option><option value="Наличные">Наличные</option>
+              <option value="Вклад">Вклад</option><option value="Инвестиции">Инвестиции</option>
+              <option value="Криптокошелёк">Криптокошелёк</option><option value="Кредит">Кредит</option>
+            </select>
+          </div>
+          <div><span class="lbl">Валюта</span>
+            <select class="inp" value="{{ accCur }}" onChange="{{ onAccCur }}">
+              <sc-for list="{{ currencyOptions }}" as="o" hint-placeholder-count="8"><option value="{{ o.value }}">{{ o.label }}</option></sc-for>
+            </select>
+          </div>
+        </div>
+        <div style="margin-top:14px"><span class="lbl">{{ accBalanceLabel }}</span><input class="inp" value="{{ accBalance }}" onChange="{{ onAccBalance }}" placeholder="0">
+          <div style="font-size:12px;color:var(--ink3);margin-top:6px">{{ accConvertHint }}</div>
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px">
+          <button class="btn btn-s" onClick="{{ close }}">Отмена</button>
+          <button class="btn btn-p" onClick="{{ saveAcc }}">Сохранить</button>
+        </div>
+      </div>
+    </div>
+    </sc-if>
+
+    <!-- диалог: категория -->
+    <sc-if value="{{ catDialog }}" hint-placeholder-val="{{ false }}">
+    <div style="position:fixed;inset:0;display:grid;place-items:start center;padding:24px;overflow:auto;background:rgba(0,0,0,.28);backdrop-filter:blur(6px)" onClick="{{ close }}">
+      <div class="card" style="width:min(440px,100%);max-height:calc(100vh - 48px);overflow-y:auto;padding:24px;border-radius:22px;box-shadow:0 24px 60px rgba(0,0,0,.22)" onClick="{{ stop }}">
+        <div class="big" style="font-size:21px">{{ catDialogTitle }}</div>
+        <div style="margin-top:16px"><span class="lbl">Название</span><input class="inp" value="{{ catName }}" onChange="{{ onCatName }}" placeholder="Например, Футбол"></div>
+        <div style="margin-top:14px"><span class="lbl">Родительская категория</span>
+          <select class="inp" value="{{ catParent }}" onChange="{{ onCatParent }}">
+            <sc-for list="{{ catParentOptions }}" as="o" hint-placeholder-count="6"><option value="{{ o.value }}">{{ o.label }}</option></sc-for>
+          </select>
+        </div>
+        <div style="margin-top:14px"><span class="lbl">Тип</span>
+          <div class="seg">
+            <span class="segopt" data-on="{{ catKindExp }}" onClick="{{ setCatKindExpense }}">Расход</span>
+            <span class="segopt" data-on="{{ catKindInc }}" onClick="{{ setCatKindIncome }}">Доход</span>
+          </div>
+          <div style="font-size:12px;color:var(--ink3);margin-top:6px">Тип применяется ко всем вложенным категориям</div>
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px">
+          <button class="btn btn-s" onClick="{{ close }}">Отмена</button>
+          <button class="btn btn-p" onClick="{{ saveCat }}">Сохранить</button>
+        </div>
+      </div>
+    </div>
+    </sc-if>
+
+    <!-- диалог: экспорт / импорт -->
+    <sc-if value="{{ dataDialog }}" hint-placeholder-val="{{ false }}">
+    <div style="position:fixed;inset:0;display:grid;place-items:start center;padding:24px;overflow:auto;background:rgba(0,0,0,.28);backdrop-filter:blur(6px)" onClick="{{ close }}">
+      <div class="card" style="width:min(680px,100%);max-height:calc(100vh - 48px);overflow-y:auto;padding:24px;border-radius:22px;box-shadow:0 24px 60px rgba(0,0,0,.22)" onClick="{{ stop }}">
+        <div class="big" style="font-size:21px">Данные операций</div>
+        <div class="seg" style="margin-top:14px">
+          <span class="segopt" data-on="{{ dataExpOn }}" onClick="{{ showExport }}">Экспорт</span>
+          <span class="segopt" data-on="{{ dataImpOn }}" onClick="{{ showImport }}">Импорт</span>
+        </div>
+        <div style="margin-top:14px"><span class="lbl">{{ dataFieldLabel }}</span>
+          <textarea class="inp" style="height:260px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;line-height:1.5;resize:vertical" value="{{ dataText }}" onChange="{{ onDataText }}" placeholder="дата;назначение;категория;счёт;сумма"></textarea>
+          <div style="font-size:12px;color:{{ dataHintColor }};margin-top:6px">{{ dataHint }}</div>
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px">
+          <button class="btn btn-s" onClick="{{ close }}">Закрыть</button>
+          <button class="btn btn-p" onClick="{{ dataAction }}">{{ dataActionLabel }}</button>
+        </div>
+      </div>
+    </div>
+    </sc-if>
+
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;platform&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Десктоп&quot;,&quot;Мобильный&quot;],&quot;default&quot;:&quot;Десктоп&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;showForecast&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;}}">
+const CATS = ["Продукты","Кафе и доставка","Транспорт","Жильё и связь","Здоровье","Подписки","Одежда","Развлечения"];
+const INCOME_CATS = ["Зарплата","Подработка","Проценты","Возврат"];
+const REPORT = [
+  ["Продукты", "24 100", "22 780", "18 940", "21 940", 400],
+  ["Жильё и связь", "31 500", "31 500", "31 500", "31 500", 400],
+  ["Транспорт", "7 400", "9 120", "6 250", "7 590", 400],
+  ["Кафе и доставка", "12 800", "15 640", "9 480", "12 640", 400],
+  ["Здоровье", "4 200", "0", "7 800", "4 000", 400],
+  ["Подписки", "2 190", "2 190", "2 190", "2 190", 400],
+  ["Всего расходов", "82 190", "81 230", "76 160", "79 860", 600],
+  ["Доходы", "142 000", "142 000", "167 000", "150 330", 600],
+  ["Отложено", "59 810", "60 770", "90 840", "70 470", 600]
+];
+
+const CUR = {
+  RUB: { sym: "₽", rate: 1, label: "Рубль · ₽" },
+  USD: { sym: "$", rate: 92, label: "Доллар · $" },
+  EUR: { sym: "€", rate: 100, label: "Евро · €" },
+  USDT: { sym: "USDT", rate: 92, label: "Tether · USDT" },
+  BTC: { sym: "BTC", rate: 5_400_000, label: "Bitcoin · BTC" },
+  ETH: { sym: "ETH", rate: 290_000, label: "Ethereum · ETH" },
+  TON: { sym: "TON", rate: 480, label: "Toncoin · TON" }
+};
+
+const TODAY = "2026-09-14";
+const HIST_MONTHS = [
+  { m: "2026-04", income: [["Зарплата", 142000]], spend: [["Продукты", 23400], ["Жильё и связь", 31500], ["Транспорт", 6800], ["Кафе и доставка", 9700], ["Подписки", 2190], ["Футбол", 4500], ["Одежда", 310]] },
+  { m: "2026-05", income: [["Зарплата", 142000], ["Вёрстка сайтов", 6000]], spend: [["Продукты", 25100], ["Жильё и связь", 31500], ["Транспорт", 7300], ["Кафе и доставка", 11800], ["Подписки", 2190], ["Футбол", 4500], ["Здоровье", 210]] },
+  { m: "2026-06", income: [["Зарплата", 142000]], spend: [["Продукты", 26800], ["Жильё и связь", 31500], ["Транспорт", 8100], ["Кафе и доставка", 12400], ["Подписки", 2190], ["Хоккей", 4800], ["Одежда", 310]] },
+  { m: "2026-07", income: [["Зарплата", 142000]], spend: [["Продукты", 24100], ["Жильё и связь", 31500], ["Транспорт", 7400], ["Кафе и доставка", 12800], ["Здоровье", 4200], ["Подписки", 2190]] },
+  { m: "2026-08", income: [["Зарплата", 142000]], spend: [["Продукты", 22780], ["Жильё и связь", 31500], ["Транспорт", 9120], ["Кафе и доставка", 15640], ["Подписки", 2190]] }
+];
+const HIST_TXS = HIST_MONTHS.reduce((acc, mo) => {
+  mo.income.forEach(([c, v], i) => acc.push({ d: mo.m + "-1" + i, t: c, c, a: "Тинькофф Black", v }));
+  mo.spend.forEach(([c, v], i) => acc.push({ d: mo.m + "-" + String(4 + i * 3).padStart(2, "0"), t: c, c, a: "Тинькофф Black", v: -v }));
+  return acc;
+}, []);
+
+class Component extends DCLogic {
+  state = {
+    screen: "summary", dialog: null, editIndex: null, groupBy: "none", opsY: 2026, opsM: 8, opsDate: null,
+    filter: "all", query: "",
+    type: "expense", amount: "", note: "", cat: "Продукты", acc: "Тинькофф Black",
+    date: "2026-09-14", calY: 2026, calM: 8,
+    accName: "", accKind: "Карта", accBalance: "", accCur: "RUB", accTo: "Накопительный счёт", receive: "", receiveTouched: false,
+    catId: null, catName: "", catParent: "", catKind: "expense", catTab: "expense",
+    anaPreset: "month", anaFrom: "2026-09-01", anaTo: TODAY,
+    dataMode: "export", dataText: "", dataMsg: "",
+    cats: [
+      { id: 1, name: "Продукты", parent: null, kind: "expense" },
+      { id: 2, name: "Кафе и доставка", parent: null, kind: "expense" },
+      { id: 3, name: "Транспорт", parent: null, kind: "expense" },
+      { id: 4, name: "Жильё и связь", parent: null, kind: "expense" },
+      { id: 5, name: "Здоровье", parent: null, kind: "expense" },
+      { id: 6, name: "Подписки", parent: null, kind: "expense" },
+      { id: 7, name: "Спорт", parent: null, kind: "expense" },
+      { id: 8, name: "Футбол", parent: 7, kind: "expense" },
+      { id: 9, name: "Хоккей", parent: 7, kind: "expense" },
+      { id: 10, name: "Баскетбол", parent: 7, kind: "expense" },
+      { id: 11, name: "Одежда", parent: null, kind: "expense" },
+      { id: 14, name: "Накопления", parent: null, kind: "expense" },
+      { id: 12, name: "Зарплата", parent: null, kind: "income" },
+      { id: 13, name: "Подработка", parent: null, kind: "income" },
+      { id: 15, name: "Вёрстка сайтов", parent: 13, kind: "income" },
+      { id: 16, name: "Фотосъёмка", parent: 13, kind: "income" },
+      { id: 17, name: "Проценты по вкладу", parent: null, kind: "income" }
+    ],
+    accounts: [
+      { name: "Тинькофф Black", kind: "Карта", balance: 84300, cur: "RUB" },
+      { name: "Наличные", kind: "Наличные", balance: 12500, cur: "RUB" },
+      { name: "Накопительный счёт", kind: "Вклад", balance: 640000, cur: "RUB" },
+      { name: "Брокерский счёт", kind: "Инвестиции", balance: 312400, cur: "RUB" },
+      { name: "Валютный вклад", kind: "Вклад", balance: 2400, cur: "USD" },
+      { name: "Криптокошелёк", kind: "Криптокошелёк", balance: 0.14, cur: "BTC" },
+      { name: "Кредитная карта", kind: "Кредит", balance: -18200, cur: "RUB" }
+    ],
+    txs: [
+      { d: "2026-09-14", t: "Пятёрочка, продукты", c: "Продукты", a: "Тинькофф Black", v: -2340 },
+      { d: "2026-09-13", t: "Подработка, вёрстка сайта", c: "Подработка", a: "Тинькофф Black", v: 25000 },
+      { d: "2026-09-12", t: "Метро, месячный проезд", c: "Транспорт", a: "Тинькофф Black", v: -2900 },
+      { d: "2026-09-11", t: "Кофейня на Мясницкой", c: "Кафе и доставка", a: "Наличные", v: -620 },
+      { d: "2026-09-10", t: "Зарплата за сентябрь", c: "Зарплата", a: "Тинькофф Black", v: 142000 },
+      { d: "2026-09-09", t: "Квартплата и интернет", c: "Жильё и связь", a: "Тинькофф Black", v: -31500 },
+      { d: "2026-09-08", t: "Футбольная секция, сентябрь", c: "Футбол", a: "Тинькофф Black", v: -4500 },
+      { d: "2026-09-07", t: "Аптека", c: "Здоровье", a: "Тинькофф Black", v: -1840 },
+      { d: "2026-09-06", t: "Аренда льда, хоккей", c: "Хоккей", a: "Наличные", v: -2800 },
+      { d: "2026-09-05", t: "Перевод на накопительный", c: "Перевод", a: "Тинькофф Black", to: "Накопительный счёт", v: 40000, type: "transfer" },
+      { d: "2026-09-05", t: "Покупка USDT", c: "Перевод", a: "Тинькофф Black", to: "Криптокошелёк", v: 15000, type: "transfer" },
+      { d: "2026-09-04", t: "Доставка ужина", c: "Кафе и доставка", a: "Тинькофф Black", v: -1490 },
+      { d: "2026-09-03", t: "Подписки: музыка, облако", c: "Подписки", a: "Кредитная карта", v: -2190 },
+      { d: "2026-09-02", t: "Вкусвилл", c: "Продукты", a: "Тинькофф Black", v: -3120 }
+    ].concat(HIST_TXS)
+  };
+
+  fmt(n, cur) {
+    const c = CUR[cur || "RUB"];
+    const crypto = ["BTC", "ETH", "TON", "USDT"].indexOf(cur) !== -1;
+    const abs = Math.abs(n);
+    const s = crypto
+      ? abs.toLocaleString("ru-RU", { maximumFractionDigits: abs < 1 ? 5 : 3 }).replace(/\u00a0/g, " ")
+      : Math.round(abs).toLocaleString("ru-RU").replace(/\u00a0/g, " ");
+    return s + " " + c.sym;
+  }
+  money(n, cur) { return (n < 0 ? "−" : "") + this.fmt(n, cur); }
+  signed(n, cur) { return (n < 0 ? "−" : "+") + this.fmt(n, cur); }
+  toCsv() {
+    const rows = [["дата", "назначение", "категория", "счёт", "сумма", "валюта", "тип", "на счёт"]].concat(
+      this.state.txs.slice().sort((a, b) => (a.d < b.d ? 1 : -1)).map(t => [
+        t.d, t.t, t.c, t.a, String(t.v).replace(".", ","), this.curOf(t.a),
+        t.type === "transfer" ? "перевод" : (t.v > 0 ? "доход" : "расход"),
+        t.to || ""
+      ])
+    );
+    return rows.map(r => r.join(";")).join("\n");
+  }
+  download() {
+    const blob = new Blob(["\ufeff" + this.toCsv()], { type: "text/csv;charset=utf-8" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "vedomost-operacii.csv";
+    a.click();
+    URL.revokeObjectURL(a.href);
+    this.setState({ dataMsg: "Файл выгружен: vedomost-operacii.csv" });
+  }
+  importCsv() {
+    const lines = String(this.state.dataText).split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+    const added = [];
+    lines.forEach(line => {
+      const p = line.split(/[;\t]/).map(s => s.trim());
+      if (p.length < 5 || !/^\d{4}-\d{2}-\d{2}$/.test(p[0])) return;
+      const v = parseFloat(p[4].replace(/\s/g, "").replace(",", "."));
+      if (!v && v !== 0) return;
+      const transfer = (p[6] || "").toLowerCase() === "перевод";
+      added.push(transfer
+        ? { d: p[0], t: p[1] || "Перевод", c: "Перевод", a: p[3], to: p[7] || "", v: Math.abs(v), type: "transfer" }
+        : { d: p[0], t: p[1] || p[2], c: p[2], a: p[3], v });
+    });
+    if (!added.length) { this.setState({ dataMsg: "Не найдено ни одной строки в нужном формате." }); return; }
+    const accounts = this.state.accounts.slice();
+    const cats = this.state.cats.slice();
+    added.forEach(t => {
+      if (t.a && !accounts.some(a => a.name === t.a)) accounts.push({ name: t.a, kind: "Карта", balance: 0, cur: "RUB" });
+      if (t.to && !accounts.some(a => a.name === t.to)) accounts.push({ name: t.to, kind: "Карта", balance: 0, cur: "RUB" });
+      if (t.type !== "transfer" && !cats.some(c => c.name === t.c)) {
+        cats.push({ id: Math.max(0, ...cats.map(c => c.id)) + 1, name: t.c, parent: null, kind: t.v > 0 ? "income" : "expense" });
+      }
+    });
+    const bal = {};
+    accounts.forEach(a => { bal[a.name] = a.balance; });
+    const curOf = n => { const a = accounts.find(x => x.name === n); return (a && a.cur) || "RUB"; };
+    added.forEach(t => {
+      if (t.type === "transfer") {
+        if (bal[t.a] === undefined || bal[t.to] === undefined) return;
+        const got = t.got !== undefined ? t.got : (t.v * CUR[curOf(t.a)].rate) / CUR[curOf(t.to)].rate;
+        bal[t.a] -= t.v;
+        bal[t.to] += got;
+        t.got = got;
+        t.gotCur = curOf(t.to);
+      } else if (bal[t.a] !== undefined) {
+        bal[t.a] += t.v;
+      }
+    });
+    const withBalances = accounts.map(a => ({ ...a, balance: bal[a.name] }));
+    const txs = added.concat(this.state.txs).sort((a, b) => (a.d < b.d ? 1 : -1));
+    this.setState({ txs, accounts: withBalances, cats, dataMsg: "Загружено операций: " + added.length + ". Балансы счетов обновлены." });
+  }
+  presets() {
+    const iso = d => d.toISOString().slice(0, 10);
+    const base = new Date(TODAY + "T00:00:00Z");
+    const shift = n => { const d = new Date(base); d.setUTCDate(d.getUTCDate() + n); return iso(d); };
+    const y = base.getUTCFullYear(), m = base.getUTCMonth();
+    const monthStart = (yy, mm) => iso(new Date(Date.UTC(yy, mm, 1)));
+    const monthEnd = (yy, mm) => iso(new Date(Date.UTC(yy, mm + 1, 0)));
+    const weekStart = (() => { const d = new Date(base); d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7)); return iso(d); })();
+    return [
+      { id: "today", label: "Сегодня", from: TODAY, to: TODAY },
+      { id: "yesterday", label: "Вчера", from: shift(-1), to: shift(-1) },
+      { id: "week", label: "Эта неделя", from: weekStart, to: TODAY },
+      { id: "d7", label: "Последние 7 дней", from: shift(-6), to: TODAY },
+      { id: "d30", label: "Последние 30 дней", from: shift(-29), to: TODAY },
+      { id: "d90", label: "Последние 90 дней", from: shift(-89), to: TODAY },
+      { id: "month", label: "Этот месяц", from: monthStart(y, m), to: TODAY },
+      { id: "prevMonth", label: "Прошлый месяц", from: monthStart(y, m - 1), to: monthEnd(y, m - 1) },
+      { id: "year", label: "Этот год", from: monthStart(y, 0), to: TODAY },
+      { id: "prevYear", label: "Прошлый год", from: monthStart(y - 1, 0), to: monthEnd(y - 1, 11) }
+    ];
+  }
+  rangeLabel(from, to) {
+    const M = ["января","февраля","марта","апреля","мая","июня","июля","августа","сентября","октября","ноября","декабря"];
+    const f = from.split("-"), t = to.split("-");
+    const d = (p, withYear) => Number(p[2]) + " " + M[Number(p[1]) - 1] + (withYear ? " " + p[0] : "");
+    return d(f, f[0] !== t[0]) + " — " + d(t, true);
+  }
+  sig(n) {
+    return n.toLocaleString("ru-RU", { maximumSignificantDigits: 6, maximumFractionDigits: n >= 1000 ? 0 : 6 }).replace(/\u00a0/g, " ");
+  }
+  num(x) { return Math.abs(parseFloat(String(x).replace(/[^\d.,-]/g, "").replace(",", "."))) || 0; }
+  autoReceive() {
+    const st = this.state;
+    const from = this.curOf(st.acc), to = this.curOf(st.accTo);
+    const v = this.num(st.amount);
+    if (!v) return "";
+    const conv = this.toRub(v, from) / CUR[to].rate;
+    return String(Number(conv.toFixed(["BTC", "ETH", "TON"].indexOf(to) !== -1 ? 6 : 2)));
+  }
+  curOf(name) { const a = this.state.accounts.find(x => x.name === name); return (a && a.cur) || "RUB"; }
+  toRub(n, cur) { return n * CUR[cur || "RUB"].rate; }
+  dayLabel(iso) { const p = iso.split("-"); return p[2] + "." + p[1]; }
+  set(k, v) { this.setState({ [k]: v }); }
+
+  monthCells(y, m, selected, marks) {
+    const lead = (new Date(y, m, 1).getDay() + 6) % 7;
+    const len = new Date(y, m + 1, 0).getDate();
+    const cells = [];
+    for (let i = 0; i < lead; i++) cells.push({ key: y + "-" + m + "-b" + i, label: "", blank: true });
+    for (let d = 1; d <= len; d++) {
+      const iso = y + "-" + String(m + 1).padStart(2, "0") + "-" + String(d).padStart(2, "0");
+      cells.push({ key: iso, label: String(d), iso, sel: iso === selected, marked: marks ? !!marks[iso] : false });
+    }
+    return cells;
+  }
+
+  calendarCells() {
+    const y = this.state.calY, m = this.state.calM;
+    const lead = (new Date(y, m, 1).getDay() + 6) % 7;
+    const len = new Date(y, m + 1, 0).getDate();
+    const cells = [];
+    for (let i = 0; i < lead; i++) cells.push({ key: "b" + i, label: "", blank: true });
+    for (let d = 1; d <= len; d++) {
+      const iso = y + "-" + String(m + 1).padStart(2, "0") + "-" + String(d).padStart(2, "0");
+      cells.push({ key: iso, label: String(d), iso, sel: iso === this.state.date });
+    }
+    return cells.map(c => ({
+      key: c.key, label: c.label,
+      cursor: c.blank ? "default" : "pointer",
+      on: c.sel ? "1" : "0",
+      pick: c.blank ? null : () => this.setState({ date: c.iso })
+    }));
+  }
+
+  renderVals() {
+    const st = this.state;
+    const titles = {
+      summary: ["Сводка", "сентябрь 2026 · прошло 14 дней"],
+      ops: ["Операции", "сентябрь 2026"],
+      accounts: ["Счета и активы", st.accounts.length + " счетов · рубли, валюта и крипто"],
+      budgets: ["Бюджеты и лимиты", "сентябрь 2026"],
+      reports: ["Отчёт по тратам и доходам", "июль — сентябрь, по категориям"],
+      charts: ["Аналитика", "категории и динамика"],
+      categories: ["Категории", st.cats.length + " категорий · вложенность до четырёх уровней"],
+      settings: ["Настройки", "учёт и напоминания"]
+    };
+    const nav = [
+      ["summary","Сводка"],["ops","Операции"],["accounts","Счета"],["budgets","Бюджеты"],
+      ["reports","Отчёты"],["charts","Аналитика"],["categories","Категории"],["settings","Настройки"]
+    ].map(([id, label]) => ({
+      key: id, label, on: st.screen === id ? "1" : "0",
+      go: e => { e.preventDefault(); this.setState({ screen: id }); }
+    }));
+
+    const accounts = st.accounts.map((a, i) => ({
+      key: a.name + i, name: a.name,
+      kind: a.cur === "RUB" ? a.kind : a.kind + " · " + a.cur,
+      balanceLabel: this.money(a.balance, a.cur),
+      rubLabel: a.cur === "RUB" ? "" : "≈ " + this.money(this.toRub(a.balance, a.cur)),
+      color: a.balance < 0 ? "var(--neg)" : "var(--ink)",
+      edit: () => this.setState({ dialog: "acc", editIndex: i, accName: a.name, accKind: a.kind, accBalance: String(a.balance), accCur: a.cur || "RUB" })
+    }));
+    const rub = a => this.toRub(a.balance, a.cur);
+    const total = st.accounts.reduce((s, a) => s + rub(a), 0);
+    const free = st.accounts.filter(a => a.kind === "Карта" || a.kind === "Наличные").reduce((s, a) => s + rub(a), 0);
+    const inRub = t => this.toRub(t.v, this.curOf(t.a));
+    const flow = st.txs.filter(t => t.type !== "transfer" && t.d.startsWith("2026-09"));
+    const income = flow.filter(t => t.v > 0).reduce((s, t) => s + inRub(t), 0);
+    const expense = flow.filter(t => t.v < 0).reduce((s, t) => s - inRub(t), 0);
+
+    const catPath = name => {
+      let node = st.cats.find(c => c.name === name);
+      if (!node) return name;
+      const parts = [node.name];
+      let p = node.parent;
+      while (p !== null && p !== undefined) {
+        const par = st.cats.find(c => c.id === p);
+        if (!par) break;
+        parts.unshift(par.name);
+        p = par.parent;
+      }
+      return parts.join(" › ");
+    };
+    const shapeTx = (t, i) => ({
+      key: t.d + i + t.t, dateLabel: this.dayLabel(t.d), title: t.t,
+      cat: t.c,
+      catPath: t.type === "transfer" ? "Перевод" : catPath(t.c),
+      acc: t.type === "transfer" ? t.a + " → " + t.to : t.a,
+      amountLabel: t.type === "transfer"
+        ? (t.gotCur && t.gotCur !== this.curOf(t.a)
+            ? this.fmt(t.v, this.curOf(t.a)) + " → " + this.fmt(t.got, t.gotCur)
+            : this.fmt(t.v, this.curOf(t.a)))
+        : this.signed(t.v, this.curOf(t.a)),
+      color: t.type === "transfer" ? "var(--ink3)" : (t.v > 0 ? "var(--pos)" : "var(--ink)")
+    });
+    const q = st.query.trim().toLowerCase();
+    const monthPrefix = st.opsY + "-" + String(st.opsM + 1).padStart(2, "0");
+    const inPeriod = t => st.opsDate ? t.d === st.opsDate : t.d.startsWith(monthPrefix);
+    const periodTxs = st.txs.filter(inPeriod);
+    const visible = periodTxs.filter(t =>
+      (st.filter === "all"
+        || (st.filter === "transfer" ? t.type === "transfer"
+          : t.type !== "transfer" && (st.filter === "income" ? t.v > 0 : t.v < 0))) &&
+      (!q || (t.t + " " + t.c).toLowerCase().includes(q))
+    );
+    const marks = {};
+    st.txs.forEach(t => { marks[t.d] = true; });
+    const periodFlow = periodTxs.filter(t => t.type !== "transfer");
+    const periodIn = periodFlow.filter(t => t.v > 0).reduce((s, t) => s + inRub(t), 0);
+    const periodEx = periodFlow.filter(t => t.v < 0).reduce((s, t) => s - inRub(t), 0);
+
+    const kinds = {};
+    st.accounts.forEach(a => { if (a.balance > 0) kinds[a.kind] = (kinds[a.kind] || 0) + rub(a); });
+    const posTotal = Object.values(kinds).reduce((s, v) => s + v, 0) || 1;
+    const accountShares = Object.keys(kinds).sort((a, b) => kinds[b] - kinds[a]).map(k => ({
+      key: k, kind: k,
+      pctLabel: Math.round((kinds[k] / posTotal) * 100) + " %",
+      width: Math.round((kinds[k] / posTotal) * 100) + "%"
+    }));
+
+    const order = ["Карта", "Наличные", "Вклад", "Инвестиции", "Криптокошелёк", "Кредит"];
+    const byKind = {};
+    st.accounts.forEach((a, i) => { (byKind[a.kind] = byKind[a.kind] || []).push(accounts[i]); });
+    const accountGroups = Object.keys(byKind)
+      .sort((a, b) => order.indexOf(a) - order.indexOf(b))
+      .map(k => ({
+        key: k, kind: k, items: byKind[k],
+        totalLabel: this.money(st.accounts.filter(a => a.kind === k).reduce((s, a) => s + rub(a), 0))
+      }));
+
+    const limits = [["Продукты",25000],["Кафе и доставка",12000],["Транспорт",5000],["Жильё и связь",32000],["Здоровье",6000],["Подписки",2500]];
+    const spentBy = {};
+    st.txs.forEach(t => {
+      if (t.type === "transfer" || t.v >= 0 || !t.d.startsWith("2026-09")) return;
+      spentBy[t.c] = (spentBy[t.c] || 0) - inRub(t);
+    });
+    const budgets = limits.map(([cat, lim]) => {
+      const spent = spentBy[cat] || 0;
+      const over = spent > lim;
+      return {
+        key: cat, cat,
+        label: this.money(spent).replace(" ₽", "") + " из " + this.money(lim),
+        width: Math.min(100, Math.round((spent / lim) * 100)) + "%",
+        fillColor: over ? "var(--neg)" : "var(--accent)",
+        textColor: over ? "var(--neg)" : "var(--ink2)"
+      };
+    });
+
+    const rootOf = name => {
+      let node = st.cats.find(c => c.name === name);
+      if (!node) return name;
+      while (node.parent !== null && node.parent !== undefined) {
+        const par = st.cats.find(c => c.id === node.parent);
+        if (!par) break;
+        node = par;
+      }
+      return node.name;
+    };
+    const anaSpent = {};
+    st.txs.forEach(t => {
+      if (t.type === "transfer" || t.v >= 0) return;
+      if (t.d < st.anaFrom || t.d > st.anaTo) return;
+      anaSpent[t.c] = (anaSpent[t.c] || 0) - inRub(t);
+    });
+    const rootSpent = {};
+    Object.keys(anaSpent).forEach(n => { const r = rootOf(n); rootSpent[r] = (rootSpent[r] || 0) + anaSpent[n]; });
+    const maxSpent = Math.max(1, ...Object.values(rootSpent));
+    const catBars = Object.keys(rootSpent).sort((a, b) => rootSpent[b] - rootSpent[a]).slice(0, 6).map(r => ({
+      key: r, cat: r, amountLabel: this.money(rootSpent[r]),
+      width: Math.round((rootSpent[r] / maxSpent) * 100) + "%",
+      children: Object.keys(anaSpent)
+        .filter(n => n !== r && rootOf(n) === r)
+        .sort((a, b) => anaSpent[b] - anaSpent[a])
+        .map(n => ({
+          key: r + "/" + n, cat: n, amountLabel: this.money(anaSpent[n]),
+          width: Math.round((anaSpent[n] / rootSpent[r]) * 100) + "%"
+        }))
+    }));
+
+    const monthsShort = ["янв","фев","мар","апр","май","июн","июл","авг","сен","окт","ноя","дек"];
+    const byMonth = {};
+    st.txs.forEach(t => {
+      if (t.type === "transfer" || t.d < st.anaFrom || t.d > st.anaTo) return;
+      const k = t.d.slice(0, 7);
+      if (!byMonth[k]) byMonth[k] = { label: monthsShort[Number(k.slice(5)) - 1], inc: 0, exp: 0 };
+      const v = inRub(t);
+      if (v > 0) byMonth[k].inc += v; else byMonth[k].exp -= v;
+    });
+    const partial = k => {
+      const first = k + "-01";
+      const last = k + "-" + String(new Date(Date.UTC(Number(k.slice(0, 4)), Number(k.slice(5)), 0)).getUTCDate()).padStart(2, "0");
+      return st.anaFrom > first || st.anaTo < last;
+    };
+    const monthKeys = Object.keys(byMonth)
+      .filter(k => k >= st.anaFrom.slice(0, 7) && k <= st.anaTo.slice(0, 7))
+      .sort();
+    const maxBar = Math.max(1, ...monthKeys.map(k => Math.max(byMonth[k].inc, byMonth[k].exp)));
+    const slot = monthKeys.length ? 580 / monthKeys.length : 580;
+    const bw = Math.max(8, Math.min(24, slot / 2.6));
+    const monthBars = monthKeys.map((k, i) => {
+      const m = byMonth[k];
+      const h1 = Math.round((m.inc / maxBar) * 140);
+      const h2 = Math.round((m.exp / maxBar) * 140);
+      const cx = 24 + slot * i + slot / 2;
+      return {
+        key: k, label: m.label + (partial(k) ? " ·" : ""), w: Math.round(bw), cx: Math.round(cx),
+        x1: Math.round(cx - bw - 2), y1: 200 - h1, h1,
+        x2: Math.round(cx + 2), y2: 200 - h2, h2
+      };
+    });
+    let anaIncome = 0, anaExpense = 0;
+    st.txs.forEach(t => {
+      if (t.type === "transfer" || t.d < st.anaFrom || t.d > st.anaTo) return;
+      const v = inRub(t);
+      if (v > 0) anaIncome += v; else anaExpense -= v;
+    });
+
+    const counts = {};
+    st.txs.forEach(t => { counts[t.c] = (counts[t.c] || 0) + 1; });
+    const cats = st.cats;
+    const kidsOf = id => cats.filter(c => c.parent === id);
+    const sumTree = c => {
+      const own = c.kind === "income"
+        ? st.txs.filter(t => t.c === c.name).reduce((s, t) => s + t.v, 0)
+        : (spentBy[c.name] || 0);
+      return kidsOf(c.id).reduce((s, k) => s + sumTree(k), own);
+    };
+    const countTree = c => kidsOf(c.id).reduce((s, k) => s + countTree(k), counts[c.name] || 0);
+    const shapeCat = (c, depth) => {
+      const n = countTree(c), amount = sumTree(c);
+      void 0;
+      return {
+        key: "c" + c.id, name: c.name,
+        indent: depth * 22 + "px",
+        size: depth === 0 ? "16px" : (depth === 1 ? "15px" : "14px"),
+        kindLabel: c.kind === "income" ? "доход" : "",
+        kindColor: "var(--pos)",
+        meta: (n ? this.money(amount) + " · " + n + " операц." : "нет операций") + (kidsOf(c.id).length ? " · вложенных: " + kidsOf(c.id).length : ""),
+        addDisplay: depth < 3 ? "inline-flex" : "none",
+        addChild: () => this.setState({ dialog: "cat", catId: null, catName: "", catParent: String(c.id), catKind: c.kind }),
+        edit: () => this.setState({ dialog: "cat", catId: c.id, catName: c.name, catParent: c.parent === null ? "" : String(c.parent), catKind: c.kind }),
+        del: () => this.setState(s => ({
+          cats: s.cats.filter(x => x.id !== c.id).map(x => x.parent === c.id ? { ...x, parent: c.parent } : x)
+        }))
+      };
+    };
+    const walk = (parent, depth) => kidsOf(parent).reduce((acc, c) => acc.concat([shapeCat(c, depth)], walk(c.id, depth + 1)), []);
+    const walkKind = (parent, depth, kind) => kidsOf(parent)
+      .filter(c => depth > 0 || c.kind === kind)
+      .reduce((acc, c) => acc.concat([shapeCat(c, depth)], walkKind(c.id, depth + 1, kind)), []);
+    const categories = walk(null, 0);
+    const expenseCats = walkKind(null, 0, "expense");
+    const incomeCats = walkKind(null, 0, "income");
+    const plural = (n, a, b, c) => { const m = n % 100, k = n % 10; return n + " " + (m > 10 && m < 20 ? c : k === 1 ? a : k > 1 && k < 5 ? b : c); };
+
+    const hasKids = c => kidsOf(c.id).length > 0;
+    const catList = cats.filter(c => (st.type === "expense" ? c.kind === "expense" : c.kind === "income") && !hasKids(c)).map(c => c.name);
+    const catChips = catList.map(c => ({ key: c, name: c, on: st.cat === c ? "1" : "0", pick: () => this.setState({ cat: c }) }));
+
+    const descendantIds = id => kidsOf(id).reduce((acc, k) => acc.concat([k.id], descendantIds(k.id)), []);
+    const blocked = st.catId === null ? [] : [st.catId].concat(descendantIds(st.catId));
+    const depthOf = c => { let d = 0, p = c.parent; while (p !== null && p !== undefined) { const par = cats.find(x => x.id === p); if (!par) break; d++; p = par.parent; } return d; };
+    const movingSubtreeDepth = st.catId === null ? 0 : (() => {
+      const self = cats.find(c => c.id === st.catId);
+      if (!self) return 0;
+      const base = depthOf(self);
+      return Math.max(0, ...descendantIds(st.catId).map(id => depthOf(cats.find(c => c.id === id)) - base));
+    })();
+    const orderedFlat = (parent, depth) => kidsOf(parent).reduce((acc, c) => acc.concat([{ c, depth }], orderedFlat(c.id, depth + 1)), []);
+    const catParentOptions = [{ key: "root", value: "", label: "— без родителя —" }].concat(
+      orderedFlat(null, 0)
+        .filter(({ c, depth }) => blocked.indexOf(c.id) === -1 && c.kind === st.catKind && depth + 1 + movingSubtreeDepth <= 3)
+        .map(({ c, depth }) => ({ key: "p" + c.id, value: String(c.id), label: "· ".repeat(depth) + c.name })));
+
+    const months = ["января","февраля","марта","апреля","мая","июня","июля","августа","сентября","октября","ноября","декабря"];
+    const monthsNom = ["Январь","Февраль","Март","Апрель","Май","Июнь","Июль","Август","Сентябрь","Октябрь","Ноябрь","Декабрь"];
+    const dp = st.date.split("-");
+    const platform = this.props.platform ?? "Десктоп";
+
+    return {
+      isDesktop: platform === "Десктоп", isMobile: platform === "Мобильный",
+      showForecast: this.props.showForecast ?? true,
+      nav, title: titles[st.screen][0], subtitle: titles[st.screen][1],
+      isSummary: st.screen === "summary", isOps: st.screen === "ops", isAccounts: st.screen === "accounts",
+      isBudgets: st.screen === "budgets", isReports: st.screen === "reports", isCharts: st.screen === "charts",
+      isCategories: st.screen === "categories", isSettings: st.screen === "settings",
+      goOps: e => { e.preventDefault(); this.setState({ screen: "ops" }); },
+      accountGroups,
+      grouped: st.groupBy !== "none", flat: st.groupBy === "none",
+      gKind: st.groupBy !== "none" ? "1" : "0", gNone: st.groupBy === "none" ? "1" : "0",
+      groupByKind: () => this.set("groupBy", "kind"),
+      groupByNone: () => this.set("groupBy", "none"),
+      accounts, accountShares, accountNames: st.accounts.map(a => a.name),
+      totalLabel: this.money(total), freeLabel: this.money(free),
+      incomeLabel: this.money(income), expenseLabel: this.money(expense),
+      savedLabel: "отложено " + this.money(income - expense),
+      recent: st.txs.slice().sort((a, b) => (a.d < b.d ? 1 : -1)).slice(0, 6).map(shapeTx),
+      visibleTxs: visible.map(shapeTx),
+      countLabel: visible.length + " из " + periodTxs.length + " операций",
+      noTxs: visible.length === 0,
+      opsMonthLabel: monthsNom[st.opsM] + " " + st.opsY,
+      opsPrev: () => this.setState(s => ({ opsDate: null, opsM: s.opsM === 0 ? 11 : s.opsM - 1, opsY: s.opsM === 0 ? s.opsY - 1 : s.opsY })),
+      opsNext: () => this.setState(s => ({ opsDate: null, opsM: s.opsM === 11 ? 0 : s.opsM + 1, opsY: s.opsM === 11 ? s.opsY + 1 : s.opsY })),
+      opsCells: this.monthCells(st.opsY, st.opsM, st.opsDate, marks).map(c => ({
+        key: c.key, label: c.label,
+        cursor: c.blank ? "default" : "pointer",
+        on: c.sel ? "1" : "0",
+        color: c.blank ? "transparent" : (c.sel ? "#fff" : "var(--ink)"),
+        dot: c.marked ? (c.sel ? "rgba(255,255,255,.85)" : "var(--accent)") : "transparent",
+        pick: c.blank ? null : () => this.setState(s => ({ opsDate: s.opsDate === c.iso ? null : c.iso }))
+      })),
+      dateSelected: !!st.opsDate,
+      clearOpsDate: () => this.set("opsDate", null),
+      periodLabel: st.opsDate
+        ? Number(st.opsDate.split("-")[2]) + " " + months[Number(st.opsDate.split("-")[1]) - 1]
+        : monthsNom[st.opsM] + " " + st.opsY,
+      periodLabelLower: st.opsDate
+        ? Number(st.opsDate.split("-")[2]) + " " + months[Number(st.opsDate.split("-")[1]) - 1]
+        : (monthsNom[st.opsM] + " " + st.opsY).toLowerCase(),
+      periodIncome: this.money(periodIn),
+      periodExpense: this.money(periodEx),
+      addLabel: st.opsDate
+        ? "Добавить за " + Number(st.opsDate.split("-")[2]) + " " + months[Number(st.opsDate.split("-")[1]) - 1]
+        : "Новая операция",
+      openOpForDate: () => {
+        const iso = st.opsDate || (st.opsY + "-" + String(st.opsM + 1).padStart(2, "0") + "-01");
+        this.setState({ dialog: "op", date: iso, calY: st.opsY, calM: st.opsM });
+      },
+      query: st.query, onQuery: e => this.set("query", e.target.value),
+      fAll: st.filter === "all" ? "1" : "0", fIncome: st.filter === "income" ? "1" : "0", fExpense: st.filter === "expense" ? "1" : "0",
+      setFilterAll: () => this.set("filter", "all"),
+      setFilterIncome: () => this.set("filter", "income"),
+      setFilterExpense: () => this.set("filter", "expense"),
+      fTransfer: st.filter === "transfer" ? "1" : "0",
+      setFilterTransfer: () => this.set("filter", "transfer"),
+      budgets, catBars, categories, monthBars,
+      anaFrom: st.anaFrom, anaTo: st.anaTo,
+      onAnaFrom: e => this.setState({ anaFrom: e.target.value, anaPreset: "custom" }),
+      onAnaTo: e => this.setState({ anaTo: e.target.value, anaPreset: "custom" }),
+      anaPreset: st.anaPreset,
+      periodPresets: this.presets().map(p => ({ key: p.id, value: p.id, label: p.label }))
+        .concat([{ key: "custom", value: "custom", label: "Произвольно" }]),
+      onAnaPreset: e => {
+        const id = e.target.value;
+        const p = this.presets().find(x => x.id === id);
+        if (!p) { this.setState({ anaPreset: "custom" }); return; }
+        this.setState({ anaPreset: id, anaFrom: p.from, anaTo: p.to });
+      },
+      anaRangeLabel: this.rangeLabel(st.anaFrom, st.anaTo),
+      anaSummary: "доходы " + this.money(anaIncome) + " · траты " + this.money(anaExpense) + " · разница " + this.money(anaIncome - anaExpense),
+      noSpendDisplay: catBars.length ? "none" : "block",
+      anaNote: (monthKeys.length < 2
+        ? "Для сравнения по месяцам выберите период длиннее одного месяца."
+        : "За период доход " + this.money(anaIncome) + ", траты " + this.money(anaExpense) + ". Отложено " + this.money(anaIncome - anaExpense) + ".")
+        + (monthKeys.some(partial) ? " Месяцы с пометкой · показаны частично — только дни внутри периода." : ""),
+      reportRows: (() => {
+        const keys = ["2026-07", "2026-08", "2026-09"];
+        const fmtN = n => n ? Math.round(n).toLocaleString("ru-RU").replace(/\u00a0/g, " ") : "0";
+        const spend = {}, incomeM = {}, totalM = {};
+        keys.forEach(k => { incomeM[k] = 0; totalM[k] = 0; });
+        st.txs.forEach(t => {
+          const k = t.d.slice(0, 7);
+          if (t.type === "transfer" || keys.indexOf(k) === -1) return;
+          const v = inRub(t);
+          if (v > 0) { incomeM[k] += v; return; }
+          const r = rootOf(t.c);
+          spend[r] = spend[r] || {};
+          spend[r][k] = (spend[r][k] || 0) - v;
+          totalM[k] -= v;
+        });
+        const row = (cat, vals, weight) => ({
+          key: cat, cat, weight,
+          jul: fmtN(vals["2026-07"] || 0), aug: fmtN(vals["2026-08"] || 0), sep: fmtN(vals["2026-09"] || 0),
+          avg: fmtN(keys.reduce((s, k) => s + (vals[k] || 0), 0) / 3)
+        });
+        const cats = Object.keys(spend).sort((a, b) =>
+          keys.reduce((s, k) => s + (spend[b][k] || 0), 0) - keys.reduce((s, k) => s + (spend[a][k] || 0), 0));
+        const saved = {};
+        keys.forEach(k => { saved[k] = incomeM[k] - totalM[k]; });
+        return cats.map(c => row(c, spend[c], 400))
+          .concat([row("Всего расходов", totalM, 600), row("Доходы", incomeM, 600), row("Отложено", saved, 600)]);
+      })(),
+      dataDialog: st.dialog === "data",
+      dataExpOn: st.dataMode === "export" ? "1" : "0",
+      dataImpOn: st.dataMode === "import" ? "1" : "0",
+      showExport: () => this.setState({ dataMode: "export", dataText: this.toCsv(), dataMsg: "" }),
+      showImport: () => this.setState({ dataMode: "import", dataText: "", dataMsg: "" }),
+      openExport: () => this.setState({ dialog: "data", dataMode: "export", dataText: this.toCsv(), dataMsg: "" }),
+      openImport: () => this.setState({ dialog: "data", dataMode: "import", dataText: "", dataMsg: "" }),
+      dataText: st.dataText, onDataText: e => this.set("dataText", e.target.value),
+      dataFieldLabel: st.dataMode === "export"
+        ? "CSV, " + st.txs.length + " операций — скопируйте или сохраните"
+        : "Вставьте CSV: дата;назначение;категория;счёт;сумма",
+      dataHint: st.dataMsg || (st.dataMode === "export"
+        ? "Разделитель — точка с запятой, дата в формате ГГГГ-ММ-ДД, расход со знаком минус."
+        : "Строки с заголовком пропускаются. Неизвестные счета и категории будут созданы."),
+      dataHintColor: st.dataMsg ? "var(--accent)" : "var(--ink3)",
+      dataActionLabel: st.dataMode === "export" ? "Скачать .csv" : "Загрузить",
+      dataAction: () => {
+        if (st.dataMode === "export") { this.download(); return; }
+        this.importCsv();
+      },
+      opDialog: st.dialog === "op", accDialog: st.dialog === "acc",
+      openOp: () => this.setState({ dialog: "op" }),
+      openAcc: () => this.setState({ dialog: "acc", editIndex: null, accName: "", accKind: "Карта", accBalance: "", accCur: "RUB" }),
+      close: () => this.setState({ dialog: null }),
+      stop: e => e.stopPropagation(),
+      expOn: st.type === "expense" ? "1" : "0", incOn: st.type === "income" ? "1" : "0",
+      trOn: st.type === "transfer" ? "1" : "0",
+      isTransfer: st.type === "transfer", showCats: st.type !== "transfer",
+      setTransfer: () => this.setState({ type: "transfer" }),
+      amountLabel: "Сумма, " + CUR[this.curOf(st.acc)].sym,
+      accFieldLabel: st.type === "transfer" ? "Со счёта" : "Счёт",
+      accountOptions: st.accounts.map(a => ({
+        key: a.name, value: a.name,
+        label: a.cur === "RUB" ? a.name : a.name + " · " + a.cur
+      })),
+      accTo: st.accTo, onAccTo: e => this.set("accTo", e.target.value),
+      fromSym: CUR[this.curOf(st.acc)].sym,
+      toSym: CUR[this.curOf(st.accTo)].sym,
+      receiveAmount: st.receiveTouched ? st.receive : this.autoReceive(),
+      onReceive: e => this.setState({ receive: e.target.value, receiveTouched: true }),
+      rateLabel: (() => {
+        const from = this.curOf(st.acc), to = this.curOf(st.accTo);
+        if (st.acc === st.accTo) return "выберите разные счета";
+        const sent = this.num(st.amount);
+        const got = this.num(st.receiveTouched ? st.receive : this.autoReceive());
+        if (from === to) return "1 : 1, одна валюта";
+        const k = (!sent || !got) ? CUR[from].rate / CUR[to].rate : got / sent;
+        const rate = k >= 1
+          ? "1 " + CUR[from].sym + " = " + this.sig(k) + " " + CUR[to].sym
+          : "1 " + CUR[to].sym + " = " + this.sig(1 / k) + " " + CUR[from].sym;
+        return (!sent || !got) ? rate : rate + " · " + this.fmt(sent, from) + " → " + this.fmt(got, to);
+      })(),
+      rateColor: st.acc === st.accTo ? "var(--neg)" : "var(--ink)",
+      setExpense: () => this.setState({ type: "expense", cat: CATS[0] }),
+      setIncome: () => this.setState({ type: "income", cat: INCOME_CATS[0] }),
+      amount: st.amount, onAmount: e => this.set("amount", e.target.value),
+      note: st.note, onNote: e => this.set("note", e.target.value),
+      acc: st.acc, onAcc: e => this.set("acc", e.target.value),
+      catChips, days: this.calendarCells(),
+      catDialog: st.dialog === "cat",
+      catDialogTitle: st.catId === null ? "Новая категория" : "Категория",
+      openNewCat: () => this.setState({ dialog: "cat", catId: null, catName: "", catParent: "", catKind: "expense" }),
+      catName: st.catName, onCatName: e => this.set("catName", e.target.value),
+      catParent: st.catParent, onCatParent: e => this.set("catParent", e.target.value),
+      catParentOptions,
+      expenseCats, incomeCats,
+      expenseCatsMeta: plural(expenseCats.length, "категория", "категории", "категорий"),
+      incomeCatsMeta: plural(incomeCats.length, "категория", "категории", "категорий"),
+      catTabExp: st.catTab === "expense" ? "1" : "0",
+      catTabInc: st.catTab === "income" ? "1" : "0",
+      showExpenseCats: () => this.set("catTab", "expense"),
+      showIncomeCats: () => this.set("catTab", "income"),
+      tabCats: st.catTab === "income" ? incomeCats : expenseCats,
+      addCatLabel: st.catTab === "income" ? "Новая категория дохода" : "Новая категория расхода",
+      openNewTabCat: () => this.setState({ dialog: "cat", catId: null, catName: "", catParent: "", catKind: st.catTab }),
+      catKindExp: st.catKind === "expense" ? "1" : "0", catKindInc: st.catKind === "income" ? "1" : "0",
+      setCatKindExpense: () => this.setState({ catKind: "expense", catParent: "" }),
+      setCatKindIncome: () => this.setState({ catKind: "income", catParent: "" }),
+      saveCat: () => {
+        const name = st.catName.trim();
+        if (!name) { this.setState({ dialog: null }); return; }
+        const parent = st.catParent === "" ? null : Number(st.catParent);
+        if (st.catId === null) {
+          const id = Math.max(0, ...st.cats.map(c => c.id)) + 1;
+          this.setState({ cats: st.cats.concat([{ id, name, parent, kind: st.catKind }]), dialog: null });
+        } else {
+          const sub = [st.catId].concat(descendantIds(st.catId));
+          this.setState({
+            cats: st.cats.map(c => c.id === st.catId
+              ? { ...c, name, parent, kind: st.catKind }
+              : (sub.indexOf(c.id) !== -1 ? { ...c, kind: st.catKind } : c)),
+            dialog: null
+          });
+        }
+      },
+      dateLabel: Number(dp[2]) + " " + months[Number(dp[1]) - 1] + " " + dp[0],
+      monthLabel: monthsNom[st.calM] + " " + st.calY,
+      prevMonth: () => this.setState(s => ({ calM: s.calM === 0 ? 11 : s.calM - 1, calY: s.calM === 0 ? s.calY - 1 : s.calY })),
+      nextMonth: () => this.setState(s => ({ calM: s.calM === 11 ? 0 : s.calM + 1, calY: s.calM === 11 ? s.calY + 1 : s.calY })),
+      saveOp: () => {
+        const v = Math.abs(parseFloat(String(st.amount).replace(/[^\d.,-]/g, "").replace(",", "."))) || 0;
+        if (!v || (st.type === "transfer" && st.acc === st.accTo)) { this.setState({ dialog: null }); return; }
+        const transfer = st.type === "transfer";
+        const to = this.curOf(st.accTo);
+        const received = this.num(st.receiveTouched ? st.receive : this.autoReceive());
+        const tx = transfer
+          ? { d: st.date, t: st.note || "Перевод", c: "Перевод", a: st.acc, to: st.accTo, v, got: received, gotCur: to, type: "transfer" }
+          : { d: st.date, t: st.note || st.cat, c: st.cat, a: st.acc, v: st.type === "income" ? v : -v };
+        const txs = [tx].concat(st.txs).sort((a, b) => (a.d < b.d ? 1 : -1));
+        const accs = st.accounts.map(a => {
+          if (transfer) {
+            if (a.name === st.acc) return { ...a, balance: a.balance - v };
+            if (a.name === st.accTo) return { ...a, balance: a.balance + received };
+            return a;
+          }
+          return a.name === st.acc ? { ...a, balance: a.balance + tx.v } : a;
+        });
+        const dp2 = tx.d.split("-");
+        this.setState({ txs, accounts: accs, dialog: null, amount: "", note: "", receive: "", receiveTouched: false,
+          opsY: Number(dp2[0]), opsM: Number(dp2[1]) - 1, opsDate: st.opsDate ? tx.d : null });
+      },
+      accDialogTitle: st.editIndex === null ? "Новый счёт" : "Изменить счёт",
+      accName: st.accName, onAccName: e => this.set("accName", e.target.value),
+      accKind: st.accKind, onAccKind: e => this.set("accKind", e.target.value),
+      accBalance: st.accBalance, onAccBalance: e => this.set("accBalance", e.target.value),
+      accCur: st.accCur, onAccCur: e => this.set("accCur", e.target.value),
+      currencyOptions: Object.keys(CUR).map(k => ({ key: k, value: k, label: CUR[k].label })),
+      accBalanceLabel: "Баланс, " + CUR[st.accCur].sym,
+      accConvertHint: (() => {
+        if (st.accCur === "RUB") return "Итоги считаются в рублях";
+        const v = parseFloat(String(st.accBalance).replace(/[^\d.,-]/g, "").replace(",", ".")) || 0;
+        return "Курс " + this.fmt(1, st.accCur) + " ≈ " + this.money(CUR[st.accCur].rate) + (v ? " · в сводке ≈ " + this.money(this.toRub(v, st.accCur)) : "");
+      })(),
+      saveAcc: () => {
+        const name = st.accName.trim();
+        if (!name) { this.setState({ dialog: null }); return; }
+        const balance = parseFloat(String(st.accBalance).replace(/[^\d.,-]/g, "").replace(",", ".")) || 0;
+        const accounts = st.accounts.slice();
+        if (st.editIndex === null) accounts.push({ name, kind: st.accKind, balance, cur: st.accCur });
+        else accounts[st.editIndex] = { name, kind: st.accKind, balance, cur: st.accCur };
+        this.setState({ accounts, dialog: null });
+      }
+    };
+  }
+}
+</script>
+</body>
+</html>
