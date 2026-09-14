@@ -18,5 +18,7 @@ DOMAIN=:80 docker compose up --build
 git push && ./deploy.sh
 ```
 
-Домен задаётся в `.env` на сервере (`DOMAIN=finance.example.com`) — Caddy сам получит HTTPS-сертификат.
-Пока домена нет, там стоит `DOMAIN=:80`, и сайт открывается по http://94.103.87.49
+Сайт: https://okayconnect.online (www и http редиректятся туда).
+
+Домены задаются в `.env` на сервере: `DOMAIN=okayconnect.online, www.okayconnect.online` —
+Caddy сам получает и продлевает сертификаты Let's Encrypt (хранятся в томе `caddy_data`).
