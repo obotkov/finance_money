@@ -1548,7 +1548,7 @@ class Component extends DCLogic {
         key: "t" + (t.id || i), title: t.t,
         meta: dm(t.d) + (t.tm ? " " + t.tm : "") + " · " + t.a,
         amountLabel: (kind === "income" ? "+" : "−") + this.fmt(Math.abs(t.v), this.curOf(t.a)),
-        color: kind === "income" ? "var(--pos)" : "var(--ink)"
+        color: kind === "income" ? "var(--pos)" : "var(--neg)"
       })),
       repEmpty: empty,
       repEmptyText: list ? "В этой категории за период операций нет"
@@ -1694,7 +1694,7 @@ class Component extends DCLogic {
             ? this.fmt(t.v, this.curOf(t.a)) + " → " + this.fmt(t.got, t.gotCur)
             : this.fmt(t.v, this.curOf(t.a)))
         : this.signed(t.v, this.curOf(t.a)),
-      color: t.type === "transfer" ? "var(--ink3)" : (t.v > 0 ? "var(--pos)" : "var(--ink)"),
+      color: t.type === "transfer" ? "var(--ink3)" : (t.v > 0 ? "var(--pos)" : "var(--neg)"),
       del: () => {
         if (!window.confirm("Удалить операцию «" + t.t + "»? Баланс счёта пересчитается.")) return;
         if (st.online) { this.api("DELETE", "transactions/" + t.id).catch(() => {}); return; }
