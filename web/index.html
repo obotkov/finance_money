@@ -80,6 +80,10 @@
           <div style="margin-top:auto;padding:14px 10px 0;border-top:1px solid var(--line)">
             <div style="font-size:12px;color:var(--ink3)">Всего</div>
             <div class="num big" style="font-size:22px;margin-top:2px">{{ totalLabel }}</div>
+            <sc-if value="{{ hasUser }}" hint-placeholder-val="{{ false }}">
+              <div style="margin-top:14px;font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="{{ userEmail }}">{{ userLabel }}</div>
+              <a href="#" style="font-size:13px" onClick="{{ logout }}">Выйти</a>
+            </sc-if>
           </div>
         </div>
 
@@ -634,6 +638,36 @@
     </div>
     </sc-if>
 
+    <!-- вход и регистрация -->
+    <sc-if value="{{ needLogin }}" hint-placeholder-val="{{ false }}">
+    <div style="position:fixed;inset:0;z-index:50;display:grid;place-items:center;padding:24px 16px;overflow:auto;background:var(--bg)">
+      <div class="card" style="width:min(400px,100%);padding:28px 26px;border-radius:22px">
+        <div class="big" style="font-size:25px">Ведомость</div>
+        <div style="font-size:13px;color:var(--ink3);margin-top:2px">личный учёт финансов</div>
+        <div class="seg" style="display:flex;margin-top:20px">
+          <span class="segopt" style="flex:1;text-align:center" data-on="{{ authLoginOn }}" onClick="{{ setAuthLogin }}">Вход</span>
+          <span class="segopt" style="flex:1;text-align:center" data-on="{{ authRegOn }}" onClick="{{ setAuthRegister }}">Регистрация</span>
+        </div>
+        <sc-if value="{{ authIsRegister }}" hint-placeholder-val="{{ false }}">
+          <div style="margin-top:14px"><span class="lbl">Имя</span><input class="inp" value="{{ authName }}" onChange="{{ onAuthName }}" placeholder="Как к вам обращаться" autoComplete="name"></div>
+        </sc-if>
+        <div style="margin-top:14px"><span class="lbl">Почта</span><input class="inp" type="email" value="{{ authEmail }}" onChange="{{ onAuthEmail }}" placeholder="you@example.com" autoComplete="email"></div>
+        <div style="margin-top:14px"><span class="lbl">Пароль</span><input class="inp" type="password" value="{{ authPassword }}" onChange="{{ onAuthPassword }}" onKeyDown="{{ onAuthKey }}" placeholder="{{ authPasswordHint }}" autoComplete="{{ authPasswordAuto }}"></div>
+        <sc-if value="{{ authHasError }}" hint-placeholder-val="{{ false }}">
+          <div style="margin-top:12px;font-size:13px;color:var(--neg)">{{ authError }}</div>
+        </sc-if>
+        <button class="btn btn-p" style="width:100%;margin-top:18px;padding:11px 16px" onClick="{{ submitAuth }}">{{ authSubmitLabel }}</button>
+        <sc-if value="{{ googleEnabled }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;align-items:center;gap:10px;margin:16px 0 12px;font-size:12px;color:var(--ink3)"><span style="flex:1;height:1px;background:var(--line)"></span>или<span style="flex:1;height:1px;background:var(--line)"></span></div>
+          <a class="btn btn-s" style="display:flex;align-items:center;justify-content:center;gap:10px;padding:11px 16px;color:var(--ink)" href="/api/auth/google/start">
+            <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.1H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 8 3l5.7-5.7C34 6.1 29.3 4 24 4 13 4 4 13 4 24s9 20 20 20 20-9 20-20c0-1.3-.1-2.6-.4-3.9z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 8 3l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.1H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.6-.4-3.9z"/></svg>
+            Войти через Google
+          </a>
+        </sc-if>
+      </div>
+    </div>
+    </sc-if>
+
     <!-- диалог: счёт -->
     <sc-if value="{{ accDialog }}" hint-placeholder-val="{{ false }}">
     <div style="position:fixed;inset:0;display:grid;place-items:start center;padding:24px;overflow:auto;background:rgba(0,0,0,.28);backdrop-filter:blur(6px)" onClick="{{ close }}">
@@ -828,14 +862,57 @@ class Component extends DCLogic {
     anaPreset: "month", anaFrom: THIS_MONTH + "-01", anaTo: TODAY,
     dataMode: "export", dataText: "", dataMsg: "",
     cats: [], accounts: [], txs: [], rates: {},
-    online: false, busy: false
+    online: false, busy: false, demo: false,
+    user: null, needLogin: false, googleEnabled: false,
+    authMode: "login", authEmail: "", authPassword: "", authName: "", authError: ""
   };
 
   componentDidMount() {
+    // Google sign-in failures come back as ?auth_error=<message>
+    const authError = new URLSearchParams(location.search).get("auth_error");
+    if (authError) {
+      this.setState({ authError });
+      history.replaceState(null, "", location.pathname);
+    }
+    fetch(API + "auth/config")
+      .then(r => (r.ok ? r.json() : {}))
+      .then(c => this.setState({ googleEnabled: !!c.google }), () => {});
+    this.load();
+  }
+
+  // Loads the signed-in user's data. 401 shows the sign-in screen; no backend
+  // at all (the design canvas) shows the demo.
+  load() {
     fetch(API + "state", { headers: { Accept: "application/json" } })
-      .then(r => { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
-      .then(data => this.applyServer(data, { online: true, demo: false }))
+      .then(r => {
+        if (r.status === 401) { this.setState({ needLogin: true, online: true, demo: false }); return null; }
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        return r.json();
+      })
+      .then(data => { if (data) this.applyServer(data, { online: true, demo: false, needLogin: false }); })
       .catch(() => this.applyServer(DEMO, { online: false, demo: true }));
+  }
+
+  submitAuth() {
+    const st = this.state;
+    if (st.busy) return;
+    this.setState({ busy: true, authError: "" });
+    fetch(API + (st.authMode === "register" ? "auth/register" : "auth/login"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({ email: st.authEmail, password: st.authPassword, name: st.authName })
+    })
+      .then(r => r.json().catch(() => ({})).then(data => {
+        if (!r.ok) throw new Error(data.error || "Ошибка сервера: " + r.status);
+      }))
+      .then(() => { this.setState({ busy: false, authPassword: "" }); this.load(); })
+      .catch(err => this.setState({ busy: false, authError: err.message }));
+  }
+
+  // Reloading drops everything of the previous user from memory.
+  logout() {
+    fetch(API + "auth/logout", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" })
+      .finally(() => location.reload());
   }
 
   // Takes the server's state (or the demo) and points the form defaults
@@ -850,7 +927,7 @@ class Component extends DCLogic {
       const accTo = names.indexOf(s.accTo) !== -1 && s.accTo !== acc ? s.accTo : (names.find(n => n !== acc) || "");
       const kind = s.type === "income" ? "income" : "expense";
       const cat = cats.some(c => c.name === s.cat && c.kind === kind) ? s.cat : this.firstLeaf(kind, cats);
-      return Object.assign({ accounts, cats, txs: data.txs || [], rates, acc, accTo, cat }, extra);
+      return Object.assign({ user: data.user || null, accounts, cats, txs: data.txs || [], rates, acc, accTo, cat }, extra);
     });
   }
 
@@ -871,11 +948,12 @@ class Component extends DCLogic {
       body: body === undefined ? undefined : JSON.stringify(body)
     })
       .then(r => r.json().catch(() => ({})).then(data => {
+        if (r.status === 401) { this.setState({ needLogin: true }); throw new Error(""); } // the session has ended
         if (!r.ok) throw new Error(data.error || "Ошибка сервера: " + r.status);
         return data;
       }))
       .then(data => { this.applyServer(data, { busy: false }); return data; })
-      .catch(err => { this.setState({ busy: false }); window.alert(err.message); throw err; });
+      .catch(err => { this.setState({ busy: false }); if (err.message) window.alert(err.message); throw err; });
   }
 
   // Operations are recorded on an account, so the first one has to exist.
@@ -1296,6 +1374,25 @@ class Component extends DCLogic {
     return {
       isDesktop: platform === "Десктоп", isMobile: platform === "Мобильный",
       showForecast: this.props.showForecast ?? true,
+      needLogin: st.needLogin,
+      authLoginOn: st.authMode === "login" ? "1" : "0", authRegOn: st.authMode === "register" ? "1" : "0",
+      authIsRegister: st.authMode === "register",
+      setAuthLogin: () => this.setState({ authMode: "login", authError: "" }),
+      setAuthRegister: () => this.setState({ authMode: "register", authError: "" }),
+      authName: st.authName, onAuthName: e => this.set("authName", e.target.value),
+      authEmail: st.authEmail, onAuthEmail: e => this.set("authEmail", e.target.value),
+      authPassword: st.authPassword, onAuthPassword: e => this.set("authPassword", e.target.value),
+      onAuthKey: e => { if (e.key === "Enter") this.submitAuth(); },
+      authPasswordHint: st.authMode === "register" ? "не короче 8 символов" : "",
+      authPasswordAuto: st.authMode === "register" ? "new-password" : "current-password",
+      authHasError: !!st.authError, authError: st.authError,
+      authSubmitLabel: st.busy ? "Подождите…" : (st.authMode === "register" ? "Создать аккаунт" : "Войти"),
+      submitAuth: () => this.submitAuth(),
+      googleEnabled: st.googleEnabled,
+      hasUser: !!st.user,
+      userLabel: st.user ? st.user.name || st.user.email : "",
+      userEmail: st.user ? st.user.email : "",
+      logout: e => { e.preventDefault(); this.logout(); },
       nav, title: titles[st.screen][0],
       subtitle: titles[st.screen][1] + (st.demo ? " · демо-режим: сервер недоступен, изменения не сохраняются" : ""),
       isSummary: st.screen === "summary", isOps: st.screen === "ops", isAccounts: st.screen === "accounts",

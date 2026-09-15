@@ -21,6 +21,9 @@ services:
     restart: unless-stopped
     environment:
       DATABASE_URL: postgres://finance:${DB_PASSWORD}@db:5432/finance?sslmode=disable
+      PUBLIC_URL: ${PUBLIC_URL:-http://localhost}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
     depends_on:
       db:
         condition: service_healthy
@@ -40,8 +43,6 @@ services:
       - "443:443/udp"
     environment:
       DOMAIN: ${DOMAIN:-localhost}
-      AUTH_USER: ${AUTH_USER:?set AUTH_USER in .env}
-      AUTH_HASH: ${AUTH_HASH:?set AUTH_HASH in .env}
     volumes:
       - caddy_data:/data
       - caddy_config:/config

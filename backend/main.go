@@ -1,5 +1,6 @@
-// Command api is the backend of «Ведомость»: accounts, operations and categories
-// in Postgres, plus exchange rates refreshed from the CBR and CoinGecko.
+// Command api is the backend of «Ведомость»: users with email/password or
+// Google sign-in, their accounts, operations and categories in Postgres, plus
+// exchange rates refreshed from the CBR and CoinGecko.
 package main
 
 import (
@@ -9,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 )
@@ -37,9 +39,17 @@ func run(log *slog.Logger) error {
 	rates := NewRateUpdater(store, log)
 	go rates.Run(ctx, time.Hour)
 
+	cfg := Config{
+		PublicURL:          strings.TrimRight(getenv("PUBLIC_URL", "http://localhost"), "/"),
+		GoogleClientID:     os.Getenv("GOOGLE_CLIENT_ID"),
+		GoogleClientSecret: os.Getenv("GOOGLE_CLIENT_SECRET"),
+	}
+	api := NewAPI(store, rates, cfg, log)
+	log.Info("config", "public_url", cfg.PublicURL, "google_sign_in", api.google != nil)
+
 	srv := &http.Server{
 		Addr:              getenv("ADDR", ":8080"),
-		Handler:           NewAPI(store, rates, log).Handler(),
+		Handler:           api.Handler(),
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 	go func() {

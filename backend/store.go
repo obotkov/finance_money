@@ -27,6 +27,24 @@ const maxCategoryDepth = 3
 
 var currencies = map[string]bool{"RUB": true, "USD": true, "EUR": true, "USDT": true, "BTC": true, "ETH": true, "TON": true}
 
+// defaultCategories are copied to every new user.
+var defaultCategories = []struct{ name, kind string }{
+	{"Продукты", "expense"},
+	{"Кафе и доставка", "expense"},
+	{"Транспорт", "expense"},
+	{"Жильё и связь", "expense"},
+	{"Здоровье", "expense"},
+	{"Подписки", "expense"},
+	{"Спорт", "expense"},
+	{"Одежда", "expense"},
+	{"Развлечения", "expense"},
+	{"Накопления", "expense"},
+	{"Зарплата", "income"},
+	{"Подработка", "income"},
+	{"Проценты по вкладу", "income"},
+	{"Возврат", "income"},
+}
+
 type Account struct {
 	ID      int64   `json:"id"`
 	Name    string  `json:"name"`
@@ -63,7 +81,9 @@ type Rate struct {
 	UpdatedAt time.Time `json:"updatedAt"`
 }
 
+// State is everything the page renders for one user.
 type State struct {
+	User     *User           `json:"user,omitempty"`
 	Accounts []Account       `json:"accounts"`
 	Cats     []Category      `json:"cats"`
 	Txs      []Tx            `json:"txs"`
@@ -81,6 +101,8 @@ func (e *APIError) Error() string { return e.Msg }
 func badRequest(msg string) error { return &APIError{400, msg} }
 func notFound(msg string) error   { return &APIError{404, msg} }
 
+// Store keeps each user's data apart: every method that touches accounts,
+// categories or operations takes the user id and filters by it.
 type Store struct {
 	db  *pgxpool.Pool
 	log *slog.Logger
@@ -157,12 +179,12 @@ func (s *Store) migrate(ctx context.Context) error {
 	return nil
 }
 
-// State returns everything the page renders, newest operations first.
-func (s *Store) State(ctx context.Context) (*State, error) {
+// State returns the user's data, newest operations first, and the shared rates.
+func (s *Store) State(ctx context.Context, uid int64) (*State, error) {
 	st := &State{Rates: map[string]Rate{}}
 	var err error
 
-	rows, _ := s.db.Query(ctx, `SELECT id, name, kind, balance, currency FROM accounts ORDER BY id`)
+	rows, _ := s.db.Query(ctx, `SELECT id, name, kind, balance, currency FROM accounts WHERE user_id = $1 ORDER BY id`, uid)
 	st.Accounts, err = pgx.CollectRows(rows, func(r pgx.CollectableRow) (Account, error) {
 		var a Account
 		err := r.Scan(&a.ID, &a.Name, &a.Kind, &a.Balance, &a.Cur)
@@ -172,7 +194,7 @@ func (s *Store) State(ctx context.Context) (*State, error) {
 		return nil, err
 	}
 
-	rows, _ = s.db.Query(ctx, `SELECT id, name, parent_id, kind FROM categories ORDER BY id`)
+	rows, _ = s.db.Query(ctx, `SELECT id, name, parent_id, kind FROM categories WHERE user_id = $1 ORDER BY id`, uid)
 	st.Cats, err = pgx.CollectRows(rows, func(r pgx.CollectableRow) (Category, error) {
 		var c Category
 		err := r.Scan(&c.ID, &c.Name, &c.Parent, &c.Kind)
@@ -188,7 +210,8 @@ func (s *Store) State(ctx context.Context) (*State, error) {
 		FROM transactions t
 		JOIN accounts a ON a.id = t.account_id
 		LEFT JOIN accounts b ON b.id = t.to_account_id
-		ORDER BY t.date DESC, t.id DESC`)
+		WHERE t.user_id = $1
+		ORDER BY t.date DESC, t.id DESC`, uid)
 	st.Txs, err = pgx.CollectRows(rows, func(r pgx.CollectableRow) (Tx, error) {
 		var t Tx
 		var received *float64
@@ -244,22 +267,24 @@ func (in *AccountInput) validate() error {
 	return nil
 }
 
-func (s *Store) CreateAccount(ctx context.Context, in AccountInput) error {
+func (s *Store) CreateAccount(ctx context.Context, uid int64, in AccountInput) error {
 	if err := in.validate(); err != nil {
 		return err
 	}
-	_, err := s.db.Exec(ctx, `INSERT INTO accounts (name, kind, balance, currency) VALUES ($1, $2, $3, $4)`,
-		in.Name, in.Kind, in.Balance, in.Cur)
+	_, err := s.db.Exec(ctx, `INSERT INTO accounts (user_id, name, kind, balance, currency) VALUES ($1, $2, $3, $4, $5)`,
+		uid, in.Name, in.Kind, in.Balance, in.Cur)
 	return err
 }
 
 // UpdateAccount sets the balance directly, like the page's account dialog.
-func (s *Store) UpdateAccount(ctx context.Context, id int64, in AccountInput) error {
+func (s *Store) UpdateAccount(ctx context.Context, uid, id int64, in AccountInput) error {
 	if err := in.validate(); err != nil {
 		return err
 	}
-	tag, err := s.db.Exec(ctx, `UPDATE accounts SET name = $2, kind = $3, balance = $4, currency = $5 WHERE id = $1`,
-		id, in.Name, in.Kind, in.Balance, in.Cur)
+	tag, err := s.db.Exec(ctx, `
+		UPDATE accounts SET name = $3, kind = $4, balance = $5, currency = $6
+		WHERE id = $1 AND user_id = $2`,
+		id, uid, in.Name, in.Kind, in.Balance, in.Cur)
 	if err == nil && tag.RowsAffected() == 0 {
 		return notFound("Счёт не найден")
 	}
@@ -268,8 +293,8 @@ func (s *Store) UpdateAccount(ctx context.Context, id int64, in AccountInput) er
 
 // DeleteAccount removes the account with its operations, transfers included.
 // Balances of the other accounts are left as they are.
-func (s *Store) DeleteAccount(ctx context.Context, id int64) error {
-	tag, err := s.db.Exec(ctx, `DELETE FROM accounts WHERE id = $1`, id)
+func (s *Store) DeleteAccount(ctx context.Context, uid, id int64) error {
+	tag, err := s.db.Exec(ctx, `DELETE FROM accounts WHERE id = $1 AND user_id = $2`, id, uid)
 	if err == nil && tag.RowsAffected() == 0 {
 		return notFound("Счёт не найден")
 	}
@@ -321,23 +346,23 @@ func (in *TxInput) validate() error {
 	return nil
 }
 
-func (s *Store) CreateTx(ctx context.Context, in TxInput) error {
+func (s *Store) CreateTx(ctx context.Context, uid int64, in TxInput) error {
 	if err := in.validate(); err != nil {
 		return err
 	}
-	return pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) error { return insertTx(ctx, tx, in) })
+	return pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) error { return insertTx(ctx, tx, uid, in) })
 }
 
 // insertTx records a validated operation and moves the account balances.
 // A transfer without an explicit received amount is converted at the stored rates.
-func insertTx(ctx context.Context, tx pgx.Tx, in TxInput) error {
-	from, err := lockAccount(ctx, tx, in.Account)
+func insertTx(ctx context.Context, tx pgx.Tx, uid int64, in TxInput) error {
+	from, err := lockAccount(ctx, tx, uid, in.Account)
 	if err != nil {
 		return err
 	}
 
 	if in.Type == "transfer" {
-		to, err := lockAccount(ctx, tx, in.ToAccount)
+		to, err := lockAccount(ctx, tx, uid, in.ToAccount)
 		if err != nil {
 			return err
 		}
@@ -348,9 +373,9 @@ func insertTx(ctx context.Context, tx pgx.Tx, in TxInput) error {
 			return err
 		}
 		if _, err := tx.Exec(ctx, `
-			INSERT INTO transactions (date, title, type, account_id, to_account_id, amount, received)
-			VALUES ($1, $2, 'transfer', $3, $4, $5, $6)`,
-			in.Date, in.Title, from.id, to.id, in.Amount, got); err != nil {
+			INSERT INTO transactions (user_id, date, title, type, account_id, to_account_id, amount, received)
+			VALUES ($1, $2, $3, 'transfer', $4, $5, $6, $7)`,
+			uid, in.Date, in.Title, from.id, to.id, in.Amount, got); err != nil {
 			return err
 		}
 		if err := addBalance(ctx, tx, from.id, -in.Amount); err != nil {
@@ -361,16 +386,16 @@ func insertTx(ctx context.Context, tx pgx.Tx, in TxInput) error {
 
 	var catID *int64
 	var id int64
-	switch err := tx.QueryRow(ctx, `SELECT id FROM categories WHERE name = $1`, in.Category).Scan(&id); {
+	switch err := tx.QueryRow(ctx, `SELECT id FROM categories WHERE user_id = $1 AND name = $2`, uid, in.Category).Scan(&id); {
 	case err == nil:
 		catID = &id
 	case !errors.Is(err, pgx.ErrNoRows):
 		return err
 	}
 	if _, err := tx.Exec(ctx, `
-		INSERT INTO transactions (date, title, type, category_id, category_name, account_id, amount)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-		in.Date, in.Title, in.Type, catID, in.Category, from.id, in.Amount); err != nil {
+		INSERT INTO transactions (user_id, date, title, type, category_id, category_name, account_id, amount)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+		uid, in.Date, in.Title, in.Type, catID, in.Category, from.id, in.Amount); err != nil {
 		return err
 	}
 	delta := in.Amount
@@ -381,7 +406,7 @@ func insertTx(ctx context.Context, tx pgx.Tx, in TxInput) error {
 }
 
 // DeleteTx removes an operation and rolls its effect back from the balances.
-func (s *Store) DeleteTx(ctx context.Context, id int64) error {
+func (s *Store) DeleteTx(ctx context.Context, uid, id int64) error {
 	return pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) error {
 		var typ string
 		var from int64
@@ -389,8 +414,8 @@ func (s *Store) DeleteTx(ctx context.Context, id int64) error {
 		var amount float64
 		var received *float64
 		err := tx.QueryRow(ctx, `
-			DELETE FROM transactions WHERE id = $1
-			RETURNING type, account_id, to_account_id, amount, received`, id).
+			DELETE FROM transactions WHERE id = $1 AND user_id = $2
+			RETURNING type, account_id, to_account_id, amount, received`, id, uid).
 			Scan(&typ, &from, &to, &amount, &received)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return notFound("Операция не найдена")
@@ -417,9 +442,9 @@ type accountRef struct {
 	cur string
 }
 
-func lockAccount(ctx context.Context, tx pgx.Tx, name string) (accountRef, error) {
+func lockAccount(ctx context.Context, tx pgx.Tx, uid int64, name string) (accountRef, error) {
 	var a accountRef
-	err := tx.QueryRow(ctx, `SELECT id, currency FROM accounts WHERE name = $1 FOR UPDATE`, name).Scan(&a.id, &a.cur)
+	err := tx.QueryRow(ctx, `SELECT id, currency FROM accounts WHERE user_id = $1 AND name = $2 FOR UPDATE`, uid, name).Scan(&a.id, &a.cur)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return a, badRequest("Нет счёта «" + name + "»")
 	}
@@ -480,30 +505,43 @@ func (in *CategoryInput) validate() error {
 	return nil
 }
 
-func (s *Store) CreateCategory(ctx context.Context, in CategoryInput) error {
+func seedCategories(ctx context.Context, tx pgx.Tx, uid int64) error {
+	names := make([]string, len(defaultCategories))
+	kinds := make([]string, len(defaultCategories))
+	for i, c := range defaultCategories {
+		names[i], kinds[i] = c.name, c.kind
+	}
+	_, err := tx.Exec(ctx, `INSERT INTO categories (user_id, name, kind) SELECT $1, unnest($2::text[]), unnest($3::text[])`,
+		uid, names, kinds)
+	return err
+}
+
+func (s *Store) CreateCategory(ctx context.Context, uid int64, in CategoryInput) error {
 	if err := in.validate(); err != nil {
 		return err
 	}
 	return pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) error {
-		if err := checkParent(ctx, tx, 0, in); err != nil {
+		if err := checkParent(ctx, tx, uid, 0, in); err != nil {
 			return err
 		}
-		_, err := tx.Exec(ctx, `INSERT INTO categories (name, parent_id, kind) VALUES ($1, $2, $3)`, in.Name, in.Parent, in.Kind)
+		_, err := tx.Exec(ctx, `INSERT INTO categories (user_id, name, parent_id, kind) VALUES ($1, $2, $3, $4)`,
+			uid, in.Name, in.Parent, in.Kind)
 		return err
 	})
 }
 
 // UpdateCategory renames or moves a category; its subtree takes on its kind
 // and its operations take on the new name.
-func (s *Store) UpdateCategory(ctx context.Context, id int64, in CategoryInput) error {
+func (s *Store) UpdateCategory(ctx context.Context, uid, id int64, in CategoryInput) error {
 	if err := in.validate(); err != nil {
 		return err
 	}
 	return pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) error {
-		if err := checkParent(ctx, tx, id, in); err != nil {
+		if err := checkParent(ctx, tx, uid, id, in); err != nil {
 			return err
 		}
-		tag, err := tx.Exec(ctx, `UPDATE categories SET name = $2, parent_id = $3, kind = $4 WHERE id = $1`, id, in.Name, in.Parent, in.Kind)
+		tag, err := tx.Exec(ctx, `UPDATE categories SET name = $3, parent_id = $4, kind = $5 WHERE id = $1 AND user_id = $2`,
+			id, uid, in.Name, in.Parent, in.Kind)
 		if err != nil {
 			return err
 		}
@@ -512,21 +550,22 @@ func (s *Store) UpdateCategory(ctx context.Context, id int64, in CategoryInput) 
 		}
 		if _, err := tx.Exec(ctx, `
 			WITH RECURSIVE down AS (
-				SELECT id FROM categories WHERE parent_id = $1
+				SELECT id FROM categories WHERE parent_id = $1 AND user_id = $2
 				UNION ALL
 				SELECT c.id FROM categories c JOIN down ON c.parent_id = down.id
 			)
-			UPDATE categories SET kind = $2 WHERE id IN (SELECT id FROM down)`, id, in.Kind); err != nil {
+			UPDATE categories SET kind = $3 WHERE id IN (SELECT id FROM down)`, id, uid, in.Kind); err != nil {
 			return err
 		}
-		_, err = tx.Exec(ctx, `UPDATE transactions SET category_name = $2 WHERE category_id = $1`, id, in.Name)
+		_, err = tx.Exec(ctx, `UPDATE transactions SET category_name = $3 WHERE category_id = $1 AND user_id = $2`, id, uid, in.Name)
 		return err
 	})
 }
 
-// checkParent rejects a parent of another kind, a parent inside the category's
-// own subtree and nesting deeper than maxCategoryDepth. id is 0 for a new category.
-func checkParent(ctx context.Context, tx pgx.Tx, id int64, in CategoryInput) error {
+// checkParent rejects a parent that isn't the user's, a parent of another kind,
+// a parent inside the category's own subtree and nesting deeper than
+// maxCategoryDepth. id is 0 for a new category.
+func checkParent(ctx context.Context, tx pgx.Tx, uid, id int64, in CategoryInput) error {
 	if in.Parent == nil {
 		return nil
 	}
@@ -535,11 +574,11 @@ func checkParent(ctx context.Context, tx pgx.Tx, id int64, in CategoryInput) err
 	var cyclic bool
 	err := tx.QueryRow(ctx, `
 		WITH RECURSIVE up AS (
-			SELECT id, parent_id, kind, 0 AS depth FROM categories WHERE id = $1
+			SELECT id, parent_id, kind, 0 AS depth FROM categories WHERE id = $1 AND user_id = $3
 			UNION ALL
 			SELECT c.id, c.parent_id, c.kind, up.depth + 1 FROM categories c JOIN up ON c.id = up.parent_id
 		), down AS (
-			SELECT id, 0 AS depth FROM categories WHERE id = $2
+			SELECT id, 0 AS depth FROM categories WHERE id = $2 AND user_id = $3
 			UNION ALL
 			SELECT c.id, down.depth + 1 FROM categories c JOIN down ON c.parent_id = down.id
 		)
@@ -547,7 +586,7 @@ func checkParent(ctx context.Context, tx pgx.Tx, id int64, in CategoryInput) err
 		       COALESCE((SELECT max(depth) FROM up), 0),
 		       COALESCE((SELECT max(depth) FROM down), 0),
 		       COALESCE((SELECT bool_or(id = $2) FROM up), false)`,
-		*in.Parent, id).Scan(&kind, &parentDepth, &height, &cyclic)
+		*in.Parent, id, uid).Scan(&kind, &parentDepth, &height, &cyclic)
 	switch {
 	case err != nil:
 		return err
@@ -564,14 +603,14 @@ func checkParent(ctx context.Context, tx pgx.Tx, id int64, in CategoryInput) err
 }
 
 // DeleteCategory lifts the children one level up. Operations keep the category name.
-func (s *Store) DeleteCategory(ctx context.Context, id int64) error {
+func (s *Store) DeleteCategory(ctx context.Context, uid, id int64) error {
 	return pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) error {
 		if _, err := tx.Exec(ctx, `
-			UPDATE categories SET parent_id = (SELECT parent_id FROM categories WHERE id = $1)
-			WHERE parent_id = $1`, id); err != nil {
+			UPDATE categories SET parent_id = (SELECT parent_id FROM categories WHERE id = $1 AND user_id = $2)
+			WHERE parent_id = $1 AND user_id = $2`, id, uid); err != nil {
 			return err
 		}
-		tag, err := tx.Exec(ctx, `DELETE FROM categories WHERE id = $1`, id)
+		tag, err := tx.Exec(ctx, `DELETE FROM categories WHERE id = $1 AND user_id = $2`, id, uid)
 		if err == nil && tag.RowsAffected() == 0 {
 			return notFound("Категория не найдена")
 		}
@@ -628,14 +667,14 @@ func parseImport(text string) []importLine {
 
 // Import adds the operations from CSV text in one transaction and returns how
 // many were added. Unknown accounts (rouble cards) and categories are created.
-func (s *Store) Import(ctx context.Context, text string) (int, error) {
+func (s *Store) Import(ctx context.Context, uid int64, text string) (int, error) {
 	lines := parseImport(text)
 	if len(lines) == 0 {
 		return 0, badRequest("Не найдено ни одной строки в нужном формате.")
 	}
 	err := pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) error {
 		for _, l := range lines {
-			if err := importOne(ctx, tx, l.in); err != nil {
+			if err := importOne(ctx, tx, uid, l.in); err != nil {
 				var ae *APIError
 				if errors.As(err, &ae) {
 					return badRequest(fmt.Sprintf("Строка %d: %s", l.n, ae.Msg))
@@ -651,7 +690,7 @@ func (s *Store) Import(ctx context.Context, text string) (int, error) {
 	return len(lines), nil
 }
 
-func importOne(ctx context.Context, tx pgx.Tx, in TxInput) error {
+func importOne(ctx context.Context, tx pgx.Tx, uid int64, in TxInput) error {
 	if err := in.validate(); err != nil {
 		return err
 	}
@@ -659,7 +698,9 @@ func importOne(ctx context.Context, tx pgx.Tx, in TxInput) error {
 		if name == "" {
 			continue
 		}
-		if _, err := tx.Exec(ctx, `INSERT INTO accounts (name, kind, currency) VALUES ($1, 'Карта', 'RUB') ON CONFLICT (name) DO NOTHING`, name); err != nil {
+		if _, err := tx.Exec(ctx, `
+			INSERT INTO accounts (user_id, name, kind, currency) VALUES ($1, $2, 'Карта', 'RUB')
+			ON CONFLICT (user_id, name) DO NOTHING`, uid, name); err != nil {
 			return err
 		}
 	}
@@ -668,11 +709,13 @@ func importOne(ctx context.Context, tx pgx.Tx, in TxInput) error {
 		if in.Type == "income" {
 			kind = "income"
 		}
-		if _, err := tx.Exec(ctx, `INSERT INTO categories (name, kind) VALUES ($1, $2) ON CONFLICT (name) DO NOTHING`, in.Category, kind); err != nil {
+		if _, err := tx.Exec(ctx, `
+			INSERT INTO categories (user_id, name, kind) VALUES ($1, $2, $3)
+			ON CONFLICT (user_id, name) DO NOTHING`, uid, in.Category, kind); err != nil {
 			return err
 		}
 	}
-	return insertTx(ctx, tx, in)
+	return insertTx(ctx, tx, uid, in)
 }
 
 // ---- rates ----

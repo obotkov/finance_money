@@ -3,10 +3,6 @@
 	@www header_regexp www Host ^www\.(.+)$
 	redir @www https://{re.www.1}{uri} permanent
 
-	basic_auth {
-		{$AUTH_USER} {$AUTH_HASH}
-	}
-
 	encode zstd gzip
 
 	handle /api/* {
@@ -21,6 +17,7 @@
 	header {
 		Strict-Transport-Security "max-age=31536000"
 		X-Content-Type-Options nosniff
+		X-Frame-Options DENY
 		Referrer-Policy strict-origin-when-cross-origin
 		-Server
 	}
