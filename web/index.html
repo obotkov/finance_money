@@ -422,14 +422,102 @@
           <!-- Отчёты -->
           <sc-if value="{{ isReports }}" hint-placeholder-val="{{ false }}">
           <div class="screen" style="padding:22px 28px 32px">
-            <div style="display:flex;gap:12px;align-items:center;margin-bottom:16px">
-              <div class="seg">
-                <span class="segopt" data-on="1">Месяц</span>
-                <span class="segopt">Квартал</span>
-                <span class="segopt">Год</span>
-              </div>
-              <button class="btn btn-t">Выгрузить</button>
+            <div class="seg" style="margin-bottom:16px">
+              <span class="segopt" data-on="{{ repDetailOn }}" onClick="{{ showRepDetail }}">Детализация</span>
+              <span class="segopt" data-on="{{ repMonthsOn }}" onClick="{{ showRepMonths }}">По месяцам</span>
             </div>
+
+            <!-- детализация: доходы и расходы → категории → … → операции -->
+            <sc-if value="{{ repDetail }}" hint-placeholder-val="{{ true }}">
+            <div class="card" style="padding:18px 20px 20px;display:flex;flex-direction:column;gap:14px">
+              <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                <input class="inp" type="date" style="width:auto" value="{{ repFrom }}" onChange="{{ onRepFrom }}">
+                <span style="font-size:13px;color:var(--ink3)">—</span>
+                <input class="inp" type="date" style="width:auto" value="{{ repTo }}" onChange="{{ onRepTo }}">
+                <select class="inp" style="width:auto" value="{{ repPreset }}" onChange="{{ onRepPreset }}">
+                  <sc-for list="{{ repPresets }}" as="p" hint-placeholder-count="12"><option value="{{ p.value }}">{{ p.label }}</option></sc-for>
+                </select>
+                <div class="seg" style="margin-left:auto">
+                  <span class="segopt" data-on="{{ repBarsOn }}" onClick="{{ showRepBars }}">Столбцы</span>
+                  <span class="segopt" data-on="{{ repDonutOn }}" onClick="{{ showRepDonut }}">Круг</span>
+                </div>
+              </div>
+              <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:14px">
+                <sc-if value="{{ repCanBack }}" hint-placeholder-val="{{ false }}">
+                  <button class="btn btn-s" style="padding:5px 12px;margin-right:4px" onClick="{{ repBack }}">‹ Назад</button>
+                </sc-if>
+                <sc-for list="{{ repCrumbs }}" as="c" hint-placeholder-count="2">
+                  <span style="color:var(--ink3);display:{{ c.sepDisplay }}">›</span>
+                  <a href="#" style="color:{{ c.color }};font-weight:{{ c.weight }}" onClick="{{ c.go }}">{{ c.label }}</a>
+                </sc-for>
+              </div>
+              <div style="font-size:13px;color:var(--ink2)">{{ repSummary }}</div>
+
+              <sc-if value="{{ repShowBars }}" hint-placeholder-val="{{ true }}">
+                <div style="display:flex;flex-direction:column;gap:2px">
+                  <sc-for list="{{ repItems }}" as="it" hint-placeholder-count="4">
+                    <div class="rowline" style="padding:10px 12px;border-radius:12px;cursor:pointer" onClick="{{ it.open }}">
+                      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px">
+                        <span style="font-size:15px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ it.label }}</span>
+                        <span class="num" style="font-size:15px;font-weight:500;white-space:nowrap">{{ it.amountLabel }}<span style="font-size:12px;font-weight:400;color:var(--ink3);margin-left:8px">{{ it.pctLabel }}</span></span>
+                      </div>
+                      <div style="height:10px;margin-top:7px;background:var(--fill);border-radius:980px;overflow:hidden">
+                        <div style="height:10px;border-radius:980px;background:{{ it.color }};width:{{ it.width }};transition:width .35s ease"></div>
+                      </div>
+                      <div style="font-size:12px;color:var(--ink3);margin-top:5px">{{ it.hint }}</div>
+                    </div>
+                  </sc-for>
+                </div>
+              </sc-if>
+
+              <sc-if value="{{ repShowDonut }}" hint-placeholder-val="{{ false }}">
+                <div style="display:flex;flex-wrap:wrap;gap:20px;align-items:center">
+                  <div style="position:relative;width:200px;height:200px;max-width:100%;flex:none;margin:0 auto">
+                    <svg viewBox="0 0 120 120" width="200" height="200" role="img" aria-label="{{ repAria }}" style="display:block;max-width:100%">
+                      <sc-for list="{{ repSegs }}" as="s" hint-placeholder-count="3">
+                        <circle cx="60" cy="60" r="48" fill="none" stroke="{{ s.color }}" stroke-width="16" stroke-dasharray="{{ s.dash }}" stroke-dashoffset="{{ s.offset }}" transform="rotate(-90 60 60)" style="cursor:{{ s.cursor }}" onClick="{{ s.open }}"></circle>
+                      </sc-for>
+                    </svg>
+                    <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;pointer-events:none">
+                      <div style="font-size:11px;color:var(--ink3);max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ repLevelLabel }}</div>
+                      <div class="num" style="font-size:15px;font-weight:600;white-space:nowrap">{{ repTotalLabel }}</div>
+                    </div>
+                  </div>
+                  <div style="flex:1;min-width:220px;display:flex;flex-direction:column;gap:2px">
+                    <sc-for list="{{ repItems }}" as="it" hint-placeholder-count="4">
+                      <div class="rowline" style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:10px;cursor:pointer;font-size:14px" onClick="{{ it.open }}">
+                        <span style="width:10px;height:10px;border-radius:3px;flex:none;background:{{ it.swatch }}"></span>
+                        <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ it.label }}</span>
+                        <span class="num" style="white-space:nowrap">{{ it.amountLabel }}</span>
+                        <span class="num" style="color:var(--ink3);width:40px;text-align:right;white-space:nowrap">{{ it.pctLabel }}</span>
+                      </div>
+                    </sc-for>
+                  </div>
+                </div>
+              </sc-if>
+
+              <sc-if value="{{ repShowList }}" hint-placeholder-val="{{ false }}">
+                <div style="display:flex;flex-direction:column">
+                  <sc-for list="{{ repOps }}" as="o" hint-placeholder-count="6">
+                    <div class="rowline" style="display:flex;align-items:center;gap:12px;padding:11px 12px;border-radius:12px">
+                      <div style="flex:1;min-width:0">
+                        <div style="font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ o.title }}</div>
+                        <div class="num" style="font-size:12px;color:var(--ink3)">{{ o.meta }}</div>
+                      </div>
+                      <span class="num" style="font-size:15px;font-weight:500;white-space:nowrap;color:{{ o.color }}">{{ o.amountLabel }}</span>
+                    </div>
+                  </sc-for>
+                </div>
+              </sc-if>
+
+              <sc-if value="{{ repEmpty }}" hint-placeholder-val="{{ false }}">
+                <div style="font-size:14px;color:var(--ink3);padding:8px 2px">{{ repEmptyText }}</div>
+              </sc-if>
+            </div>
+            </sc-if>
+
+            <!-- по месяцам -->
+            <sc-if value="{{ repMonths }}" hint-placeholder-val="{{ false }}">
             <div class="card" style="padding:6px 18px 14px">
               <div class="num rgrid" style="display:grid;grid-template-columns:minmax(0,1.4fr) repeat(4,minmax(0,1fr));gap:12px;padding:12px 0 10px;font-size:12px;color:var(--ink3);border-bottom:1px solid var(--line)">
                 <span style="font-variant-numeric:normal">Категория</span><span style="text-align:right">{{ reportHead1 }}</span><span style="text-align:right">{{ reportHead2 }}</span><span style="text-align:right">{{ reportHead3 }}</span><span style="text-align:right">Среднее</span>
@@ -441,6 +529,7 @@
                 </div>
               </sc-for>
             </div>
+            </sc-if>
           </div>
           </sc-if>
 
@@ -1024,6 +1113,7 @@ class Component extends DCLogic {
     catId: null, catName: "", catParent: "", catKind: "expense", catTab: "expense",
     anaPreset: "month", anaFrom: THIS_MONTH + "-01", anaTo: TODAY,
     dataText: "", dataMsg: "",
+    repMode: "detail", repFrom: THIS_MONTH + "-01", repTo: TODAY, repPreset: "month", repView: "bars", repPath: [], repList: null,
     expPreset: "all", expFrom: "", expTo: "", expTypes: { expense: true, income: true, transfer: true, opening: true }, expMsg: "",
     cats: [], accounts: [], txs: [], rates: {},
     online: false, busy: false, demo: false, donutHover: null,
@@ -1257,6 +1347,145 @@ class Component extends DCLogic {
     // The CSV is read on the server (backend/import.go); the demo has no server.
     this.setState({ dataMsg: "В демо-режиме импорт недоступен: он работает через сервер." });
   }
+  // Drill-down report: income and expense → root categories → … → the operations
+  // of one category. repPath is [] at the top, [kind] for income or expense, then
+  // the ids of the categories opened; repList names the category being listed.
+  // Amounts are in rubles; a category counts its whole subtree; transfers are out.
+  reportVals(inRub) {
+    const st = this.state;
+    const KINDS = { income: { label: "Доходы", color: "#1a8b3c" }, expense: { label: "Расходы", color: "#0071e3" } };
+    // donut slots: the validated all-pairs set; the rest folds into a gray «Другое»
+    const PALETTE = ["#2a78d6", "#eda100", "#008300", "#4a3aa7", "#e87ba4"], OTHER = "#898781";
+    const go = (path, list) => () => this.setState({ repPath: path, repList: list || null });
+    const flow = st.txs.filter(t => t.type !== "transfer" && (!st.repFrom || t.d >= st.repFrom) && (!st.repTo || t.d <= st.repTo));
+    const kindOf = t => (t.v > 0 ? "income" : "expense");
+    const sum = list => list.reduce((s, t) => s + Math.abs(inRub(t)), 0);
+    const opsWord = n => pluralRu(n, "операция", "операции", "операций");
+    const dm = d => d.split("-").reverse().join(".");
+    const period = st.repFrom && st.repTo ? this.rangeLabel(st.repFrom, st.repTo)
+      : st.repFrom ? "с " + dm(st.repFrom) : st.repTo ? "по " + dm(st.repTo) : "за всё время";
+
+    const [kind, ...trail] = st.repPath;
+    const ops = kind ? flow.filter(t => kindOf(t) === kind) : flow;
+    const byId = {}, byName = {};
+    st.cats.forEach(c => { byId[c.id] = c; byName[c.name] = c; });
+    const kids = id => st.cats.filter(c => c.parent === id);
+    const own = name => ops.filter(t => t.c === name);
+    const tree = c => own(c.name).concat(...kids(c.id).map(tree)); // operations of a whole subtree
+
+    let items, levelLabel;
+    if (!kind) {
+      levelLabel = "Доходы и расходы";
+      items = ["income", "expense"].map(k => {
+        const list = flow.filter(t => kindOf(t) === k);
+        return { key: k, label: KINDS[k].label, total: sum(list), color: KINDS[k].color,
+          hint: opsWord(list.length) + (list.length ? " ›" : ""), open: list.length ? go([k]) : null };
+      });
+    } else {
+      const parent = trail.length ? byId[trail[trail.length - 1]] : null;
+      levelLabel = parent ? parent.name : KINDS[kind].label;
+      // every root shows up whatever its own kind, so no operation gets lost
+      items = (parent ? kids(parent.id) : st.cats.filter(c => c.parent == null)).map(c => {
+        const list = tree(c), sub = kids(c.id).filter(k => tree(k).length);
+        return { key: "c" + c.id, label: c.name, total: sum(list),
+          hint: sub.length ? pluralRu(sub.length, "подкатегория", "подкатегории", "подкатегорий") + " ›" : opsWord(list.length) + " ›",
+          open: sub.length ? go(st.repPath.concat([c.id])) : go(st.repPath, { name: c.name, label: c.name }) };
+      }).filter(it => it.total > 0);
+      if (parent && own(parent.name).length) {
+        const list = own(parent.name), label = parent.name + " (без подкатегории)";
+        items.push({ key: "own", label, total: sum(list), hint: opsWord(list.length) + " ›", open: go(st.repPath, { name: parent.name, label }) });
+      }
+      if (!parent) { // operations whose category was deleted keep its name
+        const orphans = {};
+        ops.forEach(t => { if (!byName[t.c]) (orphans[t.c] = orphans[t.c] || []).push(t); });
+        Object.keys(orphans).forEach(name => items.push({ key: "o" + name, label: name, total: sum(orphans[name]),
+          hint: opsWord(orphans[name].length) + " ›", open: go(st.repPath, { name, label: name }) }));
+      }
+      items.forEach(it => { it.color = KINDS[kind].color; });
+      items.sort((a, b) => b.total - a.total);
+    }
+
+    const total = items.reduce((s, it) => s + it.total, 0);
+    const max = Math.max(0, ...items.map(it => it.total));
+    items.forEach((it, i) => {
+      it.amountLabel = this.money(it.total);
+      it.pctLabel = total ? Math.round((it.total / total) * 100) + " %" : "";
+      it.width = max ? Math.max(1, Math.round((it.total / max) * 100)) + "%" : "0%";
+      it.swatch = !kind ? it.color : (i < 5 || items.length <= 6 ? PALETTE[i % 5] : OTHER);
+      if (!it.open) it.open = () => {};
+    });
+
+    // donut: at most six segments — the rest of the categories fold into «Другое»
+    const RING = 2 * Math.PI * 48, GAP = 1.4;
+    const folded = kind && items.length > 6;
+    const parts = (folded ? items.slice(0, 5) : items).map(it => ({ total: it.total, color: it.swatch, open: it.open, cursor: "pointer" }))
+      .concat(folded ? [{ total: items.slice(5).reduce((s, it) => s + it.total, 0), color: OTHER, open: () => {}, cursor: "default" }] : [])
+      .filter(p => p.total > 0);
+    let arc = 0;
+    const segs = parts.map((p, i) => {
+      const frac = p.total / (total || 1);
+      const len = Math.max(frac * RING - (parts.length > 1 ? GAP : 0), 0.5);
+      const seg = { key: "s" + i, color: p.color, dash: len.toFixed(2) + " " + (RING - len).toFixed(2), offset: (-arc).toFixed(2), open: p.open, cursor: p.cursor };
+      arc += frac * RING;
+      return seg;
+    });
+
+    const list = st.repList;
+    const listOps = list ? ops.filter(t => t.c === list.name) : [];
+    const crumbs = [{ label: "Доходы и расходы", path: [] }];
+    if (kind) crumbs.push({ label: KINDS[kind].label, path: [kind] });
+    trail.forEach((id, i) => crumbs.push({ label: byId[id] ? byId[id].name : "…", path: [kind].concat(trail.slice(0, i + 1)) }));
+    if (list) crumbs.push({ label: list.label, path: null });
+    const empty = list ? !listOps.length : !total;
+
+    return {
+      repDetail: st.repMode !== "months", repMonths: st.repMode === "months",
+      repDetailOn: st.repMode !== "months" ? "1" : "0", repMonthsOn: st.repMode === "months" ? "1" : "0",
+      showRepDetail: () => this.set("repMode", "detail"), showRepMonths: () => this.set("repMode", "months"),
+      repFrom: st.repFrom, repTo: st.repTo, repPreset: st.repPreset,
+      repPresets: [{ key: "all", value: "all", label: "Весь период" }]
+        .concat(this.presets().map(p => ({ key: p.id, value: p.id, label: p.label })))
+        .concat([{ key: "custom", value: "custom", label: "Произвольно" }]),
+      onRepPreset: e => {
+        const id = e.target.value, p = this.presets().find(x => x.id === id);
+        if (id === "all") this.setState({ repPreset: id, repFrom: "", repTo: "" });
+        else if (p) this.setState({ repPreset: id, repFrom: p.from, repTo: p.to });
+        else this.setState({ repPreset: "custom" });
+      },
+      onRepFrom: e => this.setState({ repFrom: e.target.value, repPreset: "custom" }),
+      onRepTo: e => this.setState({ repTo: e.target.value, repPreset: "custom" }),
+      repBarsOn: st.repView === "bars" ? "1" : "0", repDonutOn: st.repView === "donut" ? "1" : "0",
+      showRepBars: () => this.set("repView", "bars"), showRepDonut: () => this.set("repView", "donut"),
+      repCanBack: st.repPath.length > 0 || !!list,
+      repBack: () => this.setState(s => (s.repList ? { repList: null } : { repPath: s.repPath.slice(0, -1) })),
+      repCrumbs: crumbs.map((c, i) => {
+        const last = i === crumbs.length - 1;
+        return { key: "b" + i, label: c.label, sepDisplay: i ? "inline" : "none",
+          color: last ? "var(--ink)" : "var(--accent)", weight: last ? "600" : "400",
+          go: e => { e.preventDefault(); if (!last) this.setState({ repPath: c.path, repList: null }); } };
+      }),
+      repSummary: list
+        ? opsWord(listOps.length) + " на " + this.money(sum(listOps)) + " · " + period
+        : !kind
+          ? "Доходы " + this.money(items[0].total) + " · расходы " + this.money(items[1].total) + " · разница " + this.money(items[0].total - items[1].total) + " · " + period
+          : levelLabel + ": " + this.money(total) + " · " + period,
+      repItems: items, repSegs: segs,
+      repShowBars: !list && !empty && st.repView === "bars",
+      repShowDonut: !list && !empty && st.repView === "donut",
+      repShowList: !!list && !empty,
+      repAria: levelLabel + ": " + items.map(it => it.label + " " + it.pctLabel).join(", "),
+      repLevelLabel: levelLabel, repTotalLabel: this.money(total),
+      repOps: listOps.map((t, i) => ({
+        key: "t" + (t.id || i), title: t.t,
+        meta: dm(t.d) + (t.tm ? " " + t.tm : "") + " · " + t.a,
+        amountLabel: (kind === "income" ? "+" : "−") + this.fmt(Math.abs(t.v), this.curOf(t.a)),
+        color: kind === "income" ? "var(--pos)" : "var(--ink)"
+      })),
+      repEmpty: empty,
+      repEmptyText: list ? "В этой категории за период операций нет"
+        : kind ? "За выбранный период " + (kind === "income" ? "доходов" : "расходов") + " нет" : "За выбранный период операций нет"
+    };
+  }
   presets() {
     const iso = d => d.toISOString().slice(0, 10);
     const base = new Date(TODAY + "T00:00:00Z");
@@ -1340,7 +1569,9 @@ class Component extends DCLogic {
       ops: ["Операции", monthNow],
       accounts: ["Счета и активы", st.accounts.length + " счетов · рубли, валюта и крипто"],
       budgets: ["Бюджеты и лимиты", monthNow],
-      reports: ["Отчёт по тратам и доходам", monthName(reportKeys[0]).toLowerCase() + " — " + monthName(reportKeys[2]).toLowerCase() + ", по категориям"],
+      reports: ["Отчёт по тратам и доходам", st.repMode === "months"
+        ? monthName(reportKeys[0]).toLowerCase() + " — " + monthName(reportKeys[2]).toLowerCase() + ", по категориям"
+        : "доходы и расходы по категориям — до отдельных операций"],
       charts: ["Аналитика", "категории и динамика"],
       categories: ["Категории", st.cats.length + " категорий · вложенность до четырёх уровней"],
       settings: ["Настройки", "учёт и напоминания"]
@@ -1705,6 +1936,7 @@ class Component extends DCLogic {
         ? "Для сравнения по месяцам выберите период длиннее одного месяца."
         : "За период доход " + this.money(anaIncome) + ", траты " + this.money(anaExpense) + ". Отложено " + this.money(anaIncome - anaExpense) + ".")
         + (monthKeys.some(partial) ? " Месяцы с пометкой · показаны частично — только дни внутри периода." : ""),
+      ...this.reportVals(inRub),
       reportHead1: monthName(reportKeys[0]), reportHead2: monthName(reportKeys[1]), reportHead3: monthName(reportKeys[2]),
       reportRows: (() => {
         const keys = reportKeys;
