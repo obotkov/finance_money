@@ -238,6 +238,14 @@
           <sc-if value="{{ isAccounts }}" hint-placeholder-val="{{ false }}">
           <div style="padding:6px 28px 32px;display:grid;grid-template-columns:minmax(0,1.45fr) minmax(0,1fr);gap:16px;align-items:start">
             <div style="display:flex;flex-direction:column;gap:12px">
+            <div class="card" style="padding:16px 20px">
+              <div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
+                <span style="font-size:13px;color:var(--ink2)">Чистый капитал</span>
+                <span class="num big" style="font-size:clamp(19px,2vw,24px);white-space:nowrap">{{ totalLabel }}</span>
+              </div>
+            </div>
+            <sc-if value="{{ hasAccounts }}" hint-placeholder-val="{{ true }}">
+            <div style="display:flex;flex-direction:column;gap:12px">
             <div style="display:flex;align-items:center;gap:10px">
               <span style="font-size:13px;color:var(--ink2)">Группировать</span>
               <div class="seg">
@@ -284,29 +292,38 @@
               </sc-for>
             </div>
             </sc-if>
-            <div class="card" style="padding:16px 20px">
-              <div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
-                <span style="font-size:13px;color:var(--ink2)">Чистый капитал</span>
-                <span class="num big" style="font-size:clamp(19px,2vw,24px);white-space:nowrap">{{ totalLabel }}</span>
-              </div>
             </div>
+            </sc-if>
             <button class="btn btn-p" style="align-self:flex-start" onClick="{{ openAcc }}">Добавить счёт</button>
             </div>
+            <sc-if value="{{ hasShares }}" hint-placeholder-val="{{ true }}">
             <div class="card" style="padding:20px 22px">
               <div class="big" style="font-size:17px">Где лежат деньги</div>
-              <div style="display:flex;flex-direction:column;gap:14px;margin-top:14px">
+              <!-- the centre label is HTML over the SVG: the canvas runtime can't put {{ }} text inside SVG <text> -->
+              <div style="position:relative;width:176px;height:176px;max-width:100%;margin:16px auto 0">
+                <svg viewBox="0 0 120 120" width="176" height="176" role="img" aria-label="{{ sharesAria }}" style="display:block;max-width:100%">
+                  <sc-for list="{{ accountShares }}" as="s" hint-placeholder-count="4">
+                    <circle cx="60" cy="60" r="48" fill="none" stroke="{{ s.color }}" stroke-width="16" stroke-dasharray="{{ s.dash }}" stroke-dashoffset="{{ s.offset }}" transform="rotate(-90 60 60)" opacity="{{ s.opacity }}" style="transition:opacity .15s" onMouseEnter="{{ s.enter }}" onMouseLeave="{{ s.leave }}"></circle>
+                  </sc-for>
+                </svg>
+                <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;pointer-events:none">
+                  <div style="font-size:11px;color:var(--ink3);max-width:104px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ donutLabel }}</div>
+                  <div class="num" style="font-size:15px;font-weight:600;white-space:nowrap">{{ donutValue }}</div>
+                  <div class="num" style="font-size:11px;color:var(--ink3);min-height:14px">{{ donutPct }}</div>
+                </div>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:10px;margin-top:16px">
                 <sc-for list="{{ accountShares }}" as="s" hint-placeholder-count="4">
-                  <div>
-                    <div style="display:flex;justify-content:space-between;font-size:13px">
-                      <span>{{ s.kind }}</span><span class="num" style="color:var(--ink3)">{{ s.pctLabel }}</span>
-                    </div>
-                    <div style="height:8px;margin-top:6px;background:var(--fill);border-radius:980px;overflow:hidden">
-                      <div style="height:8px;background:var(--accent);border-radius:980px;width:{{ s.width }}"></div>
-                    </div>
+                  <div style="display:flex;align-items:center;gap:10px;font-size:13px;opacity:{{ s.opacity }};transition:opacity .15s" onMouseEnter="{{ s.enter }}" onMouseLeave="{{ s.leave }}">
+                    <span style="width:10px;height:10px;border-radius:3px;flex:none;background:{{ s.color }}"></span>
+                    <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ s.kind }}</span>
+                    <span class="num" style="color:var(--ink2);white-space:nowrap">{{ s.amountLabel }}</span>
+                    <span class="num" style="color:var(--ink3);width:40px;text-align:right;white-space:nowrap">{{ s.pctLabel }}</span>
                   </div>
                 </sc-for>
               </div>
             </div>
+            </sc-if>
           </div>
           </sc-if>
 
@@ -785,6 +802,14 @@ const MONTHS_NOM = ["Январь","Февраль","Март","Апрель","�
 // "YYYY-MM" of month m (0-based, may run past the year) of year y
 const monthKey = (y, m) => { const d = new Date(Date.UTC(y, m, 1)); return d.getUTCFullYear() + "-" + pad2(d.getUTCMonth() + 1); };
 const monthName = key => MONTHS_NOM[Number(key.slice(5)) - 1];
+// Donut colours by account kind: five slots of the dataviz reference palette
+// that pass its validator for all pairs on the white card (any two kinds can
+// end up side by side). Yellow and magenta sit under 3:1, so the legend under
+// the donut always names every kind. Credit and unknown kinds are gray.
+const KIND_COLORS = {
+  "Карта": "#2a78d6", "Наличные": "#eda100", "Вклад": "#008300", "Инвестиции": "#4a3aa7",
+  "Криптокошелёк": "#e87ba4", "Кредит": "#898781", other: "#898781"
+};
 const pluralRu = (n, a, b, c) => { const m = n % 100, k = n % 10; return n + " " + (m > 10 && m < 20 ? c : k === 1 ? a : k > 1 && k < 5 ? b : c); };
 const HIST_MONTHS = [
   { m: "2026-04", income: [["Зарплата", 142000]], spend: [["Продукты", 23400], ["Жильё и связь", 31500], ["Транспорт", 6800], ["Кафе и доставка", 9700], ["Подписки", 2190], ["Футбол", 4500], ["Одежда", 310]] },
@@ -862,7 +887,7 @@ class Component extends DCLogic {
     anaPreset: "month", anaFrom: THIS_MONTH + "-01", anaTo: TODAY,
     dataMode: "export", dataText: "", dataMsg: "",
     cats: [], accounts: [], txs: [], rates: {},
-    online: false, busy: false, demo: false,
+    online: false, busy: false, demo: false, donutHover: null,
     user: null, needLogin: false, googleEnabled: false,
     authMode: "login", authEmail: "", authPassword: "", authName: "", authError: ""
   };
@@ -1199,16 +1224,30 @@ class Component extends DCLogic {
     const periodIn = periodFlow.filter(t => t.v > 0).reduce((s, t) => s + inRub(t), 0);
     const periodEx = periodFlow.filter(t => t.v < 0).reduce((s, t) => s - inRub(t), 0);
 
+    const order = ["Карта", "Наличные", "Вклад", "Инвестиции", "Криптокошелёк", "Кредит"];
     const kinds = {};
     st.accounts.forEach(a => { if (a.balance > 0) kinds[a.kind] = (kinds[a.kind] || 0) + rub(a); });
     const posTotal = Object.values(kinds).reduce((s, v) => s + v, 0) || 1;
-    const accountShares = Object.keys(kinds).sort((a, b) => kinds[b] - kinds[a]).map(k => ({
-      key: k, kind: k,
-      pctLabel: Math.round((kinds[k] / posTotal) * 100) + " %",
-      width: Math.round((kinds[k] / posTotal) * 100) + "%"
-    }));
-
-    const order = ["Карта", "Наличные", "Вклад", "Инвестиции", "Криптокошелёк", "Кредит"];
+    // Donut of positive balances by kind: segments run clockwise from 12 o'clock
+    // in the fixed kind order, and a kind keeps its colour whatever its size.
+    const RING = 2 * Math.PI * 48, GAP = 1.4; // circumference at r=48; ~2px gap at 176px
+    const shareKinds = order.filter(k => kinds[k] > 0).concat(Object.keys(kinds).filter(k => order.indexOf(k) === -1));
+    let arc = 0;
+    const accountShares = shareKinds.map(k => {
+      const frac = kinds[k] / posTotal;
+      const len = Math.max(frac * RING - (shareKinds.length > 1 ? GAP : 0), 0.5);
+      const pct = Math.round(frac * 100) + " %";
+      const share = {
+        key: k, kind: k, color: KIND_COLORS[k] || KIND_COLORS.other,
+        pctLabel: pct, amountLabel: this.money(kinds[k]),
+        // hovering a segment or its legend row shows it in the centre and dims the rest
+        opacity: st.donutHover && st.donutHover !== k ? "0.35" : "1",
+        enter: () => this.set("donutHover", k), leave: () => this.set("donutHover", null),
+        dash: len.toFixed(2) + " " + (RING - len).toFixed(2), offset: (-arc).toFixed(2)
+      };
+      arc += frac * RING;
+      return share;
+    });
     const byKind = {};
     st.accounts.forEach((a, i) => { (byKind[a.kind] = byKind[a.kind] || []).push(accounts[i]); });
     const accountGroups = Object.keys(byKind)
@@ -1404,6 +1443,12 @@ class Component extends DCLogic {
       gKind: st.groupBy !== "none" ? "1" : "0", gNone: st.groupBy === "none" ? "1" : "0",
       groupByKind: () => this.set("groupBy", "kind"),
       groupByNone: () => this.set("groupBy", "none"),
+      hasAccounts: st.accounts.length > 0, hasShares: accountShares.length > 0,
+      ...(() => {
+        const h = accountShares.find(s => s.kind === st.donutHover);
+        return { donutLabel: h ? h.kind : "активы", donutValue: h ? h.amountLabel : this.money(posTotal), donutPct: h ? h.pctLabel : "" };
+      })(),
+      sharesAria: "Где лежат деньги: " + accountShares.map(s => s.kind + " " + s.pctLabel).join(", "),
       accounts, accountShares, accountNames: st.accounts.map(a => a.name),
       totalLabel: this.money(total), freeLabel: this.money(free),
       incomeLabel: this.money(income), expenseLabel: this.money(expense),
