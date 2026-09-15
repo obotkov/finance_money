@@ -55,23 +55,29 @@
   <div style="max-width:1240px;margin:0 auto">
 
     <sc-if value="{{ isDesktop }}" hint-placeholder-val="{{ true }}">
-    <div class="card" style="overflow:hidden;border-radius:20px">
-      <div style="display:flex;align-items:center;gap:8px;padding:11px 16px;background:rgba(246,246,248,.9);border-bottom:1px solid var(--line)">
-        <div style="display:flex;gap:7px">
-          <span style="width:11px;height:11px;border-radius:50%;background:#ff5f57"></span>
-          <span style="width:11px;height:11px;border-radius:50%;background:#febc2e"></span>
-          <span style="width:11px;height:11px;border-radius:50%;background:#28c840"></span>
+    <!-- overflow:clip keeps the rounded corners without breaking the sticky header -->
+    <div class="card" style="overflow:clip;border-radius:20px">
+      <!-- шапка: название, заголовок раздела и действия; остаётся наверху при прокрутке -->
+      <div style="position:sticky;top:0;z-index:20;display:grid;grid-template-columns:230px minmax(0,1fr);background:rgba(250,250,252,.92);backdrop-filter:saturate(180%) blur(12px);-webkit-backdrop-filter:saturate(180%) blur(12px);border-bottom:1px solid var(--line)">
+        <div style="padding:16px 22px;border-right:1px solid var(--line);display:flex;flex-direction:column;justify-content:center">
+          <div class="big" style="font-size:19px">Ведомость</div>
+          <div style="font-size:12px;color:var(--ink3)">личный учёт</div>
         </div>
-        <span class="num" style="margin-left:8px;font-size:12px;color:var(--ink3)">Ведомость</span>
+        <div style="display:flex;align-items:center;gap:14px;padding:14px 28px;min-width:0">
+          <div style="min-width:0">
+            <div class="big" style="font-size:23px">{{ title }}</div>
+            <div style="font-size:13px;color:var(--ink3)">{{ subtitle }}</div>
+          </div>
+          <div style="margin-left:auto;display:flex;gap:10px;flex:none">
+            <button class="btn btn-s" style="white-space:nowrap" onClick="{{ openAcc }}">Добавить счёт</button>
+            <button class="btn btn-p" style="white-space:nowrap" onClick="{{ openOp }}">Новая операция</button>
+          </div>
+        </div>
       </div>
 
       <div style="display:grid;grid-template-columns:230px minmax(0,1fr)">
         <!-- боковая навигация -->
-        <div style="background:#fafafc;border-right:1px solid var(--line);padding:20px 12px 22px;display:flex;flex-direction:column;gap:16px">
-          <div style="padding:0 10px">
-            <div class="big" style="font-size:19px">Ведомость</div>
-            <div style="font-size:12px;color:var(--ink3)">личный учёт</div>
-          </div>
+        <div style="background:#fafafc;border-right:1px solid var(--line);padding:16px 12px 22px;display:flex;flex-direction:column;gap:16px">
           <div style="display:flex;flex-direction:column;gap:2px">
             <sc-for list="{{ nav }}" as="n" hint-placeholder-count="8">
               <a class="navitem" href="#" data-on="{{ n.on }}" onClick="{{ n.go }}">{{ n.label }}</a>
@@ -89,20 +95,9 @@
 
         <!-- содержимое -->
         <div>
-          <div style="display:flex;align-items:center;gap:14px;padding:22px 28px 18px">
-            <div>
-              <div class="big" style="font-size:27px">{{ title }}</div>
-              <div style="font-size:13px;color:var(--ink3)">{{ subtitle }}</div>
-            </div>
-            <div style="margin-left:auto;display:flex;gap:10px;flex:none">
-              <button class="btn btn-s" style="white-space:nowrap" onClick="{{ openAcc }}">Добавить счёт</button>
-              <button class="btn btn-p" style="white-space:nowrap" onClick="{{ openOp }}">Новая операция</button>
-            </div>
-          </div>
-
           <!-- Сводка -->
           <sc-if value="{{ isSummary }}" hint-placeholder-val="{{ true }}">
-          <div style="padding:6px 28px 32px;display:flex;flex-direction:column;gap:22px">
+          <div style="padding:22px 28px 32px;display:flex;flex-direction:column;gap:22px">
             <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px">
               <div class="card" style="padding:20px 22px">
                 <div style="font-size:13px;color:var(--ink2)">Свободные деньги</div>
@@ -162,7 +157,7 @@
 
           <!-- Операции -->
           <sc-if value="{{ isOps }}" hint-placeholder-val="{{ false }}">
-          <div style="padding:6px 28px 32px">
+          <div style="padding:22px 28px 32px">
             <div style="display:grid;grid-template-columns:minmax(260px,320px) minmax(0,1fr);gap:16px;align-items:start;margin-bottom:18px">
               <div class="card" style="padding:14px 16px 16px">
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
@@ -236,7 +231,7 @@
 
           <!-- Счета -->
           <sc-if value="{{ isAccounts }}" hint-placeholder-val="{{ false }}">
-          <div style="padding:6px 28px 32px;display:grid;grid-template-columns:minmax(0,1.45fr) minmax(0,1fr);gap:16px;align-items:start">
+          <div style="padding:22px 28px 32px;display:grid;grid-template-columns:minmax(0,1.45fr) minmax(0,1fr);gap:16px;align-items:start">
             <div style="display:flex;flex-direction:column;gap:12px">
             <div class="card" style="padding:16px 20px">
               <div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
@@ -329,7 +324,7 @@
 
           <!-- Бюджеты -->
           <sc-if value="{{ isBudgets }}" hint-placeholder-val="{{ false }}">
-          <div style="padding:6px 28px 32px;display:grid;grid-template-columns:minmax(0,1.45fr) minmax(0,1fr);gap:16px;align-items:start">
+          <div style="padding:22px 28px 32px;display:grid;grid-template-columns:minmax(0,1.45fr) minmax(0,1fr);gap:16px;align-items:start">
             <div class="card" style="padding:8px 4px 18px">
               <sc-for list="{{ budgets }}" as="b" hint-placeholder-count="6">
                 <div class="rowline" style="padding:14px 18px;margin:0 4px;border-radius:14px">
@@ -355,7 +350,7 @@
 
           <!-- Отчёты -->
           <sc-if value="{{ isReports }}" hint-placeholder-val="{{ false }}">
-          <div style="padding:6px 28px 32px">
+          <div style="padding:22px 28px 32px">
             <div style="display:flex;gap:12px;align-items:center;margin-bottom:16px">
               <div class="seg">
                 <span class="segopt" data-on="1">Месяц</span>
@@ -380,7 +375,7 @@
 
           <!-- Аналитика -->
           <sc-if value="{{ isCharts }}" hint-placeholder-val="{{ false }}">
-          <div style="padding:6px 28px 32px;display:flex;flex-direction:column;gap:16px">
+          <div style="padding:22px 28px 32px;display:flex;flex-direction:column;gap:16px">
             <div class="card" style="padding:14px 18px;display:flex;flex-wrap:wrap;align-items:center;gap:12px">
               <div style="display:flex;align-items:center;gap:8px">
                 <input class="inp" type="date" style="width:auto" value="{{ anaFrom }}" onChange="{{ onAnaFrom }}">
@@ -449,7 +444,7 @@
 
           <!-- Категории -->
           <sc-if value="{{ isCategories }}" hint-placeholder-val="{{ false }}">
-          <div style="padding:6px 28px 32px;max-width:860px;display:flex;flex-direction:column;gap:14px">
+          <div style="padding:22px 28px 32px;max-width:860px;display:flex;flex-direction:column;gap:14px">
             <div class="seg" style="align-self:flex-start">
               <span class="segopt" data-on="{{ catTabExp }}" onClick="{{ showExpenseCats }}">Расходы</span>
               <span class="segopt" data-on="{{ catTabInc }}" onClick="{{ showIncomeCats }}">Доходы</span>
@@ -476,7 +471,7 @@
 
           <!-- Настройки -->
           <sc-if value="{{ isSettings }}" hint-placeholder-val="{{ false }}">
-          <div style="padding:6px 28px 32px;max-width:620px;display:flex;flex-direction:column;gap:16px">
+          <div style="padding:22px 28px 32px;max-width:620px;display:flex;flex-direction:column;gap:16px">
             <div class="card" style="padding:20px 22px;display:flex;flex-direction:column;gap:18px">
               <div><span class="lbl">Основная валюта</span><input class="inp" value="Российский рубль (₽)" readOnly="{{ true }}"></div>
               <div><span class="lbl">Начало финансового месяца</span>
