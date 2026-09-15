@@ -649,8 +649,8 @@
               </div>
               <div style="font-size:12px;color:var(--ink3);margin-top:2px">{{ flowCaption }}</div>
               <div style="display:flex;flex-wrap:wrap;gap:4px 18px;font-size:12px;color:var(--ink2);margin-top:6px">
-                <span style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius:3px;background:var(--accent)"></span>доходы <span class="num" style="color:var(--ink)">{{ flowIncLabel }}</span></span>
-                <span style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius:3px;background:var(--bar-muted)"></span>траты <span class="num" style="color:var(--ink)">{{ flowExpLabel }}</span></span>
+                <span style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius:3px;background:var(--accent)"></span>доходы <span class="num" style="color:var(--ink)" hidden="{{ flowHovering }}">{{ flowIncLabel }}</span></span>
+                <span style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius:3px;background:var(--bar-muted)"></span>траты <span class="num" style="color:var(--ink)" hidden="{{ flowHovering }}">{{ flowExpLabel }}</span></span>
               </div>
               <div style="position:relative;margin-top:14px">
                 <svg viewBox="0 0 620 210" style="display:block;width:100%;height:auto" role="img" aria-label="{{ flowAria }}" onMouseLeave="{{ flowLeave }}">
@@ -693,7 +693,7 @@
                   <span style="display:inline-flex;align-items:center;gap:8px;padding:4px 4px 4px 12px;border-radius:980px;background:var(--fill);font-size:13px;max-width:100%">
                     <span style="width:10px;height:10px;border-radius:3px;flex:none;background:{{ s.color }}"></span>
                     <span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ s.name }}</span>
-                    <span class="num" style="color:var(--ink2);white-space:nowrap">{{ s.valueLabel }}</span>
+                    <span class="num" style="color:var(--ink2);white-space:nowrap" hidden="{{ s.hovering }}">{{ s.valueLabel }}</span>
                     <button class="btn btn-t" style="padding:2px 8px;font-size:15px;line-height:1;color:var(--ink3)" title="Убрать" aria-label="{{ s.removeAria }}" onClick="{{ s.remove }}">×</button>
                   </span>
                 </sc-for>
@@ -1821,9 +1821,9 @@ class Component extends DCLogic {
 
     return {
       flowGrans: grans(st.anaGran, "anaGran", "anaHover"),
-      flowCaption: fc.at >= 0 ? fb[fc.at].title : range,
-      flowIncLabel: this.money(fc.at >= 0 ? inc[fc.at] : totalInc),
-      flowExpLabel: this.money(fc.at >= 0 ? exp[fc.at] : totalExp),
+      // the header keeps the whole period; the hovered bar's figures are in the tooltip
+      flowCaption: range, flowHovering: fc.at >= 0,
+      flowIncLabel: this.money(totalInc), flowExpLabel: this.money(totalExp),
       flowTip: fc.at >= 0, flowTipL: fc.tipL, flowTipR: fc.tipR,
       flowTipTitle: fc.at >= 0 ? fb[fc.at].title : "",
       flowTipRows: fc.at < 0 ? [] : [
@@ -1839,9 +1839,9 @@ class Component extends DCLogic {
         + coarser(st.anaGran, fg),
 
       catGrans: grans(st.anaCatGran, "anaCatGran", "anaCatHover"),
-      catCaption: cc.at >= 0 ? cb[cc.at].title : range,
+      catCaption: range,
       catSeries: series.map(s => ({ key: s.key, name: s.name, color: s.color,
-        valueLabel: this.money(cc.at >= 0 ? s.values[cc.at] : sumOf(s.values)),
+        valueLabel: this.money(sumOf(s.values)), hovering: cc.at >= 0,
         removeAria: "Убрать «" + s.name + "» с графика",
         remove: () => this.setState({ anaCats: sel.filter(id => id !== s.id), anaCatHover: null }) })),
       catCanAdd: sel.length < MAX, catLimitDisplay: sel.length < MAX ? "none" : "inline",
