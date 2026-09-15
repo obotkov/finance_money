@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Выкатывает текущий main на сервер: git pull + пересборка контейнера.
+# Выкатывает текущий main на сервер: git pull + пересборка контейнеров.
 # Использование: ./deploy.sh   (сначала git push)
 set -euo pipefail
 
@@ -17,6 +17,11 @@ cd "$APP_DIR"
 git fetch --quiet origin main
 git reset --hard origin/main
 [ -f .env ] || cp .env.example .env
+# Пароль базы генерируется один раз и дальше не меняется
+if ! grep -q '^DB_PASSWORD=.' .env; then
+  sed -i '/^DB_PASSWORD=/d' .env
+  echo "DB_PASSWORD=\$(openssl rand -hex 24)" >> .env
+fi
 docker compose up -d --build --remove-orphans
 docker image prune -f >/dev/null
 docker compose ps

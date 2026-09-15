@@ -1,7 +1,38 @@
 services:
+  db:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    command: ["postgres", "-c", "shared_buffers=64MB", "-c", "max_connections=20"]
+    environment:
+      POSTGRES_DB: finance
+      POSTGRES_USER: finance
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
+    volumes:
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U finance -d finance"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  api:
+    build: ./backend
+    image: finance-money-api:latest
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgres://finance:${DB_PASSWORD}@db:5432/finance?sslmode=disable
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "/api", "healthcheck"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
   web:
-    build: .
-    image: finance-money:latest
+    build: ./web
+    image: finance-money-web:latest
     restart: unless-stopped
     ports:
       - "80:80"
@@ -9,10 +40,15 @@ services:
       - "443:443/udp"
     environment:
       DOMAIN: ${DOMAIN:-localhost}
+      AUTH_USER: ${AUTH_USER:?set AUTH_USER in .env}
+      AUTH_HASH: ${AUTH_HASH:?set AUTH_HASH in .env}
     volumes:
       - caddy_data:/data
       - caddy_config:/config
+    depends_on:
+      - api
 
 volumes:
+  pgdata:
   caddy_data:
   caddy_config:

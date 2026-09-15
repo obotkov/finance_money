@@ -3,9 +3,20 @@
 	@www header_regexp www Host ^www\.(.+)$
 	redir @www https://{re.www.1}{uri} permanent
 
-	root * /srv
+	basic_auth {
+		{$AUTH_USER} {$AUTH_HASH}
+	}
+
 	encode zstd gzip
-	file_server
+
+	handle /api/* {
+		reverse_proxy api:8080
+	}
+
+	handle {
+		root * /srv
+		file_server
+	}
 
 	header {
 		Strict-Transport-Security "max-age=31536000"

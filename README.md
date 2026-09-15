@@ -1,24 +1,54 @@
 # Ведомость — учёт финансов
 
-Прототип из Claude Design (`*.dc.html` + рантайм `support.js`), раздаётся как статика через Caddy в Docker.
+Личный учёт: счета, операции, категории, бюджеты и аналитика. Сайт: https://okayconnect.online
+
+## Устройство
+
+| Сервис | Что делает |
+| --- | --- |
+| `web` | Caddy: HTTPS, вход по паролю (basic auth), страница из `web/`, прокси `/api/*` на `api` |
+| `api` | Go-бэкенд из `backend/`: счета, операции, категории, импорт CSV, курсы валют |
+| `db` | PostgreSQL 18, данные в томе `pgdata` |
+
+Страница `web/index.html` — экспорт из Claude Design. При открытии она берёт данные с `/api/state`,
+а изменения отправляет в API. Без бэкенда (например, в холсте Claude Design) показывает демо-данные.
+
+Курсы к рублю: доллар и евро — ЦБ РФ, BTC/ETH/TON/USDT — CoinGecko. Обновляются при старте и раз в час,
+вручную — кнопкой «Обновить» в настройках. Если источник недоступен, остаются последние курсы.
+
+### API
+
+Все изменения отвечают полным состоянием (`accounts`, `cats`, `txs`, `rates`).
+
+| Метод | Путь | Тело |
+| --- | --- | --- |
+| GET | `/api/state` | |
+| POST, PUT `/{id}`, DELETE `/{id}` | `/api/accounts` | `{name, kind, balance, cur}` |
+| POST, DELETE `/{id}` | `/api/transactions` | `{date, title, type: expense\|income\|transfer, category, account, toAccount, amount, received}` |
+| POST, PUT `/{id}`, DELETE `/{id}` | `/api/categories` | `{name, parent, kind: expense\|income}` |
+| POST | `/api/import` | `{text}` — CSV в формате экспорта |
+| POST | `/api/rates/refresh` | `{}` |
+
+Операция меняет баланс счёта, удаление операции откатывает изменение.
 
 ## Локально
 
 ```bash
-DOMAIN=:80 docker compose up --build
+cp .env.example .env   # задать AUTH_HASH и DB_PASSWORD
+docker compose up --build
 ```
 
-Открыть http://localhost
+Открыть http://localhost. Тесты бэкенда: `cd backend && go test ./...`
 
 ## Деплой
 
-Сервер: `root@94.103.87.49`, приложение в `/opt/finance-money`, настройки в `/opt/finance-money/.env`.
+Сервер: `root@94.103.87.49` (ключ `~/.ssh/wildex-deploy`), приложение в `/opt/finance-money`,
+настройки в `/opt/finance-money/.env` (домены, логин и хеш пароля, пароль базы).
 
 ```bash
 git push && ./deploy.sh
 ```
 
-Сайт: https://okayconnect.online (www и http редиректятся туда).
-
-Домены задаются в `.env` на сервере: `DOMAIN=okayconnect.online, www.okayconnect.online` —
-Caddy сам получает и продлевает сертификаты Let's Encrypt (хранятся в томе `caddy_data`).
+Сменить пароль входа: получить хеш через
+`docker run --rm caddy:2-alpine caddy hash-password --plaintext 'новый пароль'`,
+вписать его в `AUTH_HASH='...'` в `.env` на сервере и запустить `./deploy.sh`.

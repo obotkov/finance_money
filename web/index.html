@@ -210,16 +210,17 @@
               </div>
             </div>
             <div class="card" style="padding:6px 4px">
-              <div style="display:grid;grid-template-columns:50px minmax(0,1.7fr) minmax(0,1fr) minmax(0,1fr) minmax(0,auto);gap:12px;padding:10px 14px 8px;margin:0 4px;font-size:12px;color:var(--ink3);border-bottom:1px solid var(--line)">
-                <span>Дата</span><span>Назначение</span><span>Категория</span><span>Счёт</span><span style="text-align:right">Сумма</span>
+              <div style="display:grid;grid-template-columns:50px minmax(0,1.7fr) minmax(0,1fr) minmax(0,1fr) minmax(0,auto) 26px;gap:12px;padding:10px 14px 8px;margin:0 4px;font-size:12px;color:var(--ink3);border-bottom:1px solid var(--line)">
+                <span>Дата</span><span>Назначение</span><span>Категория</span><span>Счёт</span><span style="text-align:right">Сумма</span><span></span>
               </div>
               <sc-for list="{{ visibleTxs }}" as="t" hint-placeholder-count="10">
-                <div class="rowline" style="display:grid;grid-template-columns:50px minmax(0,1.7fr) minmax(0,1fr) minmax(0,1fr) minmax(0,auto);align-items:center;gap:12px;padding:12px 14px;margin:0 4px;border-radius:12px">
+                <div class="rowline" style="display:grid;grid-template-columns:50px minmax(0,1.7fr) minmax(0,1fr) minmax(0,1fr) minmax(0,auto) 26px;align-items:center;gap:12px;padding:12px 14px;margin:0 4px;border-radius:12px">
                   <span class="num" style="font-size:13px;color:var(--ink3)">{{ t.dateLabel }}</span>
                   <span style="font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ t.title }}</span>
                   <span style="font-size:13px;color:var(--ink2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="{{ t.catPath }}">{{ t.catPath }}</span>
                   <span style="font-size:13px;color:var(--ink3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ t.acc }}</span>
                   <span class="num" style="text-align:right;font-size:15px;font-weight:500;white-space:nowrap;color:{{ t.color }}">{{ t.amountLabel }}</span>
+                  <button class="btn btn-t" style="padding:2px 0;color:var(--ink3);font-size:17px;line-height:1" title="Удалить операцию" onClick="{{ t.del }}">×</button>
                 </div>
               </sc-for>
             </div>
@@ -344,12 +345,12 @@
             </div>
             <div class="card" style="padding:6px 18px 14px">
               <div class="num" style="display:grid;grid-template-columns:minmax(0,1.4fr) repeat(4,minmax(0,1fr));gap:12px;padding:12px 0 10px;font-size:12px;color:var(--ink3);border-bottom:1px solid var(--line)">
-                <span style="font-variant-numeric:normal">Категория</span><span style="text-align:right">Июль</span><span style="text-align:right">Август</span><span style="text-align:right">Сентябрь</span><span style="text-align:right">Среднее</span>
+                <span style="font-variant-numeric:normal">Категория</span><span style="text-align:right">{{ reportHead1 }}</span><span style="text-align:right">{{ reportHead2 }}</span><span style="text-align:right">{{ reportHead3 }}</span><span style="text-align:right">Среднее</span>
               </div>
               <sc-for list="{{ reportRows }}" as="r" hint-placeholder-count="9">
                 <div class="num" style="display:grid;grid-template-columns:minmax(0,1.4fr) repeat(4,minmax(0,1fr));gap:12px;padding:11px 0;font-size:14px;font-weight:{{ r.weight }};border-bottom:1px solid var(--line)">
                   <span style="font-variant-numeric:normal">{{ r.cat }}</span>
-                  <span style="text-align:right">{{ r.jul }}</span><span style="text-align:right">{{ r.aug }}</span><span style="text-align:right">{{ r.sep }}</span><span style="text-align:right;color:var(--ink2)">{{ r.avg }}</span>
+                  <span style="text-align:right">{{ r.m1 }}</span><span style="text-align:right">{{ r.m2 }}</span><span style="text-align:right">{{ r.m3 }}</span><span style="text-align:right;color:var(--ink2)">{{ r.avg }}</span>
                 </div>
               </sc-for>
             </div>
@@ -467,8 +468,18 @@
             <div class="card" style="padding:20px 22px;display:flex;flex-direction:column;gap:18px">
               <div><span class="lbl">Напоминание вносить операции</span><input class="inp" value="Каждый день в 21:00" readOnly="{{ true }}"></div>
               <div><span class="lbl">Данные</span>
-                <div style="display:flex;gap:10px;margin-top:2px"><button class="btn btn-s">Выгрузить .csv</button><button class="btn btn-t">Резервная копия</button></div>
+                <div style="display:flex;gap:10px;margin-top:2px"><button class="btn btn-s" onClick="{{ openExport }}">Выгрузить .csv</button><button class="btn btn-t">Резервная копия</button></div>
               </div>
+            </div>
+            <div class="card" style="padding:20px 22px;display:flex;flex-direction:column;gap:10px">
+              <div style="display:flex;align-items:center;gap:10px">
+                <span class="lbl" style="margin:0">Курсы к рублю</span>
+                <button class="btn btn-t" style="margin-left:auto" onClick="{{ refreshRates }}">Обновить</button>
+              </div>
+              <sc-for list="{{ rateRows }}" as="r" hint-placeholder-count="6">
+                <div class="num" style="display:flex;justify-content:space-between;font-size:14px"><span>{{ r.label }}</span><span>{{ r.value }}</span></div>
+              </sc-for>
+              <div style="font-size:12px;color:var(--ink3)">{{ ratesNote }}</div>
             </div>
           </div>
           </sc-if>
@@ -647,6 +658,9 @@
           <div style="font-size:12px;color:var(--ink3);margin-top:6px">{{ accConvertHint }}</div>
         </div>
         <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px">
+          <sc-if value="{{ accCanDelete }}" hint-placeholder-val="{{ false }}">
+            <button class="btn btn-t" style="margin-right:auto;color:var(--neg)" onClick="{{ delAcc }}">Удалить</button>
+          </sc-if>
           <button class="btn btn-s" onClick="{{ close }}">Отмена</button>
           <button class="btn btn-p" onClick="{{ saveAcc }}">Сохранить</button>
         </div>
@@ -729,7 +743,15 @@ const CUR = {
   TON: { sym: "TON", rate: 480, label: "Toncoin · TON" }
 };
 
-const TODAY = "2026-09-14";
+const pad2 = n => String(n).padStart(2, "0");
+const TODAY = (() => { const d = new Date(); return d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate()); })();
+const TODAY_Y = Number(TODAY.slice(0, 4)), TODAY_M = Number(TODAY.slice(5, 7)) - 1, TODAY_D = Number(TODAY.slice(8));
+const THIS_MONTH = TODAY.slice(0, 7);
+const MONTHS_NOM = ["Январь","Февраль","Март","Апрель","Май","Июнь","Июль","Август","Сентябрь","Октябрь","Ноябрь","Декабрь"];
+// "YYYY-MM" of month m (0-based, may run past the year) of year y
+const monthKey = (y, m) => { const d = new Date(Date.UTC(y, m, 1)); return d.getUTCFullYear() + "-" + pad2(d.getUTCMonth() + 1); };
+const monthName = key => MONTHS_NOM[Number(key.slice(5)) - 1];
+const pluralRu = (n, a, b, c) => { const m = n % 100, k = n % 10; return n + " " + (m > 10 && m < 20 ? c : k === 1 ? a : k > 1 && k < 5 ? b : c); };
 const HIST_MONTHS = [
   { m: "2026-04", income: [["Зарплата", 142000]], spend: [["Продукты", 23400], ["Жильё и связь", 31500], ["Транспорт", 6800], ["Кафе и доставка", 9700], ["Подписки", 2190], ["Футбол", 4500], ["Одежда", 310]] },
   { m: "2026-05", income: [["Зарплата", 142000], ["Вёрстка сайтов", 6000]], spend: [["Продукты", 25100], ["Жильё и связь", 31500], ["Транспорт", 7300], ["Кафе и доставка", 11800], ["Подписки", 2190], ["Футбол", 4500], ["Здоровье", 210]] },
@@ -743,16 +765,12 @@ const HIST_TXS = HIST_MONTHS.reduce((acc, mo) => {
   return acc;
 }, []);
 
-class Component extends DCLogic {
-  state = {
-    screen: "summary", dialog: null, editIndex: null, groupBy: "none", opsY: 2026, opsM: 8, opsDate: null,
-    filter: "all", query: "",
-    type: "expense", amount: "", note: "", cat: "Продукты", acc: "Тинькофф Black",
-    date: "2026-09-14", calY: 2026, calM: 8,
-    accName: "", accKind: "Карта", accBalance: "", accCur: "RUB", accTo: "Накопительный счёт", receive: "", receiveTouched: false,
-    catId: null, catName: "", catParent: "", catKind: "expense", catTab: "expense",
-    anaPreset: "month", anaFrom: "2026-09-01", anaTo: TODAY,
-    dataMode: "export", dataText: "", dataMsg: "",
+// Built from the origin, never from the page URL: a URL carrying user:password@
+// makes fetch refuse relative addresses.
+const API = location.origin + "/api/";
+
+// Demo data: shown only when the page runs without the backend (in the design canvas)
+const DEMO = {
     cats: [
       { id: 1, name: "Продукты", parent: null, kind: "expense" },
       { id: 2, name: "Кафе и доставка", parent: null, kind: "expense" },
@@ -797,7 +815,76 @@ class Component extends DCLogic {
       { d: "2026-09-03", t: "Подписки: музыка, облако", c: "Подписки", a: "Кредитная карта", v: -2190 },
       { d: "2026-09-02", t: "Вкусвилл", c: "Продукты", a: "Тинькофф Black", v: -3120 }
     ].concat(HIST_TXS)
+};
+
+class Component extends DCLogic {
+  state = {
+    screen: "summary", dialog: null, editIndex: null, groupBy: "none", opsY: TODAY_Y, opsM: TODAY_M, opsDate: null,
+    filter: "all", query: "",
+    type: "expense", amount: "", note: "", cat: "", acc: "",
+    date: TODAY, calY: TODAY_Y, calM: TODAY_M,
+    accName: "", accKind: "Карта", accBalance: "", accCur: "RUB", accTo: "", receive: "", receiveTouched: false,
+    catId: null, catName: "", catParent: "", catKind: "expense", catTab: "expense",
+    anaPreset: "month", anaFrom: THIS_MONTH + "-01", anaTo: TODAY,
+    dataMode: "export", dataText: "", dataMsg: "",
+    cats: [], accounts: [], txs: [], rates: {},
+    online: false, busy: false
   };
+
+  componentDidMount() {
+    fetch(API + "state", { headers: { Accept: "application/json" } })
+      .then(r => { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
+      .then(data => this.applyServer(data, { online: true, demo: false }))
+      .catch(() => this.applyServer(DEMO, { online: false, demo: true }));
+  }
+
+  // Takes the server's state (or the demo) and points the form defaults
+  // at accounts and categories that exist.
+  applyServer(data, extra) {
+    const rates = data.rates || {};
+    Object.keys(rates).forEach(k => { if (CUR[k]) CUR[k].rate = rates[k].rub; });
+    const accounts = data.accounts || [], cats = data.cats || [];
+    this.setState(s => {
+      const names = accounts.map(a => a.name);
+      const acc = names.indexOf(s.acc) !== -1 ? s.acc : (names[0] || "");
+      const accTo = names.indexOf(s.accTo) !== -1 && s.accTo !== acc ? s.accTo : (names.find(n => n !== acc) || "");
+      const kind = s.type === "income" ? "income" : "expense";
+      const cat = cats.some(c => c.name === s.cat && c.kind === kind) ? s.cat : this.firstLeaf(kind, cats);
+      return Object.assign({ accounts, cats, txs: data.txs || [], rates, acc, accTo, cat }, extra);
+    });
+  }
+
+  firstLeaf(kind, cats) {
+    cats = cats || this.state.cats;
+    const leaf = cats.find(c => c.kind === kind && !cats.some(k => k.parent === c.id));
+    return leaf ? leaf.name : "";
+  }
+
+  // Sends a change to the server and takes the full state back.
+  // Errors are shown to the user; the returned promise rejects on them.
+  api(method, path, body) {
+    if (this.state.busy) return new Promise(() => {}); // a double click while a request is in flight
+    this.setState({ busy: true });
+    return fetch(API + path, {
+      method,
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: body === undefined ? undefined : JSON.stringify(body)
+    })
+      .then(r => r.json().catch(() => ({})).then(data => {
+        if (!r.ok) throw new Error(data.error || "Ошибка сервера: " + r.status);
+        return data;
+      }))
+      .then(data => { this.applyServer(data, { busy: false }); return data; })
+      .catch(err => { this.setState({ busy: false }); window.alert(err.message); throw err; });
+  }
+
+  // Operations are recorded on an account, so the first one has to exist.
+  needAccount() {
+    if (this.state.accounts.length) return false;
+    window.alert("Сначала добавьте счёт — операции записываются на счёт.");
+    this.setState({ dialog: "acc", editIndex: null, accName: "", accKind: "Карта", accBalance: "", accCur: "RUB" });
+    return true;
+  }
 
   fmt(n, cur) {
     const c = CUR[cur || "RUB"];
@@ -830,6 +917,11 @@ class Component extends DCLogic {
     this.setState({ dataMsg: "Файл выгружен: vedomost-operacii.csv" });
   }
   importCsv() {
+    if (this.state.online) {
+      this.api("POST", "import", { text: String(this.state.dataText) })
+        .then(data => this.setState({ dataMsg: "Загружено операций: " + data.imported + ". Балансы счетов обновлены." }), () => {});
+      return;
+    }
     const lines = String(this.state.dataText).split(/\r?\n/).map(l => l.trim()).filter(Boolean);
     const added = [];
     lines.forEach(line => {
@@ -947,12 +1039,14 @@ class Component extends DCLogic {
 
   renderVals() {
     const st = this.state;
+    const monthNow = MONTHS_NOM[TODAY_M].toLowerCase() + " " + TODAY_Y;
+    const reportKeys = [TODAY_M - 2, TODAY_M - 1, TODAY_M].map(m => monthKey(TODAY_Y, m));
     const titles = {
-      summary: ["Сводка", "сентябрь 2026 · прошло 14 дней"],
-      ops: ["Операции", "сентябрь 2026"],
+      summary: ["Сводка", monthNow + " · прошло " + pluralRu(TODAY_D, "день", "дня", "дней")],
+      ops: ["Операции", monthNow],
       accounts: ["Счета и активы", st.accounts.length + " счетов · рубли, валюта и крипто"],
-      budgets: ["Бюджеты и лимиты", "сентябрь 2026"],
-      reports: ["Отчёт по тратам и доходам", "июль — сентябрь, по категориям"],
+      budgets: ["Бюджеты и лимиты", monthNow],
+      reports: ["Отчёт по тратам и доходам", monthName(reportKeys[0]).toLowerCase() + " — " + monthName(reportKeys[2]).toLowerCase() + ", по категориям"],
       charts: ["Аналитика", "категории и динамика"],
       categories: ["Категории", st.cats.length + " категорий · вложенность до четырёх уровней"],
       settings: ["Настройки", "учёт и напоминания"]
@@ -977,7 +1071,7 @@ class Component extends DCLogic {
     const total = st.accounts.reduce((s, a) => s + rub(a), 0);
     const free = st.accounts.filter(a => a.kind === "Карта" || a.kind === "Наличные").reduce((s, a) => s + rub(a), 0);
     const inRub = t => this.toRub(t.v, this.curOf(t.a));
-    const flow = st.txs.filter(t => t.type !== "transfer" && t.d.startsWith("2026-09"));
+    const flow = st.txs.filter(t => t.type !== "transfer" && t.d.startsWith(THIS_MONTH));
     const income = flow.filter(t => t.v > 0).reduce((s, t) => s + inRub(t), 0);
     const expense = flow.filter(t => t.v < 0).reduce((s, t) => s - inRub(t), 0);
 
@@ -1004,7 +1098,12 @@ class Component extends DCLogic {
             ? this.fmt(t.v, this.curOf(t.a)) + " → " + this.fmt(t.got, t.gotCur)
             : this.fmt(t.v, this.curOf(t.a)))
         : this.signed(t.v, this.curOf(t.a)),
-      color: t.type === "transfer" ? "var(--ink3)" : (t.v > 0 ? "var(--pos)" : "var(--ink)")
+      color: t.type === "transfer" ? "var(--ink3)" : (t.v > 0 ? "var(--pos)" : "var(--ink)"),
+      del: () => {
+        if (!window.confirm("Удалить операцию «" + t.t + "»? Баланс счёта пересчитается.")) return;
+        if (st.online) { this.api("DELETE", "transactions/" + t.id).catch(() => {}); return; }
+        this.setState(s => ({ txs: s.txs.filter(x => x !== t) }));
+      }
     });
     const q = st.query.trim().toLowerCase();
     const monthPrefix = st.opsY + "-" + String(st.opsM + 1).padStart(2, "0");
@@ -1044,7 +1143,7 @@ class Component extends DCLogic {
     const limits = [["Продукты",25000],["Кафе и доставка",12000],["Транспорт",5000],["Жильё и связь",32000],["Здоровье",6000],["Подписки",2500]];
     const spentBy = {};
     st.txs.forEach(t => {
-      if (t.type === "transfer" || t.v >= 0 || !t.d.startsWith("2026-09")) return;
+      if (t.type === "transfer" || t.v >= 0 || !t.d.startsWith(THIS_MONTH)) return;
       spentBy[t.c] = (spentBy[t.c] || 0) - inRub(t);
     });
     const budgets = limits.map(([cat, lim]) => {
@@ -1152,9 +1251,13 @@ class Component extends DCLogic {
         addDisplay: depth < 3 ? "inline-flex" : "none",
         addChild: () => this.setState({ dialog: "cat", catId: null, catName: "", catParent: String(c.id), catKind: c.kind }),
         edit: () => this.setState({ dialog: "cat", catId: c.id, catName: c.name, catParent: c.parent === null ? "" : String(c.parent), catKind: c.kind }),
-        del: () => this.setState(s => ({
-          cats: s.cats.filter(x => x.id !== c.id).map(x => x.parent === c.id ? { ...x, parent: c.parent } : x)
-        }))
+        del: () => {
+          if (!window.confirm("Удалить категорию «" + c.name + "»? Вложенные поднимутся на уровень выше, операции сохранят название.")) return;
+          if (st.online) { this.api("DELETE", "categories/" + c.id).catch(() => {}); return; }
+          this.setState(s => ({
+            cats: s.cats.filter(x => x.id !== c.id).map(x => x.parent === c.id ? { ...x, parent: c.parent } : x)
+          }));
+        }
       };
     };
     const walk = (parent, depth) => kidsOf(parent).reduce((acc, c) => acc.concat([shapeCat(c, depth)], walk(c.id, depth + 1)), []);
@@ -1193,7 +1296,8 @@ class Component extends DCLogic {
     return {
       isDesktop: platform === "Десктоп", isMobile: platform === "Мобильный",
       showForecast: this.props.showForecast ?? true,
-      nav, title: titles[st.screen][0], subtitle: titles[st.screen][1],
+      nav, title: titles[st.screen][0],
+      subtitle: titles[st.screen][1] + (st.demo ? " · демо-режим: сервер недоступен, изменения не сохраняются" : ""),
       isSummary: st.screen === "summary", isOps: st.screen === "ops", isAccounts: st.screen === "accounts",
       isBudgets: st.screen === "budgets", isReports: st.screen === "reports", isCharts: st.screen === "charts",
       isCategories: st.screen === "categories", isSettings: st.screen === "settings",
@@ -1236,8 +1340,10 @@ class Component extends DCLogic {
         ? "Добавить за " + Number(st.opsDate.split("-")[2]) + " " + months[Number(st.opsDate.split("-")[1]) - 1]
         : "Новая операция",
       openOpForDate: () => {
+        if (this.needAccount()) return;
         const iso = st.opsDate || (st.opsY + "-" + String(st.opsM + 1).padStart(2, "0") + "-01");
-        this.setState({ dialog: "op", date: iso, calY: st.opsY, calM: st.opsM });
+        this.setState(s => ({ dialog: "op", date: iso, calY: st.opsY, calM: st.opsM,
+          cat: s.cat || this.firstLeaf(s.type === "income" ? "income" : "expense") }));
       },
       query: st.query, onQuery: e => this.set("query", e.target.value),
       fAll: st.filter === "all" ? "1" : "0", fIncome: st.filter === "income" ? "1" : "0", fExpense: st.filter === "expense" ? "1" : "0",
@@ -1266,8 +1372,9 @@ class Component extends DCLogic {
         ? "Для сравнения по месяцам выберите период длиннее одного месяца."
         : "За период доход " + this.money(anaIncome) + ", траты " + this.money(anaExpense) + ". Отложено " + this.money(anaIncome - anaExpense) + ".")
         + (monthKeys.some(partial) ? " Месяцы с пометкой · показаны частично — только дни внутри периода." : ""),
+      reportHead1: monthName(reportKeys[0]), reportHead2: monthName(reportKeys[1]), reportHead3: monthName(reportKeys[2]),
       reportRows: (() => {
-        const keys = ["2026-07", "2026-08", "2026-09"];
+        const keys = reportKeys;
         const fmtN = n => n ? Math.round(n).toLocaleString("ru-RU").replace(/\u00a0/g, " ") : "0";
         const spend = {}, incomeM = {}, totalM = {};
         keys.forEach(k => { incomeM[k] = 0; totalM[k] = 0; });
@@ -1283,7 +1390,7 @@ class Component extends DCLogic {
         });
         const row = (cat, vals, weight) => ({
           key: cat, cat, weight,
-          jul: fmtN(vals["2026-07"] || 0), aug: fmtN(vals["2026-08"] || 0), sep: fmtN(vals["2026-09"] || 0),
+          m1: fmtN(vals[keys[0]] || 0), m2: fmtN(vals[keys[1]] || 0), m3: fmtN(vals[keys[2]] || 0),
           avg: fmtN(keys.reduce((s, k) => s + (vals[k] || 0), 0) / 3)
         });
         const cats = Object.keys(spend).sort((a, b) =>
@@ -1314,7 +1421,10 @@ class Component extends DCLogic {
         this.importCsv();
       },
       opDialog: st.dialog === "op", accDialog: st.dialog === "acc",
-      openOp: () => this.setState({ dialog: "op" }),
+      openOp: () => {
+        if (this.needAccount()) return;
+        this.setState(s => ({ dialog: "op", cat: s.cat || this.firstLeaf(s.type === "income" ? "income" : "expense") }));
+      },
       openAcc: () => this.setState({ dialog: "acc", editIndex: null, accName: "", accKind: "Карта", accBalance: "", accCur: "RUB" }),
       close: () => this.setState({ dialog: null }),
       stop: e => e.stopPropagation(),
@@ -1346,8 +1456,8 @@ class Component extends DCLogic {
         return (!sent || !got) ? rate : rate + " · " + this.fmt(sent, from) + " → " + this.fmt(got, to);
       })(),
       rateColor: st.acc === st.accTo ? "var(--neg)" : "var(--ink)",
-      setExpense: () => this.setState({ type: "expense", cat: CATS[0] }),
-      setIncome: () => this.setState({ type: "income", cat: INCOME_CATS[0] }),
+      setExpense: () => this.setState({ type: "expense", cat: this.firstLeaf("expense") }),
+      setIncome: () => this.setState({ type: "income", cat: this.firstLeaf("income") }),
       amount: st.amount, onAmount: e => this.set("amount", e.target.value),
       note: st.note, onNote: e => this.set("note", e.target.value),
       acc: st.acc, onAcc: e => this.set("acc", e.target.value),
@@ -1375,6 +1485,12 @@ class Component extends DCLogic {
         const name = st.catName.trim();
         if (!name) { this.setState({ dialog: null }); return; }
         const parent = st.catParent === "" ? null : Number(st.catParent);
+        if (st.online) {
+          const body = { name, parent, kind: st.catKind };
+          const req = st.catId === null ? this.api("POST", "categories", body) : this.api("PUT", "categories/" + st.catId, body);
+          req.then(() => this.setState({ dialog: null }), () => {});
+          return;
+        }
         if (st.catId === null) {
           const id = Math.max(0, ...st.cats.map(c => c.id)) + 1;
           this.setState({ cats: st.cats.concat([{ id, name, parent, kind: st.catKind }]), dialog: null });
@@ -1398,6 +1514,15 @@ class Component extends DCLogic {
         const transfer = st.type === "transfer";
         const to = this.curOf(st.accTo);
         const received = this.num(st.receiveTouched ? st.receive : this.autoReceive());
+        if (st.online) {
+          const dp2 = st.date.split("-");
+          this.api("POST", "transactions", {
+            date: st.date, title: st.note, type: st.type, category: transfer ? "" : st.cat,
+            account: st.acc, toAccount: transfer ? st.accTo : "", amount: v, received: transfer && received ? received : null
+          }).then(() => this.setState({ dialog: null, amount: "", note: "", receive: "", receiveTouched: false,
+            opsY: Number(dp2[0]), opsM: Number(dp2[1]) - 1, opsDate: st.opsDate ? st.date : null }), () => {});
+          return;
+        }
         const tx = transfer
           ? { d: st.date, t: st.note || "Перевод", c: "Перевод", a: st.acc, to: st.accTo, v, got: received, gotCur: to, type: "transfer" }
           : { d: st.date, t: st.note || st.cat, c: st.cat, a: st.acc, v: st.type === "income" ? v : -v };
@@ -1419,6 +1544,19 @@ class Component extends DCLogic {
       accKind: st.accKind, onAccKind: e => this.set("accKind", e.target.value),
       accBalance: st.accBalance, onAccBalance: e => this.set("accBalance", e.target.value),
       accCur: st.accCur, onAccCur: e => this.set("accCur", e.target.value),
+      rateRows: Object.keys(CUR).filter(k => k !== "RUB").map(k => ({
+        key: k, label: CUR[k].label,
+        value: CUR[k].rate.toLocaleString("ru-RU", { maximumFractionDigits: 2 }).replace(/ /g, " ") + " ₽"
+      })),
+      ratesNote: (() => {
+        const list = Object.values(st.rates);
+        if (!st.online || !list.length) return "Демо-режим: курсы по умолчанию.";
+        if (list.some(r => r.source === "default")) return "Часть курсов ещё не загружена — показаны значения по умолчанию.";
+        const last = new Date(Math.max(...list.map(r => Date.parse(r.updatedAt))));
+        return "Доллар и евро — ЦБ РФ, крипта — CoinGecko. Обновлено " +
+          last.toLocaleString("ru-RU", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" }) + ", дальше — раз в час.";
+      })(),
+      refreshRates: () => { if (st.online) this.api("POST", "rates/refresh", {}).catch(() => {}); },
       currencyOptions: Object.keys(CUR).map(k => ({ key: k, value: k, label: CUR[k].label })),
       accBalanceLabel: "Баланс, " + CUR[st.accCur].sym,
       accConvertHint: (() => {
@@ -1426,10 +1564,26 @@ class Component extends DCLogic {
         const v = parseFloat(String(st.accBalance).replace(/[^\d.,-]/g, "").replace(",", ".")) || 0;
         return "Курс " + this.fmt(1, st.accCur) + " ≈ " + this.money(CUR[st.accCur].rate) + (v ? " · в сводке ≈ " + this.money(this.toRub(v, st.accCur)) : "");
       })(),
+      accCanDelete: st.editIndex !== null,
+      delAcc: () => {
+        const a = st.accounts[st.editIndex];
+        const n = st.txs.filter(t => t.a === a.name || t.to === a.name).length;
+        if (!window.confirm("Удалить счёт «" + a.name + "»" + (n ? " вместе с операциями по нему (" + n + ")?" : "?"))) return;
+        if (st.online) { this.api("DELETE", "accounts/" + a.id).then(() => this.setState({ dialog: null }), () => {}); return; }
+        this.setState({ accounts: st.accounts.filter((_, i) => i !== st.editIndex), txs: st.txs.filter(t => t.a !== a.name && t.to !== a.name), dialog: null });
+      },
       saveAcc: () => {
         const name = st.accName.trim();
         if (!name) { this.setState({ dialog: null }); return; }
         const balance = parseFloat(String(st.accBalance).replace(/[^\d.,-]/g, "").replace(",", ".")) || 0;
+        if (st.online) {
+          const body = { name, kind: st.accKind, balance, cur: st.accCur };
+          const req = st.editIndex === null
+            ? this.api("POST", "accounts", body)
+            : this.api("PUT", "accounts/" + st.accounts[st.editIndex].id, body);
+          req.then(() => this.setState({ dialog: null }), () => {});
+          return;
+        }
         const accounts = st.accounts.slice();
         if (st.editIndex === null) accounts.push({ name, kind: st.accKind, balance, cur: st.accCur });
         else accounts[st.editIndex] = { name, kind: st.accKind, balance, cur: st.accCur };
