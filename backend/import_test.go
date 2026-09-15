@@ -99,6 +99,57 @@ func TestParseImportTime(t *testing.T) {
 	}
 }
 
+func TestParseImportOpening(t *testing.T) {
+	got, err := parseImport("2026-04-01;;;;Кредитная карта;−18 200;;Начальный остаток;остаток\n" +
+		"2026-04-02;;Наличные;;;12 500,50;;;Остаток\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 2 {
+		t.Fatalf("got %d lines", len(got))
+	}
+	if in := got[0].in; in.Type != "opening" || in.Account != "Кредитная карта" || in.Amount != -18200 {
+		t.Errorf("credit card: %+v", in)
+	}
+	if in := got[1].in; in.Type != "opening" || in.Account != "Наличные" || in.Amount != 12500.5 {
+		t.Errorf("cash, account in «откуда»: %+v", in)
+	}
+	if _, err := parseImport("2026-04-01;;;;Карта;;;x;остаток"); err == nil || !strings.Contains(err.Error(), "у остатка") {
+		t.Errorf("opening without a balance: err = %v", err)
+	}
+}
+
+func TestChronological(t *testing.T) {
+	mk := func(dates ...string) []importLine {
+		var out []importLine
+		for i, d := range dates {
+			out = append(out, importLine{n: i + 1, in: TxInput{Date: d}})
+		}
+		return out
+	}
+	lines := func(ls []importLine) (ns []int) {
+		for _, l := range ls {
+			ns = append(ns, l.n)
+		}
+		return ns
+	}
+	cases := []struct {
+		name  string
+		in    []importLine
+		order []int
+	}{
+		{"newest first is reversed", mk("2026-09-15", "2026-09-15", "2026-09-10"), []int{3, 2, 1}},
+		{"oldest first stays", mk("2026-09-10", "2026-09-15", "2026-09-15"), []int{1, 2, 3}},
+		{"one day stays", mk("2026-09-15", "2026-09-15"), []int{1, 2}},
+		{"single line", mk("2026-09-15"), []int{1}},
+	}
+	for _, c := range cases {
+		if got := lines(chronological(c.in)); !reflect.DeepEqual(got, c.order) {
+			t.Errorf("%s: order %v, want %v", c.name, got, c.order)
+		}
+	}
+}
+
 func TestParseAmount(t *testing.T) {
 	for in, want := range map[string]float64{"": 0, "1 234,56": 1234.56, "1234.56": 1234.56, "−620": 620, "1 000 ₽": 1000, "0,00014": 0.00014} {
 		got, err := parseAmount(in)

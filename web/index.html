@@ -1017,7 +1017,7 @@ class Component extends DCLogic {
     catId: null, catName: "", catParent: "", catKind: "expense", catTab: "expense",
     anaPreset: "month", anaFrom: THIS_MONTH + "-01", anaTo: TODAY,
     dataText: "", dataMsg: "",
-    expPreset: "all", expFrom: "", expTo: "", expTypes: { expense: true, income: true, transfer: true }, expMsg: "",
+    expPreset: "all", expFrom: "", expTo: "", expTypes: { expense: true, income: true, transfer: true, opening: true }, expMsg: "",
     cats: [], accounts: [], txs: [], rates: {},
     online: false, busy: false, demo: false, donutHover: null,
     user: null, needLogin: false, googleEnabled: false,
@@ -1165,7 +1165,10 @@ class Component extends DCLogic {
     // day, as on the server. The sort is stable, so the server's order stays otherwise.
     const when = t => t.d + " " + (t.tm || "");
     const txs = st.txs.slice().sort((a, b) => (when(a) < when(b) ? 1 : when(a) > when(b) ? -1 : 0));
-    return txs.map(t => {
+    const first = {}; // oldest operation date per account, for its opening row
+    const rows = txs.map(t => {
+      first[t.a] = t.d;
+      if (t.to) first[t.to] = t.d;
       const transfer = t.type === "transfer", income = !transfer && t.v > 0;
       const got = t.got != null ? t.got : t.v;
       const after = bal[t.a];
@@ -1184,6 +1187,18 @@ class Component extends DCLogic {
         ]
       };
     });
+    // Opening balances: what each account held before its first operation — the
+    // balance it was created with plus any later manual correction. Import adds
+    // them to the accounts without making operations. Accounts without
+    // operations get one too, so they come back on import.
+    const openings = st.accounts
+      .filter(a => Math.abs(bal[a.name]) > 1e-9 || !(a.name in first))
+      .map(a => {
+        const d = [a.createdAt, first[a.name]].filter(Boolean).sort()[0] || TODAY;
+        return { d, kind: "opening", cells: [d, "", "", "", a.name, num(bal[a.name]), "", "Начальный остаток", "остаток"] };
+      });
+    // Newest first; an opening goes after the operations of its day (the sort is stable).
+    return rows.concat(openings).sort((x, y) => (x.d < y.d ? 1 : x.d > y.d ? -1 : 0));
   }
   // The export as set up in Settings: the period (empty ends are open) and kinds.
   exportRows() {
@@ -1210,7 +1225,7 @@ class Component extends DCLogic {
   importCsv() {
     if (this.state.online) {
       this.api("POST", "import", { text: String(this.state.dataText) })
-        .then(data => this.setState({ dataMsg: "Загружено операций: " + data.imported + ". Балансы счетов обновлены." }), () => {});
+        .then(data => this.setState({ dataMsg: "Загружено строк: " + data.imported + ". Балансы счетов обновлены." }), () => {});
       return;
     }
     // The CSV is read on the server (backend/import.go); the demo has no server.
@@ -1699,7 +1714,7 @@ class Component extends DCLogic {
       dataText: st.dataText, onDataText: e => this.set("dataText", e.target.value),
       dataPlaceholder: CSV_HEADER.join(";") + "\n2026-09-15 14:30;2340;Тинькофф Black;;;;Продукты;Пятёрочка;расход",
       dataFieldLabel: "Вставьте CSV — строка заголовка не обязательна",
-      dataHint: st.dataMsg || "Расход заполняет «откуда», доход — «куда», перевод — обе стороны (сумма «куда» в валюте того счёта). Категория через двоеточие: Спорт:Футбол. Дата — 2026-09-15 или 15.09.2026, можно со временем: 2026-09-15 14:30. Баланс при загрузке не используется: остатки считаются по операциям. Строки без даты, например заголовок, пропускаются; неизвестные счета и категории создаются.",
+      dataHint: st.dataMsg || "Расход заполняет «откуда», доход — «куда», перевод — обе стороны (сумма «куда» в валюте того счёта). Категория через двоеточие: Спорт:Футбол. Дата — 2026-09-15 или 15.09.2026, можно со временем: 2026-09-15 14:30. Начальный остаток счёта — строка с типом «остаток»: счёт в «Счёт (куда)», сумма в «Баланс»; в остальных строках Баланс не используется. Строки без даты, например заголовок, пропускаются; неизвестные счета и категории создаются.",
       dataHintColor: st.dataMsg ? "var(--accent)" : "var(--ink3)",
       dataActionLabel: "Загрузить",
       dataAction: () => this.importCsv(),
@@ -1722,7 +1737,7 @@ class Component extends DCLogic {
           expFrom: st.expFrom, expTo: st.expTo,
           onExpFrom: e => this.setState({ expFrom: e.target.value, expPreset: "custom", expMsg: "" }),
           onExpTo: e => this.setState({ expTo: e.target.value, expPreset: "custom", expMsg: "" }),
-          expKinds: [["expense", "Расходы"], ["income", "Доходы"], ["transfer", "Переводы"]].map(([k, label]) => ({
+          expKinds: [["expense", "Расходы"], ["income", "Доходы"], ["transfer", "Переводы"], ["opening", "Начальные остатки"]].map(([k, label]) => ({
             key: k, label, on: st.expTypes[k] ? "1" : "0",
             // at least one kind stays selected
             toggle: () => this.setState(s => {

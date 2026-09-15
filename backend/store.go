@@ -48,6 +48,8 @@ type Account struct {
 	Kind    string  `json:"kind"`
 	Balance float64 `json:"balance"`
 	Cur     string  `json:"cur"`
+	// CreatedAt dates the opening-balance row of the export
+	CreatedAt string `json:"createdAt"`
 }
 
 type Category struct {
@@ -182,10 +184,12 @@ func (s *Store) State(ctx context.Context, uid int64) (*State, error) {
 	st := &State{Rates: map[string]Rate{}}
 	var err error
 
-	rows, _ := s.db.Query(ctx, `SELECT id, name, kind, balance, currency FROM accounts WHERE user_id = $1 ORDER BY id`, uid)
+	rows, _ := s.db.Query(ctx, `
+		SELECT id, name, kind, balance, currency, to_char(created_at, 'YYYY-MM-DD')
+		FROM accounts WHERE user_id = $1 ORDER BY id`, uid)
 	st.Accounts, err = pgx.CollectRows(rows, func(r pgx.CollectableRow) (Account, error) {
 		var a Account
-		err := r.Scan(&a.ID, &a.Name, &a.Kind, &a.Balance, &a.Cur)
+		err := r.Scan(&a.ID, &a.Name, &a.Kind, &a.Balance, &a.Cur, &a.CreatedAt)
 		return a, err
 	})
 	if err != nil {

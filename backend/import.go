@@ -21,9 +21,14 @@ import (
 //
 // An expense fills the "откуда" side, income the "куда" side, a transfer both
 // (its "куда" amount is in the target account's currency). Категория is a path,
-// "Спорт:Футбол". Баланс is ignored on import: balances follow from the
-// operations. Тип is расход, доход or перевод; when empty it follows from the
-// filled sides. The delimiter is ";" or a tab (a paste from a spreadsheet).
+// "Спорт:Футбол". Тип is расход, доход, перевод or остаток; when empty it
+// follows from the filled sides. The delimiter is ";" or a tab (a paste from a
+// spreadsheet).
+//
+// Остаток is an account's opening balance: the account in «Счёт (куда)», the
+// signed amount in «Баланс». It adds to the balance without an operation, so
+// it shows up in no expense or income. In other rows Баланс is ignored:
+// balances follow from the operations.
 const (
 	colDate = iota
 	colFromAmount
@@ -149,6 +154,20 @@ func parseOperation(date string, field func(int) string) (importLine, error) {
 
 	l := importLine{in: TxInput{Date: date, Title: field(colTitle), Type: typ}}
 	switch typ {
+	case "opening":
+		acc := toAcc
+		if acc == "" {
+			acc = fromAcc
+		}
+		if acc == "" || field(colBalance) == "" {
+			return l, errors.New("у остатка заполните «Счёт (куда)» и «Баланс»")
+		}
+		value, err := parseNumber(field(colBalance))
+		if err != nil {
+			return l, fmt.Errorf("«Баланс»: %w", err)
+		}
+		l.in.Account, l.in.Amount = acc, value
+		return l, nil
 	case "expense":
 		if fromAcc == "" || fromAmt == 0 {
 			return l, errors.New("у расхода заполните «Сумма (откуда)» и «Счёт (откуда)»")
@@ -190,6 +209,8 @@ func importType(s, fromAcc, toAcc string) (string, error) {
 		return "income", nil
 	case "перевод", "transfer":
 		return "transfer", nil
+	case "остаток", "opening":
+		return "opening", nil
 	case "":
 		switch {
 		case fromAcc != "" && toAcc != "":
@@ -204,9 +225,16 @@ func importType(s, fromAcc, toAcc string) (string, error) {
 	return "", fmt.Errorf("тип «%s»: ожидается расход, доход или перевод", s)
 }
 
-// parseAmount reads "1 234,56", "1234.56", "−620" or "1 000 ₽" as a positive
-// number — the direction comes from the columns. An empty field is zero.
+// parseAmount reads an amount as a positive number — the direction comes from
+// the columns. An empty field is zero.
 func parseAmount(s string) (float64, error) {
+	v, err := parseNumber(s)
+	return math.Abs(v), err
+}
+
+// parseNumber reads "1 234,56", "1234.56", "−620" or "1 000 ₽", keeping the
+// sign. An empty field is zero.
+func parseNumber(s string) (float64, error) {
 	if s == "" {
 		return 0, nil
 	}
@@ -227,7 +255,7 @@ func parseAmount(s string) (float64, error) {
 	if err != nil {
 		return 0, fmt.Errorf("не число: «%s»", s)
 	}
-	return math.Abs(v), nil
+	return v, nil
 }
 
 // categoryPath splits "Спорт : Футбол" into its non-empty parts.
@@ -251,6 +279,7 @@ func (s *Store) Import(ctx context.Context, uid int64, text string) (int, error)
 	if len(lines) == 0 {
 		return 0, badRequest("Не найдено ни одной операции: первая колонка — дата, 2026-09-15 или 15.09.2026.")
 	}
+	lines = chronological(lines)
 	err = pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) error {
 		for _, l := range lines {
 			if err := importOne(ctx, tx, uid, l); err != nil {
@@ -269,8 +298,33 @@ func (s *Store) Import(ctx context.Context, uid int64, text string) (int, error)
 	return len(lines), nil
 }
 
+// chronological puts a newest-first file (the export's order) oldest first, so
+// that operations are stored in the order they happened: operations of a day
+// without a time keep their order, accounts are created in order of first use.
+// A file that isn't clearly newest-first is left as it is.
+func chronological(lines []importLine) []importLine {
+	if len(lines) < 2 || lines[0].in.Date <= lines[len(lines)-1].in.Date {
+		return lines
+	}
+	out := make([]importLine, len(lines))
+	for i, l := range lines {
+		out[len(lines)-1-i] = l
+	}
+	return out
+}
+
 func importOne(ctx context.Context, tx pgx.Tx, uid int64, l importLine) error {
 	in := l.in
+	if in.Type == "opening" {
+		if _, err := tx.Exec(ctx, `
+			INSERT INTO accounts (user_id, name, kind, currency) VALUES ($1, $2, 'Карта', 'RUB')
+			ON CONFLICT (user_id, name) DO NOTHING`, uid, in.Account); err != nil {
+			return err
+		}
+		_, err := tx.Exec(ctx, `UPDATE accounts SET balance = balance + $3 WHERE user_id = $1 AND name = $2`,
+			uid, in.Account, in.Amount)
+		return err
+	}
 	if err := in.validate(); err != nil {
 		return err
 	}
