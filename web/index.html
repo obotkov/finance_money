@@ -564,12 +564,12 @@
               <div style="display:flex;flex-direction:column;gap:10px">
                 <span class="lbl" style="margin:0">Период</span>
                 <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-                  <select class="inp" style="width:auto" value="{{ expPreset }}" onChange="{{ onExpPreset }}">
-                    <sc-for list="{{ expPresets }}" as="p" hint-placeholder-count="12"><option value="{{ p.value }}">{{ p.label }}</option></sc-for>
-                  </select>
                   <input class="inp" type="date" style="width:auto" value="{{ expFrom }}" onChange="{{ onExpFrom }}">
                   <span style="font-size:13px;color:var(--ink3)">—</span>
                   <input class="inp" type="date" style="width:auto" value="{{ expTo }}" onChange="{{ onExpTo }}">
+                  <select class="inp" style="width:auto" value="{{ expPreset }}" onChange="{{ onExpPreset }}">
+                    <sc-for list="{{ expPresets }}" as="p" hint-placeholder-count="12"><option value="{{ p.value }}">{{ p.label }}</option></sc-for>
+                  </select>
                 </div>
                 <span class="lbl" style="margin:4px 0 0">Операции</span>
                 <div style="display:flex;gap:8px;flex-wrap:wrap">
