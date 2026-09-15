@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/mail"
 	"strings"
@@ -167,9 +168,67 @@ func (s *Store) CreateSession(ctx context.Context, uid int64) (string, error) {
 		return "", err
 	}
 	token := randomToken()
-	_, err := s.db.Exec(ctx, `INSERT INTO sessions (token_hash, user_id, expires_at) VALUES ($1, $2, $3)`,
-		hashToken(token), uid, time.Now().Add(sessionTTL))
+	err := pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) error {
+		if _, err := tx.Exec(ctx, `INSERT INTO sessions (token_hash, user_id, expires_at) VALUES ($1, $2, $3)`,
+			hashToken(token), uid, time.Now().Add(sessionTTL)); err != nil {
+			return err
+		}
+		_, err := tx.Exec(ctx, `UPDATE users SET last_login_at = now() WHERE id = $1`, uid)
+		return err
+	})
 	return token, err
+}
+
+// UserInfo is a user as the admin listing shows them. Password hashes stay out.
+type UserInfo struct {
+	User
+	Password    bool
+	Google      bool
+	Accounts    int
+	Txs         int
+	CreatedAt   time.Time
+	LastLoginAt *time.Time
+}
+
+func (s *Store) ListUsers(ctx context.Context) ([]UserInfo, error) {
+	rows, _ := s.db.Query(ctx, `
+		SELECT u.id, u.email, u.name, u.password_hash IS NOT NULL, u.google_sub IS NOT NULL,
+		       (SELECT count(*) FROM accounts WHERE user_id = u.id),
+		       (SELECT count(*) FROM transactions WHERE user_id = u.id),
+		       u.created_at, u.last_login_at
+		FROM users u ORDER BY u.id`)
+	return pgx.CollectRows(rows, func(r pgx.CollectableRow) (UserInfo, error) {
+		var u UserInfo
+		err := r.Scan(&u.ID, &u.Email, &u.Name, &u.Password, &u.Google, &u.Accounts, &u.Txs, &u.CreatedAt, &u.LastLoginAt)
+		return u, err
+	})
+}
+
+// ResetPassword gives the user a new random password, ends their sessions and
+// returns the password. It also lets a Google-only account sign in by password.
+func (s *Store) ResetPassword(ctx context.Context, email string) (string, error) {
+	password := rand.Text()
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcryptCost)
+	if err != nil {
+		return "", err
+	}
+	err = pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) error {
+		var id int64
+		err := tx.QueryRow(ctx, `UPDATE users SET password_hash = $2 WHERE email = $1 RETURNING id`,
+			normalizeEmail(email), string(hash)).Scan(&id)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return fmt.Errorf("нет пользователя с почтой %s", normalizeEmail(email))
+		}
+		if err != nil {
+			return err
+		}
+		_, err = tx.Exec(ctx, `DELETE FROM sessions WHERE user_id = $1`, id)
+		return err
+	})
+	if err != nil {
+		return "", err
+	}
+	return password, nil
 }
 
 // SessionUser returns the user of a live session, or nil.

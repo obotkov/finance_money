@@ -16,8 +16,13 @@ import (
 )
 
 func main() {
-	if len(os.Args) > 1 && os.Args[1] == "healthcheck" {
-		os.Exit(healthcheck())
+	if len(os.Args) > 1 {
+		switch os.Args[1] {
+		case "healthcheck":
+			os.Exit(healthcheck())
+		case "users", "reset-password", "help":
+			os.Exit(runAdmin(os.Args[1:]))
+		}
 	}
 	log := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	if err := run(log); err != nil {
@@ -30,7 +35,7 @@ func run(log *slog.Logger) error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	store, err := OpenStore(ctx, getenv("DATABASE_URL", "postgres://finance:finance@localhost:5432/finance?sslmode=disable"), log)
+	store, err := OpenStore(ctx, databaseURL(), log)
 	if err != nil {
 		return err
 	}
@@ -78,6 +83,10 @@ func healthcheck() int {
 		return 1
 	}
 	return 0
+}
+
+func databaseURL() string {
+	return getenv("DATABASE_URL", "postgres://finance:finance@localhost:5432/finance?sslmode=disable")
 }
 
 func getenv(key, def string) string {

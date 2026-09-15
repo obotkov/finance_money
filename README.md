@@ -27,6 +27,17 @@
 - Сессия — cookie `session` (HttpOnly, Secure, SameSite=Lax) на 30 дней, в базе только SHA-256 токена.
 - Лимиты за 15 минут: 10 неудачных входов на почту, 30 на IP, 10 регистраций на IP.
 
+### Учётки из консоли сервера
+
+```bash
+cd /opt/finance-money
+docker compose exec api /api users                          # список: почта, имя, способ входа, счета, операции, даты
+docker compose exec api /api reset-password user@example.com # новый случайный пароль, старые сессии завершаются
+```
+
+Пароли хранятся только как bcrypt-хеши, поэтому посмотреть текущий пароль нельзя — только задать новый
+и передать его владельцу. Так же сбрасывается забытый пароль: восстановления по почте нет.
+
 ### Как включить вход через Google
 
 1. [Google Cloud Console](https://console.cloud.google.com/) → APIs & Services → OAuth consent screen:
