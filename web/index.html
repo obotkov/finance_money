@@ -864,6 +864,8 @@ const pad2 = n => String(n).padStart(2, "0");
 const TODAY = (() => { const d = new Date(); return d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate()); })();
 const TODAY_Y = Number(TODAY.slice(0, 4)), TODAY_M = Number(TODAY.slice(5, 7)) - 1, TODAY_D = Number(TODAY.slice(8));
 const THIS_MONTH = TODAY.slice(0, 7);
+// Local time "14:30": operations added for today carry it, so exports have a time
+const clockNow = () => { const d = new Date(); return pad2(d.getHours()) + ":" + pad2(d.getMinutes()); };
 const MONTHS_NOM = ["Январь","Февраль","Март","Апрель","Май","Июнь","Июль","Август","Сентябрь","Октябрь","Ноябрь","Декабрь"];
 // "YYYY-MM" of month m (0-based, may run past the year) of year y
 const monthKey = (y, m) => { const d = new Date(Date.UTC(y, m, 1)); return d.getUTCFullYear() + "-" + pad2(d.getUTCMonth() + 1); };
@@ -1109,7 +1111,10 @@ class Component extends DCLogic {
     // Walk from the newest operation back, undoing each one from the current balances.
     const bal = {};
     st.accounts.forEach(a => { bal[a.name] = a.balance; });
-    const txs = st.txs.slice().sort((a, b) => (a.d < b.d ? 1 : a.d > b.d ? -1 : 0)); // stable: keeps same-day order
+    // Newest first by date and time; operations without a time go last in their
+    // day, as on the server. The sort is stable, so the server's order stays otherwise.
+    const when = t => t.d + " " + (t.tm || "");
+    const txs = st.txs.slice().sort((a, b) => (when(a) < when(b) ? 1 : when(a) > when(b) ? -1 : 0));
     const rows = txs.map(t => {
       const transfer = t.type === "transfer", income = !transfer && t.v > 0;
       const got = t.got != null ? t.got : t.v;
@@ -1119,7 +1124,7 @@ class Component extends DCLogic {
         if (t.to in bal) bal[t.to] -= got;
       } else if (t.a in bal) bal[t.a] -= t.v;
       return [
-        t.d,
+        t.tm ? t.d + " " + t.tm : t.d,
         income ? "" : num(Math.abs(t.v)), income ? "" : t.a,
         transfer ? num(got) : (income ? num(t.v) : ""), transfer ? t.to : (income ? t.a : ""),
         num(after), transfer ? "" : path(t.c), t.t,
@@ -1634,8 +1639,8 @@ class Component extends DCLogic {
         ? "CSV, " + st.txs.length + " операций — скопируйте или сохраните"
         : "Вставьте CSV: " + CSV_HEADER.join(";"),
       dataHint: st.dataMsg || (st.dataMode === "export"
-        ? "Разделитель — точка с запятой, дата ГГГГ-ММ-ДД. Суммы положительные: направление задают счета и тип. Баланс — остаток на счёте операции после неё."
-        : "Расход заполняет «откуда», доход — «куда», перевод — обе стороны (сумма «куда» в валюте того счёта). Категория через двоеточие: Спорт:Футбол. Дата — 2026-09-15 или 15.09.2026. Баланс при загрузке не используется: остатки считаются по операциям. Строки без даты, например заголовок, пропускаются; неизвестные счета и категории создаются."),
+        ? "Разделитель — точка с запятой, дата ГГГГ-ММ-ДД и время ЧЧ:ММ, если оно известно. Суммы положительные: направление задают счета и тип. Баланс — остаток на счёте операции после неё."
+        : "Расход заполняет «откуда», доход — «куда», перевод — обе стороны (сумма «куда» в валюте того счёта). Категория через двоеточие: Спорт:Футбол. Дата — 2026-09-15 или 15.09.2026, можно со временем: 2026-09-15 14:30. Баланс при загрузке не используется: остатки считаются по операциям. Строки без даты, например заголовок, пропускаются; неизвестные счета и категории создаются."),
       dataHintColor: st.dataMsg ? "var(--accent)" : "var(--ink3)",
       dataActionLabel: st.dataMode === "export" ? "Скачать .csv" : "Загрузить",
       dataAction: () => {
@@ -1739,7 +1744,8 @@ class Component extends DCLogic {
         if (st.online) {
           const dp2 = st.date.split("-");
           this.api("POST", "transactions", {
-            date: st.date, title: st.note, type: st.type, category: transfer ? "" : st.cat,
+            date: st.date, time: st.date === TODAY ? clockNow() : "",
+            title: st.note, type: st.type, category: transfer ? "" : st.cat,
             account: st.acc, toAccount: transfer ? st.accTo : "", amount: v, received: transfer && received ? received : null
           }).then(() => this.setState({ dialog: null, amount: "", note: "", receive: "", receiveTouched: false,
             opsY: Number(dp2[0]), opsM: Number(dp2[1]) - 1, opsDate: st.opsDate ? st.date : null }), () => {});

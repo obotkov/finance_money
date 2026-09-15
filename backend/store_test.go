@@ -27,4 +27,13 @@ func TestTxInputValidate(t *testing.T) {
 	if in.Title != "Продукты" {
 		t.Errorf("empty title should default to the category, got %q", in.Title)
 	}
+
+	in.Time = "9:05"
+	if err := in.validate(); err != nil || in.Time != "09:05:00" {
+		t.Errorf("time 9:05: err = %v, time = %q", err, in.Time)
+	}
+	in.Time = "25:00"
+	if err := in.validate(); err == nil {
+		t.Error("time 25:00 should be rejected")
+	}
 }

@@ -80,6 +80,25 @@ func TestParseImportErrors(t *testing.T) {
 	}
 }
 
+func TestParseImportTime(t *testing.T) {
+	got, err := parseImport("2026-09-15 14:30;100;Карта;;;;Еда;a;расход\n" +
+		"15.09.2026 9:05:07;100;Карта;;;;Еда;b;расход\n" +
+		"2026-09-15T08:00;100;Карта;;;;Еда;c;расход\n" +
+		"2026-09-14;100;Карта;;;;Еда;d;расход\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := [][2]string{{"2026-09-15", "14:30:00"}, {"2026-09-15", "09:05:07"}, {"2026-09-15", "08:00:00"}, {"2026-09-14", ""}}
+	for i, w := range want {
+		if got[i].in.Date != w[0] || got[i].in.Time != w[1] {
+			t.Errorf("line %d: got %s %q, want %s %q", i+1, got[i].in.Date, got[i].in.Time, w[0], w[1])
+		}
+	}
+	if _, err := parseImport("2026-09-15 25:99;100;Карта;;;;Еда;x;расход"); err == nil || !strings.Contains(err.Error(), "Строка 1: время «25:99»") {
+		t.Errorf("bad time: err = %v", err)
+	}
+}
+
 func TestParseAmount(t *testing.T) {
 	for in, want := range map[string]float64{"": 0, "1 234,56": 1234.56, "1234.56": 1234.56, "−620": 620, "1 000 ₽": 1000, "0,00014": 0.00014} {
 		got, err := parseAmount(in)

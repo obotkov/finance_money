@@ -62,6 +62,7 @@ type Category struct {
 type Tx struct {
 	ID     int64    `json:"id"`
 	Date   string   `json:"d"`
+	Time   string   `json:"tm,omitempty"` // 14:30 or 14:30:05, empty when unknown
 	Title  string   `json:"t"`
 	Cat    string   `json:"c"`
 	Acc    string   `json:"a"`
@@ -202,17 +203,21 @@ func (s *Store) State(ctx context.Context, uid int64) (*State, error) {
 	}
 
 	rows, _ = s.db.Query(ctx, `
-		SELECT t.id, to_char(t.date, 'YYYY-MM-DD'), t.title, t.type, t.category_name,
+		SELECT t.id, to_char(t.date, 'YYYY-MM-DD'),
+		       CASE WHEN t.time IS NULL THEN ''
+		            WHEN right(t.time::text, 3) = ':00' THEN left(t.time::text, 5)
+		            ELSE t.time::text END,
+		       t.title, t.type, t.category_name,
 		       a.name, COALESCE(b.name, ''), COALESCE(b.currency, ''), t.amount, t.received
 		FROM transactions t
 		JOIN accounts a ON a.id = t.account_id
 		LEFT JOIN accounts b ON b.id = t.to_account_id
 		WHERE t.user_id = $1
-		ORDER BY t.date DESC, t.id DESC`, uid)
+		ORDER BY t.date DESC, t.time DESC NULLS LAST, t.id DESC`, uid)
 	st.Txs, err = pgx.CollectRows(rows, func(r pgx.CollectableRow) (Tx, error) {
 		var t Tx
 		var received *float64
-		err := r.Scan(&t.ID, &t.Date, &t.Title, &t.Type, &t.Cat, &t.Acc, &t.To, &t.GotCur, &t.V, &received)
+		err := r.Scan(&t.ID, &t.Date, &t.Time, &t.Title, &t.Type, &t.Cat, &t.Acc, &t.To, &t.GotCur, &t.V, &received)
 		switch t.Type {
 		case "expense":
 			t.V = -t.V
@@ -302,6 +307,7 @@ func (s *Store) DeleteAccount(ctx context.Context, uid, id int64) error {
 
 type TxInput struct {
 	Date      string   `json:"date"`
+	Time      string   `json:"time"` // optional: 14:30 or 14:30:05
 	Title     string   `json:"title"`
 	Type      string   `json:"type"`
 	Category  string   `json:"category"`
@@ -315,6 +321,13 @@ func (in *TxInput) validate() error {
 	in.Title, in.Category = strings.TrimSpace(in.Title), strings.TrimSpace(in.Category)
 	if _, err := time.Parse(time.DateOnly, in.Date); err != nil {
 		return badRequest("Дата должна быть в формате ГГГГ-ММ-ДД")
+	}
+	if in.Time != "" {
+		clock, ok := parseClock(in.Time)
+		if !ok {
+			return badRequest("Время должно быть в формате ЧЧ:ММ или ЧЧ:ММ:СС")
+		}
+		in.Time = clock
 	}
 	if !(in.Amount > 0) {
 		return badRequest("Сумма должна быть больше нуля")
@@ -370,9 +383,9 @@ func insertTx(ctx context.Context, tx pgx.Tx, uid int64, in TxInput) error {
 			return err
 		}
 		if _, err := tx.Exec(ctx, `
-			INSERT INTO transactions (user_id, date, title, type, account_id, to_account_id, amount, received)
-			VALUES ($1, $2, $3, 'transfer', $4, $5, $6, $7)`,
-			uid, in.Date, in.Title, from.id, to.id, in.Amount, got); err != nil {
+			INSERT INTO transactions (user_id, date, title, type, account_id, to_account_id, amount, received, time)
+			VALUES ($1, $2, $3, 'transfer', $4, $5, $6, $7, NULLIF($8, '')::time)`,
+			uid, in.Date, in.Title, from.id, to.id, in.Amount, got, in.Time); err != nil {
 			return err
 		}
 		if err := addBalance(ctx, tx, from.id, -in.Amount); err != nil {
@@ -390,9 +403,9 @@ func insertTx(ctx context.Context, tx pgx.Tx, uid int64, in TxInput) error {
 		return err
 	}
 	if _, err := tx.Exec(ctx, `
-		INSERT INTO transactions (user_id, date, title, type, category_id, category_name, account_id, amount)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-		uid, in.Date, in.Title, in.Type, catID, in.Category, from.id, in.Amount); err != nil {
+		INSERT INTO transactions (user_id, date, title, type, category_id, category_name, account_id, amount, time)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NULLIF($9, '')::time)`,
+		uid, in.Date, in.Title, in.Type, catID, in.Category, from.id, in.Amount, in.Time); err != nil {
 		return err
 	}
 	delta := in.Amount

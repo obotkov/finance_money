@@ -72,15 +72,18 @@ func parseImport(text string) ([]importLine, error) {
 			}
 			return ""
 		}
-		date, ok := parseImportDate(field(colDate))
+		date, clock, ok, err := parseImportDate(field(colDate))
 		if !ok {
 			continue
+		}
+		if err != nil {
+			return nil, badRequest(fmt.Sprintf("Строка %d: %s", n, err))
 		}
 		l, err := parseOperation(date, field)
 		if err != nil {
 			return nil, badRequest(fmt.Sprintf("Строка %d: %s", n, err))
 		}
-		l.n = n
+		l.n, l.in.Time = n, clock
 		out = append(out, l)
 	}
 	return out, nil
@@ -95,11 +98,35 @@ func importDelimiter(text string) rune {
 	return ';'
 }
 
-// parseImportDate accepts 2026-09-15 and 15.09.2026 (or 5.9.2026).
-func parseImportDate(s string) (string, bool) {
+// parseImportDate reads the Дата field: 2026-09-15 or 15.09.2026 (5.9.2026),
+// optionally with a time — "2026-09-15 14:30", "15.09.2026 14:30:05",
+// "2026-09-15T14:30". ok is false when the field isn't a date at all (a
+// header, a note); err is set for a date whose time can't be read.
+func parseImportDate(s string) (date, clock string, ok bool, err error) {
+	datePart, timePart, _ := strings.Cut(strings.TrimSpace(strings.Replace(s, "T", " ", 1)), " ")
 	for _, layout := range []string{time.DateOnly, "2.1.2006"} {
+		if t, e := time.Parse(layout, datePart); e == nil {
+			date, ok = t.Format(time.DateOnly), true
+			break
+		}
+	}
+	if !ok {
+		return "", "", false, nil
+	}
+	if timePart = strings.TrimSpace(timePart); timePart != "" {
+		var valid bool
+		if clock, valid = parseClock(timePart); !valid {
+			return date, "", true, fmt.Errorf("время «%s»: ожидается ЧЧ:ММ или ЧЧ:ММ:СС", timePart)
+		}
+	}
+	return date, clock, true, nil
+}
+
+// parseClock reads 14:30, 9:05 or 14:30:05 and returns it as 14:30:05.
+func parseClock(s string) (string, bool) {
+	for _, layout := range []string{"15:04:05", "15:04"} {
 		if t, err := time.Parse(layout, s); err == nil {
-			return t.Format(time.DateOnly), true
+			return t.Format("15:04:05"), true
 		}
 	}
 	return "", false
