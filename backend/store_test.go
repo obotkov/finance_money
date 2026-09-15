@@ -2,32 +2,6 @@ package main
 
 import "testing"
 
-func TestParseImport(t *testing.T) {
-	text := "дата;назначение;категория;счёт;сумма;валюта;тип;на счёт\n" +
-		"2026-09-14;Пятёрочка;Продукты;Тинькофф Black;-2340;RUB;расход;\r\n" +
-		"2026-09-10;Зарплата;Зарплата;Тинькофф Black;142 000,50;RUB;доход;\n" +
-		"2026-09-05;На накопительный;Перевод;Тинькофф Black;40000;RUB;Перевод;Накопительный счёт\n" +
-		"мусор\n" +
-		"2026-09-01;Ноль;Продукты;Наличные;0\n" +
-		"2026-09-02\tТаб\tКафе\tНаличные\t−620\n"
-
-	got := parseImport(text)
-	want := []importLine{
-		{2, TxInput{Date: "2026-09-14", Title: "Пятёрочка", Type: "expense", Category: "Продукты", Account: "Тинькофф Black", Amount: 2340}},
-		{3, TxInput{Date: "2026-09-10", Title: "Зарплата", Type: "income", Category: "Зарплата", Account: "Тинькофф Black", Amount: 142000.5}},
-		{4, TxInput{Date: "2026-09-05", Title: "На накопительный", Type: "transfer", Account: "Тинькофф Black", ToAccount: "Накопительный счёт", Amount: 40000}},
-		{7, TxInput{Date: "2026-09-02", Title: "Таб", Type: "expense", Category: "Кафе", Account: "Наличные", Amount: 620}},
-	}
-	if len(got) != len(want) {
-		t.Fatalf("got %d lines, want %d: %+v", len(got), len(want), got)
-	}
-	for i := range want {
-		if got[i].n != want[i].n || got[i].in != want[i].in {
-			t.Errorf("line %d:\n got %+v\nwant %+v", i, got[i], want[i])
-		}
-	}
-}
-
 func TestTxInputValidate(t *testing.T) {
 	cases := []struct {
 		name string

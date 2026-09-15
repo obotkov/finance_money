@@ -6,9 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"math"
-	"regexp"
-	"strconv"
 	"strings"
 	"time"
 
@@ -616,106 +613,6 @@ func (s *Store) DeleteCategory(ctx context.Context, uid, id int64) error {
 		}
 		return err
 	})
-}
-
-// ---- CSV import ----
-
-var (
-	importSep  = regexp.MustCompile(`[;\t]`)
-	importDate = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}$`)
-	numberText = strings.NewReplacer(" ", "", " ", "", " ", "", "−", "-", ",", ".")
-)
-
-type importLine struct {
-	n  int // line number in the pasted text
-	in TxInput
-}
-
-// parseImport reads the page's CSV export format:
-// дата;назначение;категория;счёт;сумма[;валюта;тип;на счёт].
-// Lines that don't fit, the header among them, are skipped.
-func parseImport(text string) []importLine {
-	var out []importLine
-	for i, line := range strings.Split(text, "\n") {
-		p := importSep.Split(strings.TrimSpace(line), -1)
-		for j := range p {
-			p[j] = strings.TrimSpace(p[j])
-		}
-		if len(p) < 5 || !importDate.MatchString(p[0]) {
-			continue
-		}
-		v, err := strconv.ParseFloat(numberText.Replace(p[4]), 64)
-		if err != nil || v == 0 {
-			continue
-		}
-		in := TxInput{Date: p[0], Title: p[1], Category: p[2], Account: p[3], Amount: math.Abs(v)}
-		switch {
-		case len(p) > 6 && strings.EqualFold(p[6], "перевод"):
-			in.Type, in.Category = "transfer", ""
-			if len(p) > 7 {
-				in.ToAccount = p[7]
-			}
-		case v > 0:
-			in.Type = "income"
-		default:
-			in.Type = "expense"
-		}
-		out = append(out, importLine{i + 1, in})
-	}
-	return out
-}
-
-// Import adds the operations from CSV text in one transaction and returns how
-// many were added. Unknown accounts (rouble cards) and categories are created.
-func (s *Store) Import(ctx context.Context, uid int64, text string) (int, error) {
-	lines := parseImport(text)
-	if len(lines) == 0 {
-		return 0, badRequest("Не найдено ни одной строки в нужном формате.")
-	}
-	err := pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) error {
-		for _, l := range lines {
-			if err := importOne(ctx, tx, uid, l.in); err != nil {
-				var ae *APIError
-				if errors.As(err, &ae) {
-					return badRequest(fmt.Sprintf("Строка %d: %s", l.n, ae.Msg))
-				}
-				return err
-			}
-		}
-		return nil
-	})
-	if err != nil {
-		return 0, err
-	}
-	return len(lines), nil
-}
-
-func importOne(ctx context.Context, tx pgx.Tx, uid int64, in TxInput) error {
-	if err := in.validate(); err != nil {
-		return err
-	}
-	for _, name := range []string{in.Account, in.ToAccount} {
-		if name == "" {
-			continue
-		}
-		if _, err := tx.Exec(ctx, `
-			INSERT INTO accounts (user_id, name, kind, currency) VALUES ($1, $2, 'Карта', 'RUB')
-			ON CONFLICT (user_id, name) DO NOTHING`, uid, name); err != nil {
-			return err
-		}
-	}
-	if in.Type != "transfer" {
-		kind := "expense"
-		if in.Type == "income" {
-			kind = "income"
-		}
-		if _, err := tx.Exec(ctx, `
-			INSERT INTO categories (user_id, name, kind) VALUES ($1, $2, $3)
-			ON CONFLICT (user_id, name) DO NOTHING`, uid, in.Category, kind); err != nil {
-			return err
-		}
-	}
-	return insertTx(ctx, tx, uid, in)
 }
 
 // ---- rates ----

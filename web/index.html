@@ -888,6 +888,8 @@ const groupDigits = (raw, allowNegative) => {
   if (frac !== null && int === "") int = "0";
   return (neg ? "-" : "") + int.replace(/\B(?=(\d{3})+(?!\d))/g, " ") + (frac === null ? "" : "," + frac);
 };
+// Columns of the operations CSV, for export here and import on the server (backend/import.go)
+const CSV_HEADER = ["Дата", "Сумма (откуда)", "Счёт (откуда)", "Сумма (куда)", "Счёт (куда)", "Баланс", "Категория", "Описание", "Тип"];
 const pluralRu = (n, a, b, c) => { const m = n % 100, k = n % 10; return n + " " + (m > 10 && m < 20 ? c : k === 1 ? a : k > 1 && k < 5 ? b : c); };
 const HIST_MONTHS = [
   { m: "2026-04", income: [["Зарплата", 142000]], spend: [["Продукты", 23400], ["Жильё и связь", 31500], ["Транспорт", 6800], ["Кафе и доставка", 9700], ["Подписки", 2190], ["Футбол", 4500], ["Одежда", 310]] },
@@ -1092,15 +1094,39 @@ class Component extends DCLogic {
   }
   money(n, cur) { return (n < 0 ? "−" : "") + this.fmt(n, cur); }
   signed(n, cur) { return (n < 0 ? "−" : "+") + this.fmt(n, cur); }
+  // Operations CSV in the columns the server imports (CSV_HEADER), newest first.
+  // Баланс is what the operation's account held right after it: the source
+  // account for expenses and transfers, the target for income.
   toCsv() {
-    const rows = [["дата", "назначение", "категория", "счёт", "сумма", "валюта", "тип", "на счёт"]].concat(
-      this.state.txs.slice().sort((a, b) => (a.d < b.d ? 1 : -1)).map(t => [
-        t.d, t.t, t.c, t.a, String(t.v).replace(".", ","), this.curOf(t.a),
-        t.type === "transfer" ? "перевод" : (t.v > 0 ? "доход" : "расход"),
-        t.to || ""
-      ])
-    );
-    return rows.map(r => r.join(";")).join("\n");
+    const st = this.state;
+    const cell = v => { const s = v == null ? "" : String(v); return /[";\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+    const num = n => (n == null || n === "" || isNaN(n)) ? "" : String(Math.round(n * 1e8) / 1e8).replace(".", ",");
+    const path = name => {
+      const parts = [];
+      for (let c = st.cats.find(x => x.name === name); c; c = c.parent == null ? null : st.cats.find(x => x.id === c.parent)) parts.unshift(c.name);
+      return parts.length ? parts.join(":") : name;
+    };
+    // Walk from the newest operation back, undoing each one from the current balances.
+    const bal = {};
+    st.accounts.forEach(a => { bal[a.name] = a.balance; });
+    const txs = st.txs.slice().sort((a, b) => (a.d < b.d ? 1 : a.d > b.d ? -1 : 0)); // stable: keeps same-day order
+    const rows = txs.map(t => {
+      const transfer = t.type === "transfer", income = !transfer && t.v > 0;
+      const got = t.got != null ? t.got : t.v;
+      const after = bal[t.a];
+      if (transfer) {
+        if (t.a in bal) bal[t.a] += t.v;
+        if (t.to in bal) bal[t.to] -= got;
+      } else if (t.a in bal) bal[t.a] -= t.v;
+      return [
+        t.d,
+        income ? "" : num(Math.abs(t.v)), income ? "" : t.a,
+        transfer ? num(got) : (income ? num(t.v) : ""), transfer ? t.to : (income ? t.a : ""),
+        num(after), transfer ? "" : path(t.c), t.t,
+        transfer ? "перевод" : (income ? "доход" : "расход")
+      ];
+    });
+    return [CSV_HEADER].concat(rows).map(r => r.map(cell).join(";")).join("\n");
   }
   download() {
     const blob = new Blob(["\ufeff" + this.toCsv()], { type: "text/csv;charset=utf-8" });
@@ -1117,46 +1143,8 @@ class Component extends DCLogic {
         .then(data => this.setState({ dataMsg: "Загружено операций: " + data.imported + ". Балансы счетов обновлены." }), () => {});
       return;
     }
-    const lines = String(this.state.dataText).split(/\r?\n/).map(l => l.trim()).filter(Boolean);
-    const added = [];
-    lines.forEach(line => {
-      const p = line.split(/[;\t]/).map(s => s.trim());
-      if (p.length < 5 || !/^\d{4}-\d{2}-\d{2}$/.test(p[0])) return;
-      const v = parseFloat(p[4].replace(/\s/g, "").replace(",", "."));
-      if (!v && v !== 0) return;
-      const transfer = (p[6] || "").toLowerCase() === "перевод";
-      added.push(transfer
-        ? { d: p[0], t: p[1] || "Перевод", c: "Перевод", a: p[3], to: p[7] || "", v: Math.abs(v), type: "transfer" }
-        : { d: p[0], t: p[1] || p[2], c: p[2], a: p[3], v });
-    });
-    if (!added.length) { this.setState({ dataMsg: "Не найдено ни одной строки в нужном формате." }); return; }
-    const accounts = this.state.accounts.slice();
-    const cats = this.state.cats.slice();
-    added.forEach(t => {
-      if (t.a && !accounts.some(a => a.name === t.a)) accounts.push({ name: t.a, kind: "Карта", balance: 0, cur: "RUB" });
-      if (t.to && !accounts.some(a => a.name === t.to)) accounts.push({ name: t.to, kind: "Карта", balance: 0, cur: "RUB" });
-      if (t.type !== "transfer" && !cats.some(c => c.name === t.c)) {
-        cats.push({ id: Math.max(0, ...cats.map(c => c.id)) + 1, name: t.c, parent: null, kind: t.v > 0 ? "income" : "expense" });
-      }
-    });
-    const bal = {};
-    accounts.forEach(a => { bal[a.name] = a.balance; });
-    const curOf = n => { const a = accounts.find(x => x.name === n); return (a && a.cur) || "RUB"; };
-    added.forEach(t => {
-      if (t.type === "transfer") {
-        if (bal[t.a] === undefined || bal[t.to] === undefined) return;
-        const got = t.got !== undefined ? t.got : (t.v * CUR[curOf(t.a)].rate) / CUR[curOf(t.to)].rate;
-        bal[t.a] -= t.v;
-        bal[t.to] += got;
-        t.got = got;
-        t.gotCur = curOf(t.to);
-      } else if (bal[t.a] !== undefined) {
-        bal[t.a] += t.v;
-      }
-    });
-    const withBalances = accounts.map(a => ({ ...a, balance: bal[a.name] }));
-    const txs = added.concat(this.state.txs).sort((a, b) => (a.d < b.d ? 1 : -1));
-    this.setState({ txs, accounts: withBalances, cats, dataMsg: "Загружено операций: " + added.length + ". Балансы счетов обновлены." });
+    // The CSV is read on the server (backend/import.go); the demo has no server.
+    this.setState({ dataMsg: "В демо-режиме импорт недоступен: он работает через сервер." });
   }
   presets() {
     const iso = d => d.toISOString().slice(0, 10);
@@ -1644,10 +1632,10 @@ class Component extends DCLogic {
       dataText: st.dataText, onDataText: e => this.set("dataText", e.target.value),
       dataFieldLabel: st.dataMode === "export"
         ? "CSV, " + st.txs.length + " операций — скопируйте или сохраните"
-        : "Вставьте CSV: дата;назначение;категория;счёт;сумма",
+        : "Вставьте CSV: " + CSV_HEADER.join(";"),
       dataHint: st.dataMsg || (st.dataMode === "export"
-        ? "Разделитель — точка с запятой, дата в формате ГГГГ-ММ-ДД, расход со знаком минус."
-        : "Строки с заголовком пропускаются. Неизвестные счета и категории будут созданы."),
+        ? "Разделитель — точка с запятой, дата ГГГГ-ММ-ДД. Суммы положительные: направление задают счета и тип. Баланс — остаток на счёте операции после неё."
+        : "Расход заполняет «откуда», доход — «куда», перевод — обе стороны (сумма «куда» в валюте того счёта). Категория через двоеточие: Спорт:Футбол. Дата — 2026-09-15 или 15.09.2026. Баланс при загрузке не используется: остатки считаются по операциям. Строки без даты, например заголовок, пропускаются; неизвестные счета и категории создаются."),
       dataHintColor: st.dataMsg ? "var(--accent)" : "var(--ink3)",
       dataActionLabel: st.dataMode === "export" ? "Скачать .csv" : "Загрузить",
       dataAction: () => {
