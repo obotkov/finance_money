@@ -660,6 +660,18 @@
                   <line x1="16" y1="200" x2="604" y2="200" style="stroke:var(--grid);pointer-events:none"></line>
                 </svg>
                 <span class="num" style="position:absolute;left:0;top:19%;transform:translateY(-115%);font-size:11px;color:var(--ink3);pointer-events:none">{{ flowMaxLabel }}</span>
+                <sc-if value="{{ flowTip }}" hint-placeholder-val="{{ false }}">
+                  <div style="position:absolute;top:6%;left:{{ flowTipL }};right:{{ flowTipR }};width:max-content;min-width:min(150px,40%);max-width:40%;padding:10px 12px;border-radius:12px;background:var(--raised);border:1px solid var(--line);box-shadow:0 8px 24px rgba(0,0,0,.22);font-size:12px;pointer-events:none;z-index:2">
+                    <div style="font-size:13px;font-weight:600;margin-bottom:6px">{{ flowTipTitle }}</div>
+                    <sc-for list="{{ flowTipRows }}" as="r" hint-placeholder-count="3">
+                      <div style="display:flex;align-items:center;gap:8px;padding:3px 0;font-weight:{{ r.weight }};border-top:{{ r.border }}">
+                        <span style="width:8px;height:8px;border-radius:2px;flex:none;background:{{ r.color }}"></span>
+                        <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink2)">{{ r.label }}</span>
+                        <span class="num" style="white-space:nowrap;margin-left:8px">{{ r.value }}</span>
+                      </div>
+                    </sc-for>
+                  </div>
+                </sc-if>
               </div>
               <div style="position:relative;height:16px;margin-top:4px">
                 <sc-for list="{{ flowTicks }}" as="t" hint-placeholder-count="6"><span class="tick" data-minor="{{ t.minor }}" style="position:absolute;left:{{ t.left }};transform:translateX(-50%);font-size:11px;color:var(--ink3);white-space:nowrap">{{ t.label }}</span></sc-for>
@@ -707,6 +719,18 @@
                     <line x1="16" y1="200" x2="604" y2="200" style="stroke:var(--grid);pointer-events:none"></line>
                   </svg>
                   <span class="num" style="position:absolute;left:0;top:19%;transform:translateY(-115%);font-size:11px;color:var(--ink3);pointer-events:none">{{ catMaxLabel }}</span>
+                <sc-if value="{{ catTip }}" hint-placeholder-val="{{ false }}">
+                  <div style="position:absolute;top:6%;left:{{ catTipL }};right:{{ catTipR }};width:max-content;min-width:min(150px,40%);max-width:40%;padding:10px 12px;border-radius:12px;background:var(--raised);border:1px solid var(--line);box-shadow:0 8px 24px rgba(0,0,0,.22);font-size:12px;pointer-events:none;z-index:2">
+                    <div style="font-size:13px;font-weight:600;margin-bottom:6px">{{ catTipTitle }}</div>
+                    <sc-for list="{{ catTipRows }}" as="r" hint-placeholder-count="3">
+                      <div style="display:flex;align-items:center;gap:8px;padding:3px 0;font-weight:{{ r.weight }};border-top:{{ r.border }}">
+                        <span style="width:8px;height:8px;border-radius:2px;flex:none;background:{{ r.color }}"></span>
+                        <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink2)">{{ r.label }}</span>
+                        <span class="num" style="white-space:nowrap;margin-left:8px">{{ r.value }}</span>
+                      </div>
+                    </sc-for>
+                  </div>
+                </sc-if>
                 </div>
                 <div style="position:relative;height:16px;margin-top:4px">
                   <sc-for list="{{ catTicks }}" as="t" hint-placeholder-count="6"><span class="tick" data-minor="{{ t.minor }}" style="position:absolute;left:{{ t.left }};transform:translateX(-50%);font-size:11px;color:var(--ink3);white-space:nowrap">{{ t.label }}</span></sc-for>
@@ -1727,7 +1751,13 @@ class Component extends DCLogic {
       bars.push({ key: s.key + ":" + i, x: r1(cx(i) - inner / 2 + j * (w + gap)), y: r1(BASE - h), w: r1(w), h: r1(h), rx: r1(Math.min(4, w / 2)), color: s.color });
     }));
     const step = Math.max(1, Math.ceil(n / 12)); // at most 12 labels, every other one hidden on phones
+    const at = bs.findIndex(b => b.from === hover);
+    // the tooltip sits beside the hovered slot, on the side with more room, so it never covers the bar
+    const pct = x => (x / 620 * 100).toFixed(2) + "%";
+    const toRight = at >= 0 && cx(at) < 310;
     return {
+      tipL: at >= 0 && toRight ? "calc(" + pct(X0 + slot * (at + 1)) + " + 8px)" : "auto",
+      tipR: at >= 0 && !toRight ? "calc(" + pct(620 - X0 - slot * at) + " + 8px)" : "auto",
       bars,
       hits: bs.map((b, i) => ({ key: "h" + i, x: r1(X0 + slot * i), w: r1(slot),
         fill: hover === b.from ? "var(--fill)" : "transparent", enter: () => this.set(hoverKey, b.from) })),
@@ -1735,7 +1765,7 @@ class Component extends DCLogic {
         left: (cx(i) / 620 * 100).toFixed(2) + "%", minor: (i / step) % 2 ? "1" : "0" })),
       maxLabel: max ? this.money(max) : "",
       leave: () => this.set(hoverKey, null),
-      at: bs.findIndex(b => b.from === hover)
+      at
     };
   }
   anaCharts(inRub) {
@@ -1794,6 +1824,13 @@ class Component extends DCLogic {
       flowCaption: fc.at >= 0 ? fb[fc.at].title : range,
       flowIncLabel: this.money(fc.at >= 0 ? inc[fc.at] : totalInc),
       flowExpLabel: this.money(fc.at >= 0 ? exp[fc.at] : totalExp),
+      flowTip: fc.at >= 0, flowTipL: fc.tipL, flowTipR: fc.tipR,
+      flowTipTitle: fc.at >= 0 ? fb[fc.at].title : "",
+      flowTipRows: fc.at < 0 ? [] : [
+        { key: "i", label: "доходы", color: "var(--accent)", value: this.money(inc[fc.at]), weight: "400", border: "0" },
+        { key: "e", label: "траты", color: "var(--bar-muted)", value: this.money(exp[fc.at]), weight: "400", border: "0" },
+        { key: "d", label: "разница", color: "transparent", value: this.money(inc[fc.at] - exp[fc.at]), weight: "600", border: "1px solid var(--line)" }
+      ],
       flowBars: fc.bars, flowHits: fc.hits, flowTicks: fc.ticks, flowMaxLabel: fc.maxLabel, flowLeave: fc.leave,
       flowAria: "Доходы и траты по " + (fg === "day" ? "дням" : fg === "week" ? "неделям" : "месяцам") + ": доходы " + this.money(totalInc) + ", траты " + this.money(totalExp),
       anaNote: (fb.length < 2
@@ -1814,6 +1851,12 @@ class Component extends DCLogic {
         if (id && byId[id] && sel.indexOf(id) === -1 && sel.length < MAX) this.setState({ anaCats: sel.concat([id]) });
       },
       catHasSeries: series.length > 0,
+      catTip: cc.at >= 0, catTipL: cc.tipL, catTipR: cc.tipR,
+      catTipTitle: cc.at >= 0 ? cb[cc.at].title : "",
+      catTipRows: cc.at < 0 ? [] : series
+        .map(s => ({ key: s.key, label: s.name, color: s.color, value: this.money(s.values[cc.at]), weight: "400", border: "0" }))
+        .concat(series.length > 1 ? [{ key: "sum", label: "всего", color: "transparent",
+          value: this.money(series.reduce((a, s) => a + s.values[cc.at], 0)), weight: "600", border: "1px solid var(--line)" }] : []),
       catBarsP: cc.bars, catHits: cc.hits, catTicks: cc.ticks, catMaxLabel: cc.maxLabel, catLeave: cc.leave,
       catAria: "Категории по " + (cg === "day" ? "дням" : cg === "week" ? "неделям" : "месяцам") + ": "
         + series.map(s => s.name + " " + this.money(sumOf(s.values))).join(", "),
