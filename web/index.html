@@ -542,7 +542,7 @@
 
           <!-- Настройки -->
           <sc-if value="{{ isSettings }}" hint-placeholder-val="{{ false }}">
-          <div class="screen" style="padding:22px 28px 32px;max-width:620px;display:flex;flex-direction:column;gap:16px">
+          <div class="screen cols" style="padding:22px 28px 32px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px">
             <div class="card" style="padding:20px 22px;display:flex;flex-direction:column;gap:18px">
               <div><span class="lbl">Основная валюта</span><input class="inp" value="Российский рубль (₽)" readOnly="{{ true }}"></div>
               <div><span class="lbl">Начало финансового месяца</span>
@@ -555,18 +555,18 @@
             <div class="card" style="padding:20px 22px;display:flex;flex-direction:column;gap:18px">
               <div><span class="lbl">Напоминание вносить операции</span><input class="inp" value="Каждый день в 21:00" readOnly="{{ true }}"></div>
             </div>
-            <!-- данные: выгрузка за период с примером и загрузка -->
-            <div class="card" style="padding:20px 22px;display:flex;flex-direction:column;gap:16px">
+            <!-- данные: выгрузка за период с примером и загрузка, на всю ширину -->
+            <div class="card" style="grid-column:1 / -1;padding:20px 22px;display:flex;flex-direction:column;gap:16px">
               <div>
                 <div class="big" style="font-size:17px">Данные</div>
                 <div style="font-size:13px;color:var(--ink3)">Выгрузка операций в CSV и загрузка из файла</div>
               </div>
               <div style="display:flex;flex-direction:column;gap:10px">
                 <span class="lbl" style="margin:0">Период</span>
-                <select class="inp" style="width:auto;align-self:flex-start" value="{{ expPreset }}" onChange="{{ onExpPreset }}">
-                  <sc-for list="{{ expPresets }}" as="p" hint-placeholder-count="12"><option value="{{ p.value }}">{{ p.label }}</option></sc-for>
-                </select>
                 <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                  <select class="inp" style="width:auto" value="{{ expPreset }}" onChange="{{ onExpPreset }}">
+                    <sc-for list="{{ expPresets }}" as="p" hint-placeholder-count="12"><option value="{{ p.value }}">{{ p.label }}</option></sc-for>
+                  </select>
                   <input class="inp" type="date" style="width:auto" value="{{ expFrom }}" onChange="{{ onExpFrom }}">
                   <span style="font-size:13px;color:var(--ink3)">—</span>
                   <input class="inp" type="date" style="width:auto" value="{{ expTo }}" onChange="{{ onExpTo }}">
