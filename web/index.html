@@ -658,13 +658,13 @@
         </div>
         <sc-if value="{{ isTransfer }}" hint-placeholder-val="{{ false }}">
           <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px;margin-top:16px">
-            <div><span class="lbl">Списать, {{ fromSym }}</span><input class="inp" value="{{ amount }}" onChange="{{ onAmount }}" placeholder="0"></div>
+            <div><span class="lbl">Списать, {{ fromSym }}</span><input class="inp" inputMode="decimal" value="{{ amount }}" onChange="{{ onAmount }}" placeholder="0"></div>
             <div><span class="lbl">Со счёта</span>
               <select class="inp" value="{{ acc }}" onChange="{{ onAcc }}">
                 <sc-for list="{{ accountOptions }}" as="o" hint-placeholder-count="5"><option value="{{ o.value }}">{{ o.label }}</option></sc-for>
               </select>
             </div>
-            <div><span class="lbl">Зачислить, {{ toSym }}</span><input class="inp" value="{{ receiveAmount }}" onChange="{{ onReceive }}" placeholder="0"></div>
+            <div><span class="lbl">Зачислить, {{ toSym }}</span><input class="inp" inputMode="decimal" value="{{ receiveAmount }}" onChange="{{ onReceive }}" placeholder="0"></div>
             <div><span class="lbl">На счёт</span>
               <select class="inp" value="{{ accTo }}" onChange="{{ onAccTo }}">
                 <sc-for list="{{ accountOptions }}" as="o" hint-placeholder-count="5"><option value="{{ o.value }}">{{ o.label }}</option></sc-for>
@@ -678,7 +678,7 @@
         </sc-if>
         <sc-if value="{{ showCats }}" hint-placeholder-val="{{ true }}">
         <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px;margin-top:16px">
-          <div><span class="lbl">{{ amountLabel }}</span><input class="inp" value="{{ amount }}" onChange="{{ onAmount }}" placeholder="0"></div>
+          <div><span class="lbl">{{ amountLabel }}</span><input class="inp" inputMode="decimal" value="{{ amount }}" onChange="{{ onAmount }}" placeholder="0"></div>
           <div><span class="lbl">Счёт</span>
             <select class="inp" value="{{ acc }}" onChange="{{ onAcc }}">
               <sc-for list="{{ accountOptions }}" as="o" hint-placeholder-count="5"><option value="{{ o.value }}">{{ o.label }}</option></sc-for>
@@ -876,6 +876,18 @@ const KIND_COLORS = {
   "Карта": "#2a78d6", "Наличные": "#eda100", "Вклад": "#008300", "Инвестиции": "#4a3aa7",
   "Криптокошелёк": "#e87ba4", "Кредит": "#898781", other: "#898781"
 };
+// Groups the integer part by thousands as the user types: "1234567.5" → "1 234 567,5".
+// Accepts "," or "." as the decimal separator; the parsers strip the spaces back out.
+const groupDigits = (raw, allowNegative) => {
+  let s = String(raw).replace(/\s/g, "").replace(/\./g, ",");
+  const neg = allowNegative && s.startsWith("-");
+  s = s.replace(/[^\d,]/g, "");
+  const cut = s.indexOf(",");
+  let int = (cut === -1 ? s : s.slice(0, cut)).replace(/^0+(?=\d)/, "");
+  const frac = cut === -1 ? null : s.slice(cut + 1).replace(/,/g, "");
+  if (frac !== null && int === "") int = "0";
+  return (neg ? "-" : "") + int.replace(/\B(?=(\d{3})+(?!\d))/g, " ") + (frac === null ? "" : "," + frac);
+};
 const pluralRu = (n, a, b, c) => { const m = n % 100, k = n % 10; return n + " " + (m > 10 && m < 20 ? c : k === 1 ? a : k > 1 && k < 5 ? b : c); };
 const HIST_MONTHS = [
   { m: "2026-04", income: [["Зарплата", 142000]], spend: [["Продукты", 23400], ["Жильё и связь", 31500], ["Транспорт", 6800], ["Кафе и доставка", 9700], ["Подписки", 2190], ["Футбол", 4500], ["Одежда", 310]] },
@@ -1045,6 +1057,20 @@ class Component extends DCLogic {
       }))
       .then(data => { this.applyServer(data, { busy: false }); return data; })
       .catch(err => { this.setState({ busy: false }); if (err.message) window.alert(err.message); throw err; });
+  }
+
+  // Stores a number field grouped by thousands and puts the caret back after the
+  // same digit — otherwise re-formatting would throw it to the end on every key.
+  setNumber(key, e, allowNegative, extra) {
+    const el = e.target, raw = el.value;
+    const pos = el.selectionStart == null ? raw.length : el.selectionStart;
+    const before = raw.slice(0, pos).replace(/[^\d.,-]/g, "").length;
+    const value = groupDigits(raw, allowNegative);
+    this.setState(Object.assign({ [key]: value }, extra), () => {
+      let i = 0, seen = 0;
+      while (i < value.length && seen < before) { if (/[\d,-]/.test(value[i])) seen++; i++; }
+      try { el.setSelectionRange(i, i); } catch (_) { /* the field is gone */ }
+    });
   }
 
   // Operations are recorded on an account, so the first one has to exist.
@@ -1234,7 +1260,7 @@ class Component extends DCLogic {
       balanceLabel: this.money(a.balance, a.cur),
       rubLabel: a.cur === "RUB" ? "" : "≈ " + this.money(this.toRub(a.balance, a.cur)),
       color: a.balance < 0 ? "var(--neg)" : "var(--ink)",
-      edit: () => this.setState({ dialog: "acc", editIndex: i, accName: a.name, accKind: a.kind, accBalance: String(a.balance), accCur: a.cur || "RUB" })
+      edit: () => this.setState({ dialog: "acc", editIndex: i, accName: a.name, accKind: a.kind, accBalance: groupDigits(a.balance, true), accCur: a.cur || "RUB" })
     }));
     const rub = a => this.toRub(a.balance, a.cur);
     const total = st.accounts.reduce((s, a) => s + rub(a), 0);
@@ -1649,8 +1675,8 @@ class Component extends DCLogic {
       accTo: st.accTo, onAccTo: e => this.set("accTo", e.target.value),
       fromSym: CUR[this.curOf(st.acc)].sym,
       toSym: CUR[this.curOf(st.accTo)].sym,
-      receiveAmount: st.receiveTouched ? st.receive : this.autoReceive(),
-      onReceive: e => this.setState({ receive: e.target.value, receiveTouched: true }),
+      receiveAmount: st.receiveTouched ? st.receive : groupDigits(this.autoReceive()),
+      onReceive: e => this.setNumber("receive", e, false, { receiveTouched: true }),
       rateLabel: (() => {
         const from = this.curOf(st.acc), to = this.curOf(st.accTo);
         if (st.acc === st.accTo) return "выберите разные счета";
@@ -1666,7 +1692,7 @@ class Component extends DCLogic {
       rateColor: st.acc === st.accTo ? "var(--neg)" : "var(--ink)",
       setExpense: () => this.setState({ type: "expense", cat: this.firstLeaf("expense") }),
       setIncome: () => this.setState({ type: "income", cat: this.firstLeaf("income") }),
-      amount: st.amount, onAmount: e => this.set("amount", e.target.value),
+      amount: st.amount, onAmount: e => this.setNumber("amount", e, false),
       note: st.note, onNote: e => this.set("note", e.target.value),
       acc: st.acc, onAcc: e => this.set("acc", e.target.value),
       catChips, days: this.calendarCells(),
@@ -1750,7 +1776,7 @@ class Component extends DCLogic {
       accDialogTitle: st.editIndex === null ? "Новый счёт" : "Изменить счёт",
       accName: st.accName, onAccName: e => this.set("accName", e.target.value),
       accKind: st.accKind, onAccKind: e => this.set("accKind", e.target.value),
-      accBalance: st.accBalance, onAccBalance: e => this.set("accBalance", e.target.value),
+      accBalance: st.accBalance, onAccBalance: e => this.setNumber("accBalance", e, true),
       accCur: st.accCur, onAccCur: e => this.set("accCur", e.target.value),
       rateRows: Object.keys(CUR).filter(k => k !== "RUB").map(k => ({
         key: k, label: CUR[k].label,
