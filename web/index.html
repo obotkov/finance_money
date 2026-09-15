@@ -85,6 +85,23 @@
   /* The header stays on top only where it fits in one row; on a narrow screen it would eat the page */
   @media (min-width: 980px) { .appbar { position: sticky; top: 0; z-index: 20; } }
 
+  /* phone navigation, shown by the narrow-screen rules below */
+  .m-only, .tabbar { display: none; }
+  .tabbar {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 15;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
+    background: var(--bar-bg); border-top: 1px solid var(--line);
+    -webkit-backdrop-filter: saturate(180%) blur(12px); backdrop-filter: saturate(180%) blur(12px);
+  }
+  .tab {
+    display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 3px 0;
+    border: 0; background: none; cursor: pointer; font-size: 10.5px; font-weight: 500; color: var(--ink3);
+  }
+  .tab svg { width: 24px; height: 24px; }
+  .tab[data-on="1"] { color: var(--accent); }
+  .sheet { z-index: 40; }
+
   .accrow { cursor: pointer; }
   /* dialogs sit above the sticky header (z 20) and the mobile tab strip (z 15); sign-in is 50 */
   .dlg { z-index: 40; }
@@ -96,43 +113,45 @@
   @media (max-width: 760px) {
     .tick[data-minor="1"] { display: none; }
     .page { padding: 0 0 28px !important; }
-    .appcard { border-radius: 0 !important; box-shadow: none !important; }
+    .appcard { border-radius: 0 !important; box-shadow: none !important; min-height: 100vh; }
 
     /* header: section title and actions only */
     .appbar { grid-template-columns: minmax(0, 1fr) !important; }
     .appbar-brand { display: none !important; }
     .appbar-main { flex-wrap: wrap; gap: 10px !important; padding: 14px 16px 12px !important; }
     .appbar-title { font-size: 21px !important; }
-    .appbar-actions { width: 100%; margin-left: 0 !important; }
-    .appbar-actions .btn { flex: 1; }
+    .appbar-actions { display: none !important; } /* each screen has its own add button */
+    .m-only { display: inline-flex !important; }
+    .d-only { display: none !important; }
 
-    /* the sidebar becomes a sticky, horizontally scrolling tab strip */
+    /* sections: a tab bar at the bottom instead of the sidebar, the rest behind «Ещё» */
     .shell { grid-template-columns: minmax(0, 1fr) !important; }
-    .sidebar {
-      position: sticky; top: 0; z-index: 15;
-      flex-direction: row !important; align-items: center; gap: 12px !important;
-      padding: 8px 12px !important; overflow-x: auto; scrollbar-width: none;
-      border-right: 0 !important; border-bottom: 1px solid var(--line);
-      background: var(--bar-bg) !important;
-      -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
-    }
-    .sidebar::-webkit-scrollbar { display: none; }
-    .navlist { flex-direction: row !important; gap: 4px !important; }
-    .navitem { white-space: nowrap; padding: 7px 11px; }
-    .sidefoot {
-      display: flex; align-items: center; gap: 10px; flex: none; white-space: nowrap;
-      margin-top: 0 !important; padding: 0 0 0 12px !important;
-      border-top: 0 !important; border-left: 1px solid var(--line);
-    }
-    .sidefoot div, .sidefoot a { margin-top: 0 !important; }
-    .sidefoot .big { font-size: 15px !important; }
+    .sidebar { display: none !important; }
+    .tabbar { display: grid; }
+    .page { padding-bottom: calc(76px + env(safe-area-inset-bottom)) !important; }
 
     .screen { padding: 16px 12px 28px !important; }
     .kpis { grid-template-columns: minmax(0, 1fr) !important; gap: 10px !important; }
 
-    /* operations: search on its own line, two-line rows without the table header */
-    .ops-search { width: 100% !important; }
-    .ops-tools { margin-left: 0 !important; flex-wrap: wrap; }
+    /* operations: the chosen day on top (today at first), the calendar is a
+       screen of its own opened from the date; search behind an icon */
+    .ops-cal { display: none !important; }
+    .ops[data-cal="1"] .ops-cal { display: block !important; }
+    .ops[data-cal="1"] .ops-main { display: none !important; }
+    .ops-cols { margin-bottom: 12px !important; }
+    .ops-day { position: relative; padding: 16px !important; }
+    .ops-add {
+      position: absolute; top: 12px; right: 12px; width: 44px; height: 44px;
+      padding: 0 !important; margin: 0 !important; display: grid; place-items: center;
+    }
+    .ops-add .lbl-full { display: none; }
+    .ops-add .lbl-plus { display: block !important; }
+    .ops-filter { gap: 8px !important; margin-bottom: 12px !important; }
+    .ops-filter .seg { flex: 1 1 0; min-width: 0; }
+    .ops-filter .segopt { flex: 1; text-align: center; padding: 6px 4px; }
+    .ops-search { display: none; width: 100% !important; }
+    .ops-search[data-open="1"] { display: block; }
+    .ops-tools { display: none !important; }
     .txhead { display: none !important; }
     .txrow {
       grid-template-columns: auto minmax(0, 1fr) auto 22px !important;
@@ -265,9 +284,9 @@
 
           <!-- Операции -->
           <sc-if value="{{ isOps }}" hint-placeholder-val="{{ false }}">
-          <div class="screen" style="padding:22px 28px 32px">
-            <div class="cols" style="display:grid;grid-template-columns:minmax(260px,320px) minmax(0,1fr);gap:16px;align-items:start;margin-bottom:18px">
-              <div class="card" style="padding:14px 16px 16px">
+          <div class="screen ops" data-cal="{{ opsCalOn }}" style="padding:22px 28px 32px">
+            <div class="cols ops-cols" style="display:grid;grid-template-columns:minmax(260px,320px) minmax(0,1fr);gap:16px;align-items:start;margin-bottom:18px">
+              <div class="card ops-cal" style="padding:14px 16px 16px">
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
                   <button class="btn btn-t" onClick="{{ opsPrev }}">‹</button>
                   <span class="big" style="font-size:15px">{{ opsMonthLabel }}</span>
@@ -281,12 +300,18 @@
                     <span class="day" data-on="{{ d.on }}" onClick="{{ d.pick }}" style="position:relative;text-align:center;font-size:13px;padding:8px 0;border-radius:980px;cursor:{{ d.cursor }};color:{{ d.color }}">{{ d.label }}<span style="position:absolute;left:50%;bottom:3px;transform:translateX(-50%);width:4px;height:4px;border-radius:50%;background:{{ d.dot }}"></span></span>
                   </sc-for>
                 </div>
+                <div class="m-only" style="width:100%;gap:10px;margin-top:14px">
+                  <button class="btn btn-s" style="flex:1" onClick="{{ calMonth }}">Весь месяц</button>
+                  <button class="btn btn-p" style="flex:1" onClick="{{ calToday }}">Сегодня</button>
+                </div>
               </div>
-              <div class="card" style="padding:18px 20px;display:flex;flex-direction:column;gap:12px">
-                <div style="display:flex;align-items:baseline;gap:10px">
-                  <span class="big" style="font-size:17px">{{ periodLabel }}</span>
+              <div class="card ops-day ops-main" style="padding:18px 20px;display:flex;flex-direction:column;gap:12px">
+                <div style="display:flex;align-items:center;gap:10px">
+                  <button class="btn btn-t m-only" style="padding:4px 10px;font-size:18px;line-height:1" aria-label="Назад" onClick="{{ opsStepPrev }}">‹</button>
+                  <span class="big" style="font-size:17px;display:inline-flex;align-items:center;gap:6px;cursor:pointer" onClick="{{ openOpsCal }}">{{ periodLabel }}<svg class="m-only" viewBox="0 0 12 12" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="color:var(--ink3)"><path d="M3 4.5 6 7.5 9 4.5"></path></svg></span>
+                  <button class="btn btn-t m-only" style="padding:4px 10px;font-size:18px;line-height:1" aria-label="Вперёд" onClick="{{ opsStepNext }}">›</button>
                   <sc-if value="{{ dateSelected }}" hint-placeholder-val="{{ false }}">
-                    <button class="btn btn-t" onClick="{{ clearOpsDate }}">весь месяц</button>
+                    <button class="btn btn-t d-only" onClick="{{ clearOpsDate }}">весь месяц</button>
                   </sc-if>
                 </div>
                 <div style="display:flex;gap:28px">
@@ -299,24 +324,27 @@
                     <div class="num big" style="font-size:20px;white-space:nowrap">{{ periodExpense }}</div>
                   </div>
                 </div>
-                <button class="btn btn-p" style="align-self:flex-start;margin-top:2px" onClick="{{ openOpForDate }}">{{ addLabel }}</button>
+                <button class="btn btn-p ops-add" style="align-self:flex-start;margin-top:2px" aria-label="{{ addLabel }}" title="{{ addLabel }}" onClick="{{ openOpForDate }}"><span class="lbl-full">{{ addLabel }}</span><span class="lbl-plus" style="display:none;font-size:28px;line-height:1;font-weight:400;margin-top:-2px">+</span></button>
               </div>
             </div>
-            <div style="display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-bottom:16px">
+            <div class="ops-main ops-filter" style="display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-bottom:16px">
               <div class="seg">
                 <span class="segopt" data-on="{{ fAll }}" onClick="{{ setFilterAll }}">Все</span>
                 <span class="segopt" data-on="{{ fIncome }}" onClick="{{ setFilterIncome }}">Доходы</span>
                 <span class="segopt" data-on="{{ fExpense }}" onClick="{{ setFilterExpense }}">Расходы</span>
                 <span class="segopt" data-on="{{ fTransfer }}" onClick="{{ setFilterTransfer }}">Переводы</span>
               </div>
-              <input class="inp ops-search" style="width:230px" placeholder="Поиск" value="{{ query }}" onChange="{{ onQuery }}">
+              <button class="btn btn-s m-only" style="width:38px;height:38px;padding:0;flex:none;align-items:center;justify-content:center" data-on="{{ searchOpen }}" aria-label="Поиск" onClick="{{ toggleSearch }}">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"></circle><path d="m15.5 15.5 5 5"></path></svg>
+              </button>
+              <input class="inp ops-search" style="width:230px" placeholder="Поиск" data-open="{{ searchOpen }}" value="{{ query }}" onChange="{{ onQuery }}">
               <div class="ops-tools" style="margin-left:auto;display:flex;align-items:center;gap:10px">
                 <span class="num" style="font-size:13px;color:var(--ink3)">{{ countLabel }}</span>
                 <button class="btn btn-s" onClick="{{ openExport }}">Экспорт</button>
                 <button class="btn btn-s" onClick="{{ openImport }}">Импорт</button>
               </div>
             </div>
-            <div class="card" style="padding:6px 4px">
+            <div class="card ops-main" style="padding:6px 4px" hidden="{{ noTxs }}">
               <div class="txhead" style="display:grid;grid-template-columns:50px minmax(0,1fr) minmax(0,1.7fr) minmax(0,1fr) minmax(0,auto) 26px;gap:12px;padding:10px 14px 8px;margin:0 4px;font-size:12px;color:var(--ink3);border-bottom:1px solid var(--line)">
                 <span>Дата</span><span>Категория</span><span>Комментарий</span><span>Счёт</span><span style="text-align:right">Сумма</span><span></span>
               </div>
@@ -332,7 +360,7 @@
               </sc-for>
             </div>
             <sc-if value="{{ noTxs }}" hint-placeholder-val="{{ false }}">
-              <div style="padding:26px 4px;font-size:14px;color:var(--ink3)">За {{ periodLabelLower }} операций нет. Нажмите на дату в календаре, чтобы добавить первую.</div>
+              <div class="ops-main" style="padding:26px 4px;font-size:14px;color:var(--ink3)">За {{ periodLabelLower }} операций нет. {{ noTxsHint }}</div>
             </sc-if>
           </div>
           </sc-if>
@@ -808,6 +836,47 @@
         </div>
       </div>
     </div>
+
+    <!-- телефон: разделы внизу экрана, остальные — в «Ещё» -->
+    <nav class="tabbar" aria-label="Разделы">
+      <button class="tab" data-on="{{ tabSummary }}" onClick="{{ goSummary }}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-4.5v-6h-5v6H5a1 1 0 0 1-1-1z"></path></svg>Сводка
+      </button>
+      <button class="tab" data-on="{{ tabOps }}" onClick="{{ goOps2 }}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M9 6h11M9 12h11M9 18h11"></path><path d="M4 6h.01M4 12h.01M4 18h.01" stroke-width="2.6"></path></svg>Операции
+      </button>
+      <button class="tab" data-on="{{ tabAccounts }}" onClick="{{ goAccounts }}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="5.5" width="18" height="13" rx="2.5"></rect><path d="M3 10h18M7 14.5h3"></path></svg>Счета
+      </button>
+      <button class="tab" data-on="{{ tabReports }}" onClick="{{ goReports }}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M11 4a8.5 8.5 0 1 0 8.5 9H11z"></path><path d="M14 2.5A8.5 8.5 0 0 1 21 9.5h-7z"></path></svg>Отчёты
+      </button>
+      <button class="tab" data-on="{{ tabMore }}" onClick="{{ openMore }}">
+        <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8"></circle><circle cx="12" cy="12" r="1.8"></circle><circle cx="19" cy="12" r="1.8"></circle></svg>Ещё
+      </button>
+    </nav>
+    <sc-if value="{{ moreOpen }}" hint-placeholder-val="{{ false }}">
+    <div class="sheet" style="position:fixed;inset:0;display:flex;align-items:flex-end;background:var(--overlay);backdrop-filter:blur(6px)" onClick="{{ closeMore }}">
+      <div class="card" style="width:100%;border-radius:20px 20px 0 0;padding:8px 12px calc(16px + env(safe-area-inset-bottom))" onClick="{{ stop }}">
+        <div style="width:36px;height:5px;border-radius:3px;background:var(--line);margin:4px auto 8px"></div>
+        <sc-for list="{{ moreNav }}" as="n" hint-placeholder-count="4">
+          <a class="navitem" href="#" data-on="{{ n.on }}" onClick="{{ n.go }}" style="padding:13px 12px;font-size:16px">{{ n.label }}</a>
+        </sc-for>
+        <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:12px;border-top:1px solid var(--line);margin-top:8px;padding:12px 12px 0">
+          <div>
+            <div style="font-size:12px;color:var(--ink3)">Всего</div>
+            <div class="num big" style="font-size:20px">{{ totalLabel }}</div>
+          </div>
+          <sc-if value="{{ hasUser }}" hint-placeholder-val="{{ false }}">
+            <div style="min-width:0;text-align:right">
+              <div style="font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ userLabel }}</div>
+              <a href="#" style="font-size:14px" onClick="{{ logout }}">Выйти</a>
+            </div>
+          </sc-if>
+        </div>
+      </div>
+    </div>
+    </sc-if>
     </sc-if>
 
     <!-- мобильные экраны -->
@@ -1129,6 +1198,8 @@ const monthName = key => MONTHS_NOM[Number(key.slice(5)) - 1];
 // that pass its validator for all pairs on the white card (any two kinds can
 // end up side by side). Yellow and magenta sit under 3:1, so the legend under
 // the donut always names every kind. Credit and unknown kinds are gray.
+// the width where the phone layout (tab bar, one-column screens) takes over
+const isNarrow = () => !!(window.matchMedia && matchMedia("(max-width: 760px)").matches);
 const KIND_COLORS = {
   "Карта": "var(--c1)", "Наличные": "var(--c2)", "Вклад": "var(--c3)", "Инвестиции": "var(--c4)",
   "Криптокошелёк": "var(--c5)", "Кредит": "var(--c-other)", other: "var(--c-other)"
@@ -1217,6 +1288,7 @@ const DEMO = {
 class Component extends DCLogic {
   state = {
     screen: "summary", dialog: null, editIndex: null, groupBy: "none", opsY: TODAY_Y, opsM: TODAY_M, opsDate: null,
+    moreOpen: false, opsCalOpen: false, opsSearch: false,
     filter: "all", query: "",
     type: "expense", amount: "", note: "", cat: "", acc: "",
     date: TODAY, calY: TODAY_Y, calM: TODAY_M,
@@ -1237,6 +1309,8 @@ class Component extends DCLogic {
   componentDidMount() {
     // a system theme change repaints the charts that pick their slots by theme
     if (window.matchMedia) matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => this.forceUpdate());
+    // a phone has no calendar next to the list: operations open on today
+    if (isNarrow()) this.setState({ opsDate: TODAY });
     // Google sign-in failures come back as ?auth_error=<message>
     const authError = new URLSearchParams(location.search).get("auth_error");
     if (authError) {
@@ -1791,6 +1865,10 @@ class Component extends DCLogic {
   toRub(n, cur) { return n * CUR[cur || "RUB"].rate; }
   dayLabel(iso) { const p = iso.split("-"); return p[2] + "." + p[1]; }
   set(k, v) { this.setState({ [k]: v }); }
+  goScreen(id) {
+    this.setState({ screen: id, moreOpen: false, opsCalOpen: false });
+    if (isNarrow()) window.scrollTo(0, 0);
+  }
 
   monthCells(y, m, selected, marks) {
     const lead = (new Date(y, m, 1).getDay() + 6) % 7;
@@ -1843,8 +1921,21 @@ class Component extends DCLogic {
       ["reports","Отчёты"],["charts","Аналитика"],["categories","Категории"],["settings","Настройки"]
     ].map(([id, label]) => ({
       key: id, label, on: st.screen === id ? "1" : "0",
-      go: e => { e.preventDefault(); this.setState({ screen: id }); }
+      go: e => { e.preventDefault(); this.goScreen(id); }
     }));
+    const TABS = ["summary", "ops", "accounts", "reports"]; // the rest sit behind «Ещё»
+    const tabVals = {
+      moreOpen: st.moreOpen,
+      tabMore: st.moreOpen || TABS.indexOf(st.screen) === -1 ? "1" : "0",
+      openMore: () => this.set("moreOpen", true),
+      closeMore: () => this.set("moreOpen", false),
+      moreNav: nav.filter(n => TABS.indexOf(n.key) === -1)
+    };
+    TABS.forEach(id => {
+      const k = id === "ops" ? "Ops" : id[0].toUpperCase() + id.slice(1);
+      tabVals["tab" + k] = st.screen === id && !st.moreOpen ? "1" : "0";
+      tabVals["go" + (id === "ops" ? "Ops2" : k)] = () => this.goScreen(id);
+    });
 
     const accounts = st.accounts.map((a, i) => ({
       key: a.name + i, name: a.name,
@@ -2092,7 +2183,7 @@ class Component extends DCLogic {
       isSummary: st.screen === "summary", isOps: st.screen === "ops", isAccounts: st.screen === "accounts",
       isBudgets: st.screen === "budgets", isReports: st.screen === "reports", isCharts: st.screen === "charts",
       isCategories: st.screen === "categories", isSettings: st.screen === "settings",
-      goOps: e => { e.preventDefault(); this.setState({ screen: "ops" }); },
+      goOps: e => { e.preventDefault(); this.goScreen("ops"); },
       accountGroups,
       grouped: st.groupBy !== "none", flat: st.groupBy === "none",
       gKind: st.groupBy !== "none" ? "1" : "0", gNone: st.groupBy === "none" ? "1" : "0",
@@ -2121,10 +2212,32 @@ class Component extends DCLogic {
         on: c.sel ? "1" : "0",
         color: c.blank ? "transparent" : (c.sel ? "#fff" : "var(--ink)"),
         dot: c.marked ? (c.sel ? "rgba(255,255,255,.85)" : "var(--accent)") : "transparent",
-        pick: c.blank ? null : () => this.setState(s => ({ opsDate: s.opsDate === c.iso ? null : c.iso }))
+        // on a phone the calendar is its own screen: a tap picks the day and goes back
+        pick: c.blank ? null : () => this.setState(s => ({ opsDate: s.opsDate === c.iso && !isNarrow() ? null : c.iso, opsCalOpen: false }))
       })),
       dateSelected: !!st.opsDate,
       clearOpsDate: () => this.set("opsDate", null),
+      ...tabVals,
+      opsCalOn: st.opsCalOpen ? "1" : "0",
+      openOpsCal: () => { if (isNarrow()) this.set("opsCalOpen", true); },
+      calMonth: () => this.setState({ opsDate: null, opsCalOpen: false }),
+      calToday: () => this.setState({ opsDate: TODAY, opsY: TODAY_Y, opsM: TODAY_M, opsCalOpen: false }),
+      // ‹ › step a day when a day is picked, a month otherwise
+      ...Object.fromEntries([["opsStepPrev", -1], ["opsStepNext", 1]].map(([k, dir]) => [k, () => this.setState(s => {
+        if (!s.opsDate) {
+          const m = s.opsM + dir;
+          return { opsM: (m + 12) % 12, opsY: s.opsY + Math.floor(m / 12) };
+        }
+        const d = new Date(s.opsDate + "T00:00:00Z");
+        d.setUTCDate(d.getUTCDate() + dir);
+        return { opsDate: d.toISOString().slice(0, 10), opsY: d.getUTCFullYear(), opsM: d.getUTCMonth() };
+      })])),
+      searchOpen: st.opsSearch || st.query ? "1" : "0",
+      toggleSearch: () => {
+        if (st.opsSearch || st.query) { this.setState({ opsSearch: false, query: "" }); return; }
+        this.setState({ opsSearch: true }, () => { const el = document.querySelector(".ops-search"); if (el) el.focus(); });
+      },
+      noTxsHint: isNarrow() ? "Нажмите +, чтобы добавить." : "Нажмите на дату в календаре, чтобы добавить первую.",
       periodLabel: st.opsDate
         ? Number(st.opsDate.split("-")[2]) + " " + months[Number(st.opsDate.split("-")[1]) - 1]
         : monthsNom[st.opsM] + " " + st.opsY,
