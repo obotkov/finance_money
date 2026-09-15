@@ -9,41 +9,77 @@
 <x-dc>
 <helmet>
 <style>
+  /* Theme tokens. Light on :root; dark follows the system unless Settings stamps
+     data-theme on <html> — the stamp wins both ways. */
   :root {
+    color-scheme: light;
     --bg: #f5f5f7; --card: #ffffff; --ink: #1d1d1f; --ink2: #6e6e73; --ink3: #8e8e93;
-    --line: rgba(0,0,0,.08); --fill: #f2f2f7; --accent: #0071e3; --accent-soft: #e8f1fd;
-    --pos: #1a8b3c; --neg: #d70015;
+    --line: rgba(0,0,0,.08); --fill: #f2f2f7; --accent: #0071e3; --accent-hover: #0062c4; --accent-soft: #e8f1fd;
+    --accent-light: #7fb5f0; --pos: #1a8b3c; --neg: #d70015;
     --sh: 0 1px 2px rgba(0,0,0,.05), 0 4px 14px rgba(0,0,0,.04);
+    --panel: #fafafc; --bar-bg: rgba(250,250,252,.92); --raised: #ffffff; --raised-sh: 0 1px 2px rgba(0,0,0,.1);
+    --hover: rgba(0,0,0,.045); --hover-soft: rgba(0,0,0,.02); --btn-s: rgba(0,0,0,.05); --btn-s-hover: rgba(0,0,0,.09);
+    --focus: rgba(0,113,227,.45); --overlay: rgba(0,0,0,.28); --grid: rgba(0,0,0,.1); --bar-muted: #d1d1d6;
+    /* chart marks, validated per mode: donut slots c1–c5, the folded rest, income, expense.
+       On the dark card only four palette hues stay apart (c1 c2 c3 c5), so dark c4 is the rest's gray. */
+    --c1: #2a78d6; --c2: #eda100; --c3: #008300; --c4: #4a3aa7; --c5: #e87ba4; --c-other: #898781;
+    --c-income: #1a8b3c; --c-expense: #0071e3;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --bg: #111113; --card: #1c1c1e; --ink: #f5f5f7; --ink2: #a1a1a6; --ink3: #8e8e93;
+      --line: rgba(255,255,255,.1); --fill: #2c2c2e; --accent: #0a84ff; --accent-hover: #409cff; --accent-soft: rgba(10,132,255,.18);
+      --accent-light: #4f8fd6; --pos: #30d158; --neg: #ff453a;
+      --sh: 0 1px 2px rgba(0,0,0,.4), 0 4px 14px rgba(0,0,0,.3);
+      --panel: #161618; --bar-bg: rgba(22,22,24,.9); --raised: #3a3a3c; --raised-sh: 0 1px 2px rgba(0,0,0,.5);
+      --hover: rgba(255,255,255,.06); --hover-soft: rgba(255,255,255,.03); --btn-s: rgba(255,255,255,.08); --btn-s-hover: rgba(255,255,255,.14);
+      --focus: rgba(10,132,255,.55); --overlay: rgba(0,0,0,.55); --grid: rgba(255,255,255,.12); --bar-muted: #48484a;
+      --c1: #3987e5; --c2: #c98500; --c3: #008300; --c4: #8e8e93; --c5: #d55181; --c-other: #8e8e93;
+      --c-income: #28a745; --c-expense: #0a84ff;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #111113; --card: #1c1c1e; --ink: #f5f5f7; --ink2: #a1a1a6; --ink3: #8e8e93;
+    --line: rgba(255,255,255,.1); --fill: #2c2c2e; --accent: #0a84ff; --accent-hover: #409cff; --accent-soft: rgba(10,132,255,.18);
+    --accent-light: #4f8fd6; --pos: #30d158; --neg: #ff453a;
+    --sh: 0 1px 2px rgba(0,0,0,.4), 0 4px 14px rgba(0,0,0,.3);
+    --panel: #161618; --bar-bg: rgba(22,22,24,.9); --raised: #3a3a3c; --raised-sh: 0 1px 2px rgba(0,0,0,.5);
+    --hover: rgba(255,255,255,.06); --hover-soft: rgba(255,255,255,.03); --btn-s: rgba(255,255,255,.08); --btn-s-hover: rgba(255,255,255,.14);
+    --focus: rgba(10,132,255,.55); --overlay: rgba(0,0,0,.55); --grid: rgba(255,255,255,.12); --bar-muted: #48484a;
+    --c1: #3987e5; --c2: #c98500; --c3: #008300; --c4: #8e8e93; --c5: #d55181; --c-other: #8e8e93;
+    --c-income: #28a745; --c-expense: #0a84ff;
   }
   body { margin: 0; background: var(--bg); color: var(--ink);
     font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", "Segoe UI", sans-serif;
     font-size: 15px; line-height: 1.45; -webkit-font-smoothing: antialiased; }
   * { box-sizing: border-box; }
   a { color: var(--accent); text-decoration: none; }
-  a:hover { color: #0062c4; }
+  a:hover { color: var(--accent-hover); }
   button, input, select { font: inherit; color: inherit; }
-  :focus-visible { outline: 3px solid rgba(0,113,227,.45); outline-offset: 2px; }
+  :focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
   .num { font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
   .big { font-weight: 600; letter-spacing: -.022em; }
   .btn { border: 0; border-radius: 980px; padding: 8px 16px; font-size: 14px; font-weight: 500; cursor: pointer; transition: background .15s, opacity .15s; }
   .btn-p { background: var(--accent); color: #fff; }
-  .btn-p:hover { background: #0062c4; }
-  .btn-s { background: rgba(0,0,0,.05); color: var(--ink); }
-  .btn-s:hover { background: rgba(0,0,0,.09); }
+  .btn-p:hover { background: var(--accent-hover); }
+  .btn-s { background: var(--btn-s); color: var(--ink); }
+  .btn-s:hover { background: var(--btn-s-hover); }
   .btn-t { background: transparent; color: var(--accent); padding: 8px 10px; }
   .btn-t:hover { background: var(--accent-soft); }
   .navitem { display: block; padding: 7px 12px; border-radius: 9px; font-size: 14px; font-weight: 500; color: var(--ink); }
-  .navitem:hover { background: rgba(0,0,0,.045); color: var(--ink); }
-  .navitem[data-on="1"] { background: #fff; color: var(--accent); box-shadow: 0 1px 2px rgba(0,0,0,.06); }
+  .navitem:hover { background: var(--hover); color: var(--ink); }
+  .navitem[data-on="1"] { background: var(--raised); color: var(--accent); box-shadow: var(--raised-sh); }
   .card { background: var(--card); border-radius: 18px; box-shadow: var(--sh); }
   .rowline + .rowline { border-top: 1px solid var(--line); }
-  .rowline:hover { background: rgba(0,0,0,.02); }
+  .rowline:hover { background: var(--hover-soft); }
   .inp { width: 100%; background: var(--fill); border: 1px solid transparent; border-radius: 11px; padding: 9px 12px; font-size: 15px; }
-  .inp:focus { background: #fff; border-color: var(--accent); outline: none; }
+  .inp:focus { background: var(--card); border-color: var(--accent); outline: none; }
   .lbl { display: block; font-size: 12px; font-weight: 500; color: var(--ink2); margin-bottom: 5px; }
   .seg { display: inline-flex; background: var(--fill); border-radius: 10px; padding: 2px; gap: 2px; }
   .segopt { padding: 5px 14px; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer; color: var(--ink2); }
-  .segopt[data-on="1"] { background: #fff; color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,.1); }
+  .segopt[data-on="1"] { background: var(--raised); color: var(--ink); box-shadow: var(--raised-sh); }
   .chip { display: inline-flex; align-items: center; padding: 6px 13px; border-radius: 980px; font-size: 13px; cursor: pointer; background: var(--fill); color: var(--ink); }
   .chip[data-on="1"] { background: var(--accent); color: #fff; }
   /* The header stays on top only where it fits in one row; on a narrow screen it would eat the page */
@@ -76,7 +112,7 @@
       flex-direction: row !important; align-items: center; gap: 12px !important;
       padding: 8px 12px !important; overflow-x: auto; scrollbar-width: none;
       border-right: 0 !important; border-bottom: 1px solid var(--line);
-      background: rgba(250, 250, 252, .95) !important;
+      background: var(--bar-bg) !important;
       -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
     }
     .sidebar::-webkit-scrollbar { display: none; }
@@ -117,7 +153,7 @@
     .dlg { padding: 10px !important; }
     .dlg > .card { padding: 18px !important; border-radius: 18px !important; max-height: calc(100vh - 20px) !important; }
   }
-  .day:hover { background: rgba(0,0,0,.05); }
+  .day:hover { background: var(--hover); }
   .day[data-on="1"] { background: var(--accent); color: #fff; }
 </style>
 </helmet>
@@ -129,7 +165,7 @@
     <!-- overflow:clip keeps the rounded corners without breaking the sticky header -->
     <div class="card appcard" style="overflow:clip;border-radius:20px">
       <!-- шапка: название, заголовок раздела и действия; на широком экране остаётся наверху при прокрутке -->
-      <div class="appbar" style="display:grid;grid-template-columns:230px minmax(0,1fr);background:rgba(250,250,252,.92);backdrop-filter:saturate(180%) blur(12px);-webkit-backdrop-filter:saturate(180%) blur(12px);border-bottom:1px solid var(--line)">
+      <div class="appbar" style="display:grid;grid-template-columns:230px minmax(0,1fr);background:var(--bar-bg);backdrop-filter:saturate(180%) blur(12px);-webkit-backdrop-filter:saturate(180%) blur(12px);border-bottom:1px solid var(--line)">
         <div class="appbar-brand" style="padding:16px 22px;border-right:1px solid var(--line);display:flex;flex-direction:column;justify-content:center">
           <div class="big" style="font-size:19px">Ведомость</div>
           <div style="font-size:12px;color:var(--ink3)">личный учёт</div>
@@ -148,7 +184,7 @@
 
       <div class="shell" style="display:grid;grid-template-columns:230px minmax(0,1fr)">
         <!-- боковая навигация -->
-        <div class="sidebar" style="background:#fafafc;border-right:1px solid var(--line);padding:16px 12px 22px;display:flex;flex-direction:column;gap:16px">
+        <div class="sidebar" style="background:var(--panel);border-right:1px solid var(--line);padding:16px 12px 22px;display:flex;flex-direction:column;gap:16px">
           <div class="navlist" style="display:flex;flex-direction:column;gap:2px">
             <sc-for list="{{ nav }}" as="n" hint-placeholder-count="8">
               <a class="navitem" href="#" data-on="{{ n.on }}" onClick="{{ n.go }}">{{ n.label }}</a>
@@ -369,7 +405,7 @@
               <div style="position:relative;width:176px;height:176px;max-width:100%;margin:16px auto 0">
                 <svg viewBox="0 0 120 120" width="176" height="176" role="img" aria-label="{{ sharesAria }}" style="display:block;max-width:100%">
                   <sc-for list="{{ accountShares }}" as="s" hint-placeholder-count="4">
-                    <circle cx="60" cy="60" r="48" fill="none" stroke="{{ s.color }}" stroke-width="16" stroke-dasharray="{{ s.dash }}" stroke-dashoffset="{{ s.offset }}" transform="rotate(-90 60 60)" opacity="{{ s.opacity }}" style="transition:opacity .15s" onMouseEnter="{{ s.enter }}" onMouseLeave="{{ s.leave }}"></circle>
+                    <circle cx="60" cy="60" r="48" fill="none" stroke-width="16" stroke-dasharray="{{ s.dash }}" stroke-dashoffset="{{ s.offset }}" transform="rotate(-90 60 60)" opacity="{{ s.opacity }}" style="stroke:{{ s.color }};transition:opacity .15s" onMouseEnter="{{ s.enter }}" onMouseLeave="{{ s.leave }}"></circle>
                   </sc-for>
                 </svg>
                 <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;pointer-events:none">
@@ -475,7 +511,7 @@
                   <div style="position:relative;width:200px;height:200px;max-width:100%;flex:none;margin:0 auto">
                     <svg viewBox="0 0 120 120" width="200" height="200" role="img" aria-label="{{ repAria }}" style="display:block;max-width:100%">
                       <sc-for list="{{ repSegs }}" as="s" hint-placeholder-count="3">
-                        <circle cx="60" cy="60" r="48" fill="none" stroke="{{ s.color }}" stroke-width="16" stroke-dasharray="{{ s.dash }}" stroke-dashoffset="{{ s.offset }}" transform="rotate(-90 60 60)" style="cursor:{{ s.cursor }}" onClick="{{ s.open }}"></circle>
+                        <circle cx="60" cy="60" r="48" fill="none" stroke-width="16" stroke-dasharray="{{ s.dash }}" stroke-dashoffset="{{ s.offset }}" transform="rotate(-90 60 60)" style="stroke:{{ s.color }};cursor:{{ s.cursor }}" onClick="{{ s.open }}"></circle>
                       </sc-for>
                     </svg>
                     <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;pointer-events:none">
@@ -565,7 +601,7 @@
                       <div style="display:flex;align-items:center;gap:10px;padding-left:14px;margin-top:8px">
                         <span style="font-size:13px;color:var(--ink2);flex:none">{{ k.cat }}</span>
                         <div style="flex:1;height:6px;background:var(--fill);border-radius:980px;overflow:hidden">
-                          <div style="height:6px;border-radius:980px;background:#7fb5f0;width:{{ k.width }}"></div>
+                          <div style="height:6px;border-radius:980px;background:var(--accent-light);width:{{ k.width }}"></div>
                         </div>
                         <span class="num" style="font-size:12px;color:var(--ink3);white-space:nowrap">{{ k.amountLabel }}</span>
                       </div>
@@ -580,16 +616,16 @@
               <div style="font-size:12px;color:var(--ink3)">{{ anaRangeLabel }}</div>
               <div style="display:flex;gap:18px;font-size:12px;color:var(--ink2);margin-top:4px">
                 <span style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius:3px;background:var(--accent)"></span>доходы</span>
-                <span style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius:3px;background:#d1d1d6"></span>траты</span>
+                <span style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius:3px;background:var(--bar-muted)"></span>траты</span>
               </div>
               <svg viewBox="0 0 620 210" style="width:100%;height:auto;margin-top:14px" role="img" aria-label="Доходы и траты по месяцам">
                 <sc-for list="{{ monthBars }}" as="m" hint-placeholder-count="6">
                   <g>
-                    <rect x="{{ m.x1 }}" y="{{ m.y1 }}" width="{{ m.w }}" height="{{ m.h1 }}" rx="6" fill="#0071e3"></rect>
-                    <rect x="{{ m.x2 }}" y="{{ m.y2 }}" width="{{ m.w }}" height="{{ m.h2 }}" rx="6" fill="#d1d1d6"></rect>
+                    <rect x="{{ m.x1 }}" y="{{ m.y1 }}" width="{{ m.w }}" height="{{ m.h1 }}" rx="6" style="fill:var(--accent)"></rect>
+                    <rect x="{{ m.x2 }}" y="{{ m.y2 }}" width="{{ m.w }}" height="{{ m.h2 }}" rx="6" style="fill:var(--bar-muted)"></rect>
                   </g>
                 </sc-for>
-                <line x1="16" y1="200" x2="604" y2="200" stroke="rgba(0,0,0,.1)"></line>
+                <line x1="16" y1="200" x2="604" y2="200" style="stroke:var(--grid)"></line>
               </svg>
               <div style="display:flex;padding:0 2.6%;margin-top:2px">
                 <sc-for list="{{ monthBars }}" as="m" hint-placeholder-count="6">
@@ -639,6 +675,13 @@
               </div>
               <div><span class="lbl">Округление сумм</span>
                 <div class="seg"><span class="segopt" data-on="1">До рубля</span><span class="segopt">С копейками</span></div>
+              </div>
+              <div><span class="lbl">Оформление</span>
+                <div class="seg">
+                  <span class="segopt" data-on="{{ themeSystemOn }}" onClick="{{ setThemeSystem }}">Как в системе</span>
+                  <span class="segopt" data-on="{{ themeLightOn }}" onClick="{{ setThemeLight }}">Светлая</span>
+                  <span class="segopt" data-on="{{ themeDarkOn }}" onClick="{{ setThemeDark }}">Тёмная</span>
+                </div>
               </div>
             </div>
             <div class="card" style="padding:20px 22px;display:flex;flex-direction:column;gap:18px">
@@ -789,7 +832,7 @@
 
     <!-- диалог: новая операция -->
     <sc-if value="{{ opDialog }}" hint-placeholder-val="{{ false }}">
-    <div class="dlg" style="position:fixed;inset:0;display:grid;place-items:start center;padding:24px;overflow:auto;background:rgba(0,0,0,.28);backdrop-filter:blur(6px)" onClick="{{ close }}">
+    <div class="dlg" style="position:fixed;inset:0;display:grid;place-items:start center;padding:24px;overflow:auto;background:var(--overlay);backdrop-filter:blur(6px)" onClick="{{ close }}">
       <div class="card" style="width:min(540px,100%);max-height:calc(100vh - 48px);overflow-y:auto;padding:24px;border-radius:22px;box-shadow:0 24px 60px rgba(0,0,0,.22)" onClick="{{ stop }}">
         <div class="big" style="font-size:21px">Новая операция</div>
         <div class="seg" style="margin-top:14px">
@@ -894,7 +937,7 @@
 
     <!-- диалог: счёт -->
     <sc-if value="{{ accDialog }}" hint-placeholder-val="{{ false }}">
-    <div class="dlg" style="position:fixed;inset:0;display:grid;place-items:start center;padding:24px;overflow:auto;background:rgba(0,0,0,.28);backdrop-filter:blur(6px)" onClick="{{ close }}">
+    <div class="dlg" style="position:fixed;inset:0;display:grid;place-items:start center;padding:24px;overflow:auto;background:var(--overlay);backdrop-filter:blur(6px)" onClick="{{ close }}">
       <div class="card" style="width:min(440px,100%);max-height:calc(100vh - 48px);overflow-y:auto;padding:24px;border-radius:22px;box-shadow:0 24px 60px rgba(0,0,0,.22)" onClick="{{ stop }}">
         <div class="big" style="font-size:21px">{{ accDialogTitle }}</div>
         <div style="margin-top:16px"><span class="lbl">Название</span><input class="inp" value="{{ accName }}" onChange="{{ onAccName }}" placeholder="Например, Сбербанк"></div>
@@ -928,7 +971,7 @@
 
     <!-- диалог: категория -->
     <sc-if value="{{ catDialog }}" hint-placeholder-val="{{ false }}">
-    <div class="dlg" style="position:fixed;inset:0;display:grid;place-items:start center;padding:24px;overflow:auto;background:rgba(0,0,0,.28);backdrop-filter:blur(6px)" onClick="{{ close }}">
+    <div class="dlg" style="position:fixed;inset:0;display:grid;place-items:start center;padding:24px;overflow:auto;background:var(--overlay);backdrop-filter:blur(6px)" onClick="{{ close }}">
       <div class="card" style="width:min(440px,100%);max-height:calc(100vh - 48px);overflow-y:auto;padding:24px;border-radius:22px;box-shadow:0 24px 60px rgba(0,0,0,.22)" onClick="{{ stop }}">
         <div class="big" style="font-size:21px">{{ catDialogTitle }}</div>
         <div style="margin-top:16px"><span class="lbl">Название</span><input class="inp" value="{{ catName }}" onChange="{{ onCatName }}" placeholder="Например, Футбол"></div>
@@ -954,7 +997,7 @@
 
     <!-- диалог: экспорт / импорт -->
     <sc-if value="{{ dataDialog }}" hint-placeholder-val="{{ false }}">
-    <div class="dlg" style="position:fixed;inset:0;display:grid;place-items:start center;padding:24px;overflow:auto;background:rgba(0,0,0,.28);backdrop-filter:blur(6px)" onClick="{{ close }}">
+    <div class="dlg" style="position:fixed;inset:0;display:grid;place-items:start center;padding:24px;overflow:auto;background:var(--overlay);backdrop-filter:blur(6px)" onClick="{{ close }}">
       <div class="card" style="width:min(680px,100%);max-height:calc(100vh - 48px);overflow-y:auto;padding:24px;border-radius:22px;box-shadow:0 24px 60px rgba(0,0,0,.22)" onClick="{{ stop }}">
         <div class="big" style="font-size:21px">Загрузка операций</div>
         <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:14px">
@@ -1010,6 +1053,23 @@ const TODAY_Y = Number(TODAY.slice(0, 4)), TODAY_M = Number(TODAY.slice(5, 7)) -
 const THIS_MONTH = TODAY.slice(0, 7);
 // Local time "14:30": operations added for today carry it, so exports have a time
 const clockNow = () => { const d = new Date(); return pad2(d.getHours()) + ":" + pad2(d.getMinutes()); };
+// Theme: "system" follows the OS; "light" and "dark" are picked in Settings and
+// kept on this device. Applied before the first render, so a dark choice doesn't flash light.
+const applyTheme = t => {
+  const root = document.documentElement;
+  if (t === "light" || t === "dark") root.setAttribute("data-theme", t); else root.removeAttribute("data-theme");
+  try { localStorage.setItem("theme", t); } catch (_) { /* storage off: the choice lasts until reload */ }
+};
+const initialTheme = (() => {
+  let t = "system";
+  try { t = localStorage.getItem("theme") || "system"; } catch (_) { /* storage off */ }
+  applyTheme(t);
+  return t;
+})();
+const isDarkTheme = () => {
+  const t = document.documentElement.getAttribute("data-theme");
+  return t ? t === "dark" : !!(window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches);
+};
 const MONTHS_NOM = ["Январь","Февраль","Март","Апрель","Май","Июнь","Июль","Август","Сентябрь","Октябрь","Ноябрь","Декабрь"];
 // "YYYY-MM" of month m (0-based, may run past the year) of year y
 const monthKey = (y, m) => { const d = new Date(Date.UTC(y, m, 1)); return d.getUTCFullYear() + "-" + pad2(d.getUTCMonth() + 1); };
@@ -1019,8 +1079,8 @@ const monthName = key => MONTHS_NOM[Number(key.slice(5)) - 1];
 // end up side by side). Yellow and magenta sit under 3:1, so the legend under
 // the donut always names every kind. Credit and unknown kinds are gray.
 const KIND_COLORS = {
-  "Карта": "#2a78d6", "Наличные": "#eda100", "Вклад": "#008300", "Инвестиции": "#4a3aa7",
-  "Криптокошелёк": "#e87ba4", "Кредит": "#898781", other: "#898781"
+  "Карта": "var(--c1)", "Наличные": "var(--c2)", "Вклад": "var(--c3)", "Инвестиции": "var(--c4)",
+  "Криптокошелёк": "var(--c5)", "Кредит": "var(--c-other)", other: "var(--c-other)"
 };
 // Groups the integer part by thousands as the user types: "1234567.5" → "1 234 567,5".
 // Accepts "," or "." as the decimal separator; the parsers strip the spaces back out.
@@ -1113,6 +1173,7 @@ class Component extends DCLogic {
     catId: null, catName: "", catParent: "", catKind: "expense", catTab: "expense",
     anaPreset: "month", anaFrom: THIS_MONTH + "-01", anaTo: TODAY,
     dataText: "", dataMsg: "",
+    theme: initialTheme,
     repMode: "detail", repFrom: THIS_MONTH + "-01", repTo: TODAY, repPreset: "month", repView: "bars", repPath: [], repList: null,
     expPreset: "all", expFrom: "", expTo: "", expTypes: { expense: true, income: true, transfer: true, opening: true }, expMsg: "",
     cats: [], accounts: [], txs: [], rates: {},
@@ -1122,6 +1183,8 @@ class Component extends DCLogic {
   };
 
   componentDidMount() {
+    // a system theme change repaints the charts that pick their slots by theme
+    if (window.matchMedia) matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => this.forceUpdate());
     // Google sign-in failures come back as ?auth_error=<message>
     const authError = new URLSearchParams(location.search).get("auth_error");
     if (authError) {
@@ -1353,9 +1416,14 @@ class Component extends DCLogic {
   // Amounts are in rubles; a category counts its whole subtree; transfers are out.
   reportVals(inRub) {
     const st = this.state;
-    const KINDS = { income: { label: "Доходы", color: "#1a8b3c" }, expense: { label: "Расходы", color: "#0071e3" } };
-    // donut slots: the validated all-pairs set; the rest folds into a gray «Другое»
-    const PALETTE = ["#2a78d6", "#eda100", "#008300", "#4a3aa7", "#e87ba4"], OTHER = "#898781";
+    // colours are theme tokens, so a theme switch needs no recomputation
+    const KINDS = { income: { label: "Доходы", color: "var(--c-income)" }, expense: { label: "Расходы", color: "var(--c-expense)" } };
+    // donut slots: the validated all-pairs set — five hues on the light card, four on
+    // the dark one (see the --c tokens); the rest folds into a gray «Другое»
+    const PALETTE = isDarkTheme()
+      ? ["var(--c1)", "var(--c2)", "var(--c3)", "var(--c5)"]
+      : ["var(--c1)", "var(--c2)", "var(--c3)", "var(--c4)", "var(--c5)"];
+    const OTHER = "var(--c-other)", SLOTS = PALETTE.length;
     const go = (path, list) => () => this.setState({ repPath: path, repList: list || null });
     const flow = st.txs.filter(t => t.type !== "transfer" && (!st.repFrom || t.d >= st.repFrom) && (!st.repTo || t.d <= st.repTo));
     const kindOf = t => (t.v > 0 ? "income" : "expense");
@@ -1411,15 +1479,16 @@ class Component extends DCLogic {
       it.amountLabel = this.money(it.total);
       it.pctLabel = total ? Math.round((it.total / total) * 100) + " %" : "";
       it.width = max ? Math.max(1, Math.round((it.total / max) * 100)) + "%" : "0%";
-      it.swatch = !kind ? it.color : (i < 5 || items.length <= 6 ? PALETTE[i % 5] : OTHER);
+      it.swatch = !kind ? it.color : (i < SLOTS ? PALETTE[i] : OTHER);
       if (!it.open) it.open = () => {};
     });
 
-    // donut: at most six segments — the rest of the categories fold into «Другое»
+    // donut: one coloured segment per palette slot at most — the rest of the
+    // categories fold into «Другое», so no two segments share a colour
     const RING = 2 * Math.PI * 48, GAP = 1.4;
-    const folded = kind && items.length > 6;
-    const parts = (folded ? items.slice(0, 5) : items).map(it => ({ total: it.total, color: it.swatch, open: it.open, cursor: "pointer" }))
-      .concat(folded ? [{ total: items.slice(5).reduce((s, it) => s + it.total, 0), color: OTHER, open: () => {}, cursor: "default" }] : [])
+    const folded = kind && items.length > SLOTS;
+    const parts = (folded ? items.slice(0, SLOTS) : items).map(it => ({ total: it.total, color: it.swatch, open: it.open, cursor: "pointer" }))
+      .concat(folded ? [{ total: items.slice(SLOTS).reduce((s, it) => s + it.total, 0), color: OTHER, open: () => {}, cursor: "default" }] : [])
       .filter(p => p.total > 0);
     let arc = 0;
     const segs = parts.map((p, i) => {
@@ -1966,6 +2035,10 @@ class Component extends DCLogic {
           .concat([row("Всего расходов", totalM, 600), row("Доходы", incomeM, 600), row("Отложено", saved, 600)]);
       })(),
       dataDialog: st.dialog === "data",
+      themeSystemOn: st.theme === "system" ? "1" : "0", themeLightOn: st.theme === "light" ? "1" : "0", themeDarkOn: st.theme === "dark" ? "1" : "0",
+      setThemeSystem: () => { applyTheme("system"); this.set("theme", "system"); },
+      setThemeLight: () => { applyTheme("light"); this.set("theme", "light"); },
+      setThemeDark: () => { applyTheme("dark"); this.set("theme", "dark"); },
       // «Экспорт» on the operations screen leads to the export in Settings
       openExport: () => { this.setState({ screen: "settings" }); window.scrollTo(0, 0); },
       openImport: () => this.setState({ dialog: "data", dataText: "", dataMsg: "" }),
