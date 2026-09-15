@@ -554,8 +554,60 @@
             </div>
             <div class="card" style="padding:20px 22px;display:flex;flex-direction:column;gap:18px">
               <div><span class="lbl">Напоминание вносить операции</span><input class="inp" value="Каждый день в 21:00" readOnly="{{ true }}"></div>
-              <div><span class="lbl">Данные</span>
-                <div style="display:flex;gap:10px;margin-top:2px"><button class="btn btn-s" onClick="{{ openExport }}">Выгрузить .csv</button><button class="btn btn-t">Резервная копия</button></div>
+            </div>
+            <!-- данные: выгрузка за период с примером и загрузка -->
+            <div class="card" style="padding:20px 22px;display:flex;flex-direction:column;gap:16px">
+              <div>
+                <div class="big" style="font-size:17px">Данные</div>
+                <div style="font-size:13px;color:var(--ink3)">Выгрузка операций в CSV и загрузка из файла</div>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:10px">
+                <span class="lbl" style="margin:0">Период</span>
+                <select class="inp" style="width:auto;align-self:flex-start" value="{{ expPreset }}" onChange="{{ onExpPreset }}">
+                  <sc-for list="{{ expPresets }}" as="p" hint-placeholder-count="12"><option value="{{ p.value }}">{{ p.label }}</option></sc-for>
+                </select>
+                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                  <input class="inp" type="date" style="width:auto" value="{{ expFrom }}" onChange="{{ onExpFrom }}">
+                  <span style="font-size:13px;color:var(--ink3)">—</span>
+                  <input class="inp" type="date" style="width:auto" value="{{ expTo }}" onChange="{{ onExpTo }}">
+                </div>
+                <span class="lbl" style="margin:4px 0 0">Операции</span>
+                <div style="display:flex;gap:8px;flex-wrap:wrap">
+                  <sc-for list="{{ expKinds }}" as="k" hint-placeholder-count="3">
+                    <span class="chip" data-on="{{ k.on }}" onClick="{{ k.toggle }}">{{ k.label }}</span>
+                  </sc-for>
+                </div>
+              </div>
+              <div>
+                <div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap">
+                  <span style="font-size:14px;font-weight:500">{{ expSummary }}</span>
+                  <span style="font-size:12px;color:var(--ink3)">{{ expPreviewNote }}</span>
+                </div>
+                <sc-if value="{{ expHasRows }}" hint-placeholder-val="{{ true }}">
+                  <div style="margin-top:10px;overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--fill)">
+                    <div class="num" style="display:grid;grid-template-columns:repeat(9,auto);width:max-content;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11.5px;line-height:1.4;white-space:nowrap">
+                      <sc-for list="{{ expHead }}" as="h" hint-placeholder-count="9">
+                        <span style="padding:8px 10px;color:var(--ink3);border-bottom:1px solid var(--line)">{{ h.v }}</span>
+                      </sc-for>
+                      <sc-for list="{{ expPreview }}" as="r" hint-placeholder-count="5">
+                        <sc-for list="{{ r.cells }}" as="c" hint-placeholder-count="9">
+                          <span style="padding:6px 10px">{{ c.v }}</span>
+                        </sc-for>
+                      </sc-for>
+                    </div>
+                  </div>
+                </sc-if>
+              </div>
+              <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+                <button class="btn btn-p" style="opacity:{{ expBtnOpacity }}" onClick="{{ downloadExport }}">Скачать .csv</button>
+                <span style="font-size:12px;color:var(--accent)">{{ expMsg }}</span>
+              </div>
+              <div style="border-top:1px solid var(--line);padding-top:14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+                <div style="flex:1;min-width:200px">
+                  <div style="font-size:14px;font-weight:500">Загрузка</div>
+                  <div style="font-size:12px;color:var(--ink3)">CSV в том же формате — вставкой из файла или таблицы. Неизвестные счета и категории создаются.</div>
+                </div>
+                <button class="btn btn-s" onClick="{{ openImport }}">Загрузить CSV…</button>
               </div>
             </div>
             <div class="card" style="padding:20px 22px;display:flex;flex-direction:column;gap:10px">
@@ -815,13 +867,9 @@
     <sc-if value="{{ dataDialog }}" hint-placeholder-val="{{ false }}">
     <div class="dlg" style="position:fixed;inset:0;display:grid;place-items:start center;padding:24px;overflow:auto;background:rgba(0,0,0,.28);backdrop-filter:blur(6px)" onClick="{{ close }}">
       <div class="card" style="width:min(680px,100%);max-height:calc(100vh - 48px);overflow-y:auto;padding:24px;border-radius:22px;box-shadow:0 24px 60px rgba(0,0,0,.22)" onClick="{{ stop }}">
-        <div class="big" style="font-size:21px">Данные операций</div>
-        <div class="seg" style="margin-top:14px">
-          <span class="segopt" data-on="{{ dataExpOn }}" onClick="{{ showExport }}">Экспорт</span>
-          <span class="segopt" data-on="{{ dataImpOn }}" onClick="{{ showImport }}">Импорт</span>
-        </div>
+        <div class="big" style="font-size:21px">Загрузка операций</div>
         <div style="margin-top:14px"><span class="lbl">{{ dataFieldLabel }}</span>
-          <textarea class="inp" style="height:260px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;line-height:1.5;resize:vertical" value="{{ dataText }}" onChange="{{ onDataText }}" placeholder="дата;назначение;категория;счёт;сумма"></textarea>
+          <textarea class="inp" style="height:260px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;line-height:1.5;resize:vertical" value="{{ dataText }}" onChange="{{ onDataText }}" placeholder="{{ dataPlaceholder }}"></textarea>
           <div style="font-size:12px;color:{{ dataHintColor }};margin-top:6px">{{ dataHint }}</div>
         </div>
         <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px">
@@ -892,6 +940,7 @@ const groupDigits = (raw, allowNegative) => {
 };
 // Columns of the operations CSV, for export here and import on the server (backend/import.go)
 const CSV_HEADER = ["Дата", "Сумма (откуда)", "Счёт (откуда)", "Сумма (куда)", "Счёт (куда)", "Баланс", "Категория", "Описание", "Тип"];
+const csvCell = v => { const s = v == null ? "" : String(v); return /[";\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
 const pluralRu = (n, a, b, c) => { const m = n % 100, k = n % 10; return n + " " + (m > 10 && m < 20 ? c : k === 1 ? a : k > 1 && k < 5 ? b : c); };
 const HIST_MONTHS = [
   { m: "2026-04", income: [["Зарплата", 142000]], spend: [["Продукты", 23400], ["Жильё и связь", 31500], ["Транспорт", 6800], ["Кафе и доставка", 9700], ["Подписки", 2190], ["Футбол", 4500], ["Одежда", 310]] },
@@ -967,7 +1016,8 @@ class Component extends DCLogic {
     accName: "", accKind: "Карта", accBalance: "", accCur: "RUB", accTo: "", receive: "", receiveTouched: false,
     catId: null, catName: "", catParent: "", catKind: "expense", catTab: "expense",
     anaPreset: "month", anaFrom: THIS_MONTH + "-01", anaTo: TODAY,
-    dataMode: "export", dataText: "", dataMsg: "",
+    dataText: "", dataMsg: "",
+    expPreset: "all", expFrom: "", expTo: "", expTypes: { expense: true, income: true, transfer: true }, expMsg: "",
     cats: [], accounts: [], txs: [], rates: {},
     online: false, busy: false, demo: false, donutHover: null,
     user: null, needLogin: false, googleEnabled: false,
@@ -1096,12 +1146,12 @@ class Component extends DCLogic {
   }
   money(n, cur) { return (n < 0 ? "−" : "") + this.fmt(n, cur); }
   signed(n, cur) { return (n < 0 ? "−" : "+") + this.fmt(n, cur); }
-  // Operations CSV in the columns the server imports (CSV_HEADER), newest first.
-  // Баланс is what the operation's account held right after it: the source
-  // account for expenses and transfers, the target for income.
-  toCsv() {
+  // Every operation as a CSV row in the columns of CSV_HEADER, newest first,
+  // with its date and kind to filter by. Баланс is what the operation's account
+  // held right after it (the source for expenses and transfers, the target for
+  // income) — so it is computed over all operations, before any filter.
+  csvRows() {
     const st = this.state;
-    const cell = v => { const s = v == null ? "" : String(v); return /[";\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
     const num = n => (n == null || n === "" || isNaN(n)) ? "" : String(Math.round(n * 1e8) / 1e8).replace(".", ",");
     const path = name => {
       const parts = [];
@@ -1115,7 +1165,7 @@ class Component extends DCLogic {
     // day, as on the server. The sort is stable, so the server's order stays otherwise.
     const when = t => t.d + " " + (t.tm || "");
     const txs = st.txs.slice().sort((a, b) => (when(a) < when(b) ? 1 : when(a) > when(b) ? -1 : 0));
-    const rows = txs.map(t => {
+    return txs.map(t => {
       const transfer = t.type === "transfer", income = !transfer && t.v > 0;
       const got = t.got != null ? t.got : t.v;
       const after = bal[t.a];
@@ -1123,24 +1173,39 @@ class Component extends DCLogic {
         if (t.a in bal) bal[t.a] += t.v;
         if (t.to in bal) bal[t.to] -= got;
       } else if (t.a in bal) bal[t.a] -= t.v;
-      return [
-        t.tm ? t.d + " " + t.tm : t.d,
-        income ? "" : num(Math.abs(t.v)), income ? "" : t.a,
-        transfer ? num(got) : (income ? num(t.v) : ""), transfer ? t.to : (income ? t.a : ""),
-        num(after), transfer ? "" : path(t.c), t.t,
-        transfer ? "перевод" : (income ? "доход" : "расход")
-      ];
+      return {
+        d: t.d, kind: transfer ? "transfer" : (income ? "income" : "expense"),
+        cells: [
+          t.tm ? t.d + " " + t.tm : t.d,
+          income ? "" : num(Math.abs(t.v)), income ? "" : t.a,
+          transfer ? num(got) : (income ? num(t.v) : ""), transfer ? t.to : (income ? t.a : ""),
+          num(after), transfer ? "" : path(t.c), t.t,
+          transfer ? "перевод" : (income ? "доход" : "расход")
+        ]
+      };
     });
-    return [CSV_HEADER].concat(rows).map(r => r.map(cell).join(";")).join("\n");
   }
+  // The export as set up in Settings: the period (empty ends are open) and kinds.
+  exportRows() {
+    const { expFrom: from, expTo: to, expTypes: types } = this.state;
+    return this.csvRows().filter(r => types[r.kind] && (!from || r.d >= from) && (!to || r.d <= to));
+  }
+  toCsv(rows) {
+    return [CSV_HEADER].concat(rows.map(r => r.cells)).map(r => r.map(csvCell).join(";")).join("\n");
+  }
+  // Saves the whole export — not just the preview — as a CSV file named by its period.
   download() {
-    const blob = new Blob(["\ufeff" + this.toCsv()], { type: "text/csv;charset=utf-8" });
+    const rows = this.exportRows();
+    if (!rows.length) return;
+    const name = "vedomost_" + (this.state.expFrom || rows[rows.length - 1].d) + "_" + (this.state.expTo || rows[0].d) + ".csv";
+    const bom = String.fromCharCode(0xfeff); // Excel reads a UTF-8 CSV correctly only with a BOM
+    const url = URL.createObjectURL(new Blob([bom + this.toCsv(rows)], { type: "text/csv;charset=utf-8" }));
     const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = "vedomost-operacii.csv";
+    a.href = url;
+    a.download = name;
     a.click();
-    URL.revokeObjectURL(a.href);
-    this.setState({ dataMsg: "Файл выгружен: vedomost-operacii.csv" });
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    this.setState({ expMsg: "Скачан " + name + ": " + pluralRu(rows.length, "операция", "операции", "операций") });
   }
   importCsv() {
     if (this.state.online) {
@@ -1628,25 +1693,55 @@ class Component extends DCLogic {
           .concat([row("Всего расходов", totalM, 600), row("Доходы", incomeM, 600), row("Отложено", saved, 600)]);
       })(),
       dataDialog: st.dialog === "data",
-      dataExpOn: st.dataMode === "export" ? "1" : "0",
-      dataImpOn: st.dataMode === "import" ? "1" : "0",
-      showExport: () => this.setState({ dataMode: "export", dataText: this.toCsv(), dataMsg: "" }),
-      showImport: () => this.setState({ dataMode: "import", dataText: "", dataMsg: "" }),
-      openExport: () => this.setState({ dialog: "data", dataMode: "export", dataText: this.toCsv(), dataMsg: "" }),
-      openImport: () => this.setState({ dialog: "data", dataMode: "import", dataText: "", dataMsg: "" }),
+      // «Экспорт» on the operations screen leads to the export in Settings
+      openExport: () => { this.setState({ screen: "settings" }); window.scrollTo(0, 0); },
+      openImport: () => this.setState({ dialog: "data", dataText: "", dataMsg: "" }),
       dataText: st.dataText, onDataText: e => this.set("dataText", e.target.value),
-      dataFieldLabel: st.dataMode === "export"
-        ? "CSV, " + st.txs.length + " операций — скопируйте или сохраните"
-        : "Вставьте CSV: " + CSV_HEADER.join(";"),
-      dataHint: st.dataMsg || (st.dataMode === "export"
-        ? "Разделитель — точка с запятой, дата ГГГГ-ММ-ДД и время ЧЧ:ММ, если оно известно. Суммы положительные: направление задают счета и тип. Баланс — остаток на счёте операции после неё."
-        : "Расход заполняет «откуда», доход — «куда», перевод — обе стороны (сумма «куда» в валюте того счёта). Категория через двоеточие: Спорт:Футбол. Дата — 2026-09-15 или 15.09.2026, можно со временем: 2026-09-15 14:30. Баланс при загрузке не используется: остатки считаются по операциям. Строки без даты, например заголовок, пропускаются; неизвестные счета и категории создаются."),
+      dataPlaceholder: CSV_HEADER.join(";") + "\n2026-09-15 14:30;2340;Тинькофф Black;;;;Продукты;Пятёрочка;расход",
+      dataFieldLabel: "Вставьте CSV — строка заголовка не обязательна",
+      dataHint: st.dataMsg || "Расход заполняет «откуда», доход — «куда», перевод — обе стороны (сумма «куда» в валюте того счёта). Категория через двоеточие: Спорт:Футбол. Дата — 2026-09-15 или 15.09.2026, можно со временем: 2026-09-15 14:30. Баланс при загрузке не используется: остатки считаются по операциям. Строки без даты, например заголовок, пропускаются; неизвестные счета и категории создаются.",
       dataHintColor: st.dataMsg ? "var(--accent)" : "var(--ink3)",
-      dataActionLabel: st.dataMode === "export" ? "Скачать .csv" : "Загрузить",
-      dataAction: () => {
-        if (st.dataMode === "export") { this.download(); return; }
-        this.importCsv();
-      },
+      dataActionLabel: "Загрузить",
+      dataAction: () => this.importCsv(),
+      // export in Settings: period, kinds of operations, a five-row preview, the full file
+      ...(() => {
+        const rows = st.screen === "settings" ? this.exportRows() : [];
+        const first = rows.length ? (st.expFrom || rows[rows.length - 1].d) : "";
+        const last = rows.length ? (st.expTo || rows[0].d) : "";
+        return {
+          expPreset: st.expPreset,
+          expPresets: [{ key: "all", value: "all", label: "Весь период" }]
+            .concat(this.presets().map(p => ({ key: p.id, value: p.id, label: p.label })))
+            .concat([{ key: "custom", value: "custom", label: "Произвольно" }]),
+          onExpPreset: e => {
+            const id = e.target.value, p = this.presets().find(x => x.id === id);
+            if (id === "all") this.setState({ expPreset: id, expFrom: "", expTo: "", expMsg: "" });
+            else if (p) this.setState({ expPreset: id, expFrom: p.from, expTo: p.to, expMsg: "" });
+            else this.setState({ expPreset: "custom" });
+          },
+          expFrom: st.expFrom, expTo: st.expTo,
+          onExpFrom: e => this.setState({ expFrom: e.target.value, expPreset: "custom", expMsg: "" }),
+          onExpTo: e => this.setState({ expTo: e.target.value, expPreset: "custom", expMsg: "" }),
+          expKinds: [["expense", "Расходы"], ["income", "Доходы"], ["transfer", "Переводы"]].map(([k, label]) => ({
+            key: k, label, on: st.expTypes[k] ? "1" : "0",
+            // at least one kind stays selected
+            toggle: () => this.setState(s => {
+              const next = Object.assign({}, s.expTypes, { [k]: !s.expTypes[k] });
+              return Object.values(next).some(Boolean) ? { expTypes: next, expMsg: "" } : {};
+            })
+          })),
+          expHasRows: rows.length > 0,
+          expSummary: rows.length
+            ? pluralRu(rows.length, "операция", "операции", "операций") + " · " + this.rangeLabel(first, last)
+            : "За выбранный период нет операций выбранных типов",
+          expPreviewNote: rows.length > 5 ? "пример — первые 5 строк, в файле все" : "",
+          expHead: CSV_HEADER.map((v, i) => ({ key: "h" + i, v })),
+          expPreview: rows.slice(0, 5).map((r, i) => ({ key: "r" + i, cells: r.cells.map((v, j) => ({ key: i + "-" + j, v })) })),
+          expBtnOpacity: rows.length ? "1" : ".45",
+          expMsg: st.expMsg,
+          downloadExport: () => this.download()
+        };
+      })(),
       opDialog: st.dialog === "op", accDialog: st.dialog === "acc",
       openOp: () => {
         if (this.needAccount()) return;
