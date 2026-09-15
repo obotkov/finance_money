@@ -48,44 +48,113 @@
   .chip[data-on="1"] { background: var(--accent); color: #fff; }
   /* The header stays on top only where it fits in one row; on a narrow screen it would eat the page */
   @media (min-width: 980px) { .appbar { position: sticky; top: 0; z-index: 20; } }
+
+  .accrow { cursor: pointer; }
+  /* dialogs sit above the sticky header (z 20) and the mobile tab strip (z 15); sign-in is 50 */
+  .dlg { z-index: 40; }
+
+  /* ---- Narrow screens. The layout is inline styles, so these rules override with !important. ---- */
+  @media (max-width: 900px) {
+    .cols { grid-template-columns: minmax(0, 1fr) !important; }
+  }
+  @media (max-width: 760px) {
+    .page { padding: 0 0 28px !important; }
+    .appcard { border-radius: 0 !important; box-shadow: none !important; }
+
+    /* header: section title and actions only */
+    .appbar { grid-template-columns: minmax(0, 1fr) !important; }
+    .appbar-brand { display: none !important; }
+    .appbar-main { flex-wrap: wrap; gap: 10px !important; padding: 14px 16px 12px !important; }
+    .appbar-title { font-size: 21px !important; }
+    .appbar-actions { width: 100%; margin-left: 0 !important; }
+    .appbar-actions .btn { flex: 1; }
+
+    /* the sidebar becomes a sticky, horizontally scrolling tab strip */
+    .shell { grid-template-columns: minmax(0, 1fr) !important; }
+    .sidebar {
+      position: sticky; top: 0; z-index: 15;
+      flex-direction: row !important; align-items: center; gap: 12px !important;
+      padding: 8px 12px !important; overflow-x: auto; scrollbar-width: none;
+      border-right: 0 !important; border-bottom: 1px solid var(--line);
+      background: rgba(250, 250, 252, .95) !important;
+      -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+    }
+    .sidebar::-webkit-scrollbar { display: none; }
+    .navlist { flex-direction: row !important; gap: 4px !important; }
+    .navitem { white-space: nowrap; padding: 7px 11px; }
+    .sidefoot {
+      display: flex; align-items: center; gap: 10px; flex: none; white-space: nowrap;
+      margin-top: 0 !important; padding: 0 0 0 12px !important;
+      border-top: 0 !important; border-left: 1px solid var(--line);
+    }
+    .sidefoot div, .sidefoot a { margin-top: 0 !important; }
+    .sidefoot .big { font-size: 15px !important; }
+
+    .screen { padding: 16px 12px 28px !important; }
+    .kpis { grid-template-columns: minmax(0, 1fr) !important; gap: 10px !important; }
+
+    /* operations: search on its own line, two-line rows without the table header */
+    .ops-search { width: 100% !important; }
+    .ops-tools { margin-left: 0 !important; flex-wrap: wrap; }
+    .txhead { display: none !important; }
+    .txrow {
+      grid-template-columns: auto minmax(0, 1fr) auto 22px !important;
+      column-gap: 10px !important; row-gap: 2px !important; padding: 10px !important;
+    }
+    .txrow > :nth-child(1) { grid-area: 2 / 1; }             /* date */
+    .txrow > :nth-child(2) { grid-area: 1 / 1 / 2 / 3; }     /* title */
+    .txrow > :nth-child(3) { grid-area: 2 / 2; font-size: 12px !important; } /* category */
+    .txrow > :nth-child(4) { grid-area: 2 / 3; text-align: right; font-size: 12px !important; max-width: 40vw; } /* account */
+    .txrow > :nth-child(5) { grid-area: 1 / 3; }             /* amount */
+    .txrow > :nth-child(6) { grid-area: 1 / 4 / 3 / 5; }     /* delete */
+
+    .acc-edit { display: none !important; } /* the whole row opens the account dialog */
+    .rgrid { gap: 6px !important; font-size: 12px !important; }
+    .catrow { flex-wrap: wrap; }
+    .catrow > :first-child { flex-basis: 100%; }
+    .wrap-sm { flex-wrap: wrap; }
+
+    .dlg { padding: 10px !important; }
+    .dlg > .card { padding: 18px !important; border-radius: 18px !important; max-height: calc(100vh - 20px) !important; }
+  }
   .day:hover { background: rgba(0,0,0,.05); }
   .day[data-on="1"] { background: var(--accent); color: #fff; }
 </style>
 </helmet>
 
-<div style="min-height:100vh;padding:26px 20px 60px">
+<div class="page" style="min-height:100vh;padding:26px 20px 60px">
   <div style="max-width:1240px;margin:0 auto">
 
     <sc-if value="{{ isDesktop }}" hint-placeholder-val="{{ true }}">
     <!-- overflow:clip keeps the rounded corners without breaking the sticky header -->
-    <div class="card" style="overflow:clip;border-radius:20px">
+    <div class="card appcard" style="overflow:clip;border-radius:20px">
       <!-- шапка: название, заголовок раздела и действия; на широком экране остаётся наверху при прокрутке -->
       <div class="appbar" style="display:grid;grid-template-columns:230px minmax(0,1fr);background:rgba(250,250,252,.92);backdrop-filter:saturate(180%) blur(12px);-webkit-backdrop-filter:saturate(180%) blur(12px);border-bottom:1px solid var(--line)">
-        <div style="padding:16px 22px;border-right:1px solid var(--line);display:flex;flex-direction:column;justify-content:center">
+        <div class="appbar-brand" style="padding:16px 22px;border-right:1px solid var(--line);display:flex;flex-direction:column;justify-content:center">
           <div class="big" style="font-size:19px">Ведомость</div>
           <div style="font-size:12px;color:var(--ink3)">личный учёт</div>
         </div>
-        <div style="display:flex;align-items:center;gap:14px;padding:14px 28px;min-width:0">
+        <div class="appbar-main" style="display:flex;align-items:center;gap:14px;padding:14px 28px;min-width:0">
           <div style="min-width:0">
-            <div class="big" style="font-size:23px">{{ title }}</div>
+            <div class="big appbar-title" style="font-size:23px">{{ title }}</div>
             <div style="font-size:13px;color:var(--ink3)">{{ subtitle }}</div>
           </div>
-          <div style="margin-left:auto;display:flex;gap:10px;flex:none">
+          <div class="appbar-actions" style="margin-left:auto;display:flex;gap:10px;flex:none">
             <button class="btn btn-s" style="white-space:nowrap" onClick="{{ openAcc }}">Добавить счёт</button>
             <button class="btn btn-p" style="white-space:nowrap" onClick="{{ openOp }}">Новая операция</button>
           </div>
         </div>
       </div>
 
-      <div style="display:grid;grid-template-columns:230px minmax(0,1fr)">
+      <div class="shell" style="display:grid;grid-template-columns:230px minmax(0,1fr)">
         <!-- боковая навигация -->
-        <div style="background:#fafafc;border-right:1px solid var(--line);padding:16px 12px 22px;display:flex;flex-direction:column;gap:16px">
-          <div style="display:flex;flex-direction:column;gap:2px">
+        <div class="sidebar" style="background:#fafafc;border-right:1px solid var(--line);padding:16px 12px 22px;display:flex;flex-direction:column;gap:16px">
+          <div class="navlist" style="display:flex;flex-direction:column;gap:2px">
             <sc-for list="{{ nav }}" as="n" hint-placeholder-count="8">
               <a class="navitem" href="#" data-on="{{ n.on }}" onClick="{{ n.go }}">{{ n.label }}</a>
             </sc-for>
           </div>
-          <div style="margin-top:auto;padding:14px 10px 0;border-top:1px solid var(--line)">
+          <div class="sidefoot" style="margin-top:auto;padding:14px 10px 0;border-top:1px solid var(--line)">
             <div style="font-size:12px;color:var(--ink3)">Всего</div>
             <div class="num big" style="font-size:22px;margin-top:2px">{{ totalLabel }}</div>
             <sc-if value="{{ hasUser }}" hint-placeholder-val="{{ false }}">
@@ -99,8 +168,8 @@
         <div>
           <!-- Сводка -->
           <sc-if value="{{ isSummary }}" hint-placeholder-val="{{ true }}">
-          <div style="padding:22px 28px 32px;display:flex;flex-direction:column;gap:22px">
-            <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px">
+          <div class="screen" style="padding:22px 28px 32px;display:flex;flex-direction:column;gap:22px">
+            <div class="kpis" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px">
               <div class="card" style="padding:20px 22px">
                 <div style="font-size:13px;color:var(--ink2)">Свободные деньги</div>
                 <div class="num big" style="font-size:clamp(22px,2.3vw,32px);margin-top:4px;white-space:nowrap">{{ freeLabel }}</div>
@@ -118,7 +187,7 @@
               </div>
             </div>
 
-            <div style="display:grid;grid-template-columns:minmax(0,1.55fr) minmax(0,1fr);gap:16px;align-items:start">
+            <div class="cols" style="display:grid;grid-template-columns:minmax(0,1.55fr) minmax(0,1fr);gap:16px;align-items:start">
               <div class="card" style="padding:8px 4px 4px">
                 <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 18px 12px">
                   <span class="big" style="font-size:17px">Последние операции</span>
@@ -159,8 +228,8 @@
 
           <!-- Операции -->
           <sc-if value="{{ isOps }}" hint-placeholder-val="{{ false }}">
-          <div style="padding:22px 28px 32px">
-            <div style="display:grid;grid-template-columns:minmax(260px,320px) minmax(0,1fr);gap:16px;align-items:start;margin-bottom:18px">
+          <div class="screen" style="padding:22px 28px 32px">
+            <div class="cols" style="display:grid;grid-template-columns:minmax(260px,320px) minmax(0,1fr);gap:16px;align-items:start;margin-bottom:18px">
               <div class="card" style="padding:14px 16px 16px">
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
                   <button class="btn btn-t" onClick="{{ opsPrev }}">‹</button>
@@ -203,19 +272,19 @@
                 <span class="segopt" data-on="{{ fExpense }}" onClick="{{ setFilterExpense }}">Расходы</span>
                 <span class="segopt" data-on="{{ fTransfer }}" onClick="{{ setFilterTransfer }}">Переводы</span>
               </div>
-              <input class="inp" style="width:230px" placeholder="Поиск" value="{{ query }}" onChange="{{ onQuery }}">
-              <div style="margin-left:auto;display:flex;align-items:center;gap:10px">
+              <input class="inp ops-search" style="width:230px" placeholder="Поиск" value="{{ query }}" onChange="{{ onQuery }}">
+              <div class="ops-tools" style="margin-left:auto;display:flex;align-items:center;gap:10px">
                 <span class="num" style="font-size:13px;color:var(--ink3)">{{ countLabel }}</span>
                 <button class="btn btn-s" onClick="{{ openExport }}">Экспорт</button>
                 <button class="btn btn-s" onClick="{{ openImport }}">Импорт</button>
               </div>
             </div>
             <div class="card" style="padding:6px 4px">
-              <div style="display:grid;grid-template-columns:50px minmax(0,1.7fr) minmax(0,1fr) minmax(0,1fr) minmax(0,auto) 26px;gap:12px;padding:10px 14px 8px;margin:0 4px;font-size:12px;color:var(--ink3);border-bottom:1px solid var(--line)">
+              <div class="txhead" style="display:grid;grid-template-columns:50px minmax(0,1.7fr) minmax(0,1fr) minmax(0,1fr) minmax(0,auto) 26px;gap:12px;padding:10px 14px 8px;margin:0 4px;font-size:12px;color:var(--ink3);border-bottom:1px solid var(--line)">
                 <span>Дата</span><span>Назначение</span><span>Категория</span><span>Счёт</span><span style="text-align:right">Сумма</span><span></span>
               </div>
               <sc-for list="{{ visibleTxs }}" as="t" hint-placeholder-count="10">
-                <div class="rowline" style="display:grid;grid-template-columns:50px minmax(0,1.7fr) minmax(0,1fr) minmax(0,1fr) minmax(0,auto) 26px;align-items:center;gap:12px;padding:12px 14px;margin:0 4px;border-radius:12px">
+                <div class="rowline txrow" style="display:grid;grid-template-columns:50px minmax(0,1.7fr) minmax(0,1fr) minmax(0,1fr) minmax(0,auto) 26px;align-items:center;gap:12px;padding:12px 14px;margin:0 4px;border-radius:12px">
                   <span class="num" style="font-size:13px;color:var(--ink3)">{{ t.dateLabel }}</span>
                   <span style="font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ t.title }}</span>
                   <span style="font-size:13px;color:var(--ink2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="{{ t.catPath }}">{{ t.catPath }}</span>
@@ -233,7 +302,7 @@
 
           <!-- Счета -->
           <sc-if value="{{ isAccounts }}" hint-placeholder-val="{{ false }}">
-          <div style="padding:22px 28px 32px;display:grid;grid-template-columns:minmax(0,1.45fr) minmax(0,1fr);gap:16px;align-items:start">
+          <div class="screen cols" style="padding:22px 28px 32px;display:grid;grid-template-columns:minmax(0,1.45fr) minmax(0,1fr);gap:16px;align-items:start">
             <div style="display:flex;flex-direction:column;gap:12px">
             <div class="card" style="padding:16px 20px">
               <div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
@@ -259,13 +328,13 @@
                     <span class="num" style="font-size:13px;font-weight:500;color:var(--ink2);white-space:nowrap">{{ g.totalLabel }}</span>
                   </div>
                   <sc-for list="{{ g.items }}" as="a" hint-placeholder-count="2">
-                    <div class="rowline" style="display:flex;align-items:center;gap:16px;padding:14px 16px;margin:0 4px;border-radius:14px">
+                    <div class="rowline accrow" style="display:flex;align-items:center;gap:16px;padding:14px 16px;margin:0 4px;border-radius:14px" onClick="{{ a.edit }}">
                       <div style="flex:1;min-width:0">
                         <div style="font-size:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ a.name }}</div>
                         <div style="font-size:12px;color:var(--ink3)">{{ a.rubLabel }}</div>
                       </div>
                       <div class="num big" style="font-size:clamp(16px,1.6vw,20px);white-space:nowrap;color:{{ a.color }}">{{ a.balanceLabel }}</div>
-                      <button class="btn btn-s" style="flex:none" onClick="{{ a.edit }}">Изменить</button>
+                      <button class="btn btn-s acc-edit" style="flex:none" onClick="{{ a.edit }}">Изменить</button>
                     </div>
                   </sc-for>
                 </div>
@@ -275,7 +344,7 @@
             <sc-if value="{{ flat }}" hint-placeholder-val="{{ false }}">
             <div class="card" style="padding:6px 4px 16px">
               <sc-for list="{{ accounts }}" as="a" hint-placeholder-count="5">
-                <div class="rowline" style="display:flex;align-items:center;gap:16px;padding:16px;margin:0 4px;border-radius:14px">
+                <div class="rowline accrow" style="display:flex;align-items:center;gap:16px;padding:16px;margin:0 4px;border-radius:14px" onClick="{{ a.edit }}">
                   <div style="flex:1;min-width:0">
                     <div style="font-size:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ a.name }}</div>
                     <div style="font-size:12px;color:var(--ink3)">{{ a.kind }}</div>
@@ -284,7 +353,7 @@
                     <div class="num big" style="font-size:clamp(16px,1.6vw,20px);white-space:nowrap;color:{{ a.color }}">{{ a.balanceLabel }}</div>
                     <div class="num" style="font-size:12px;color:var(--ink3);white-space:nowrap">{{ a.rubLabel }}</div>
                   </div>
-                  <button class="btn btn-s" style="flex:none" onClick="{{ a.edit }}">Изменить</button>
+                  <button class="btn btn-s acc-edit" style="flex:none" onClick="{{ a.edit }}">Изменить</button>
                 </div>
               </sc-for>
             </div>
@@ -326,7 +395,7 @@
 
           <!-- Бюджеты -->
           <sc-if value="{{ isBudgets }}" hint-placeholder-val="{{ false }}">
-          <div style="padding:22px 28px 32px;display:grid;grid-template-columns:minmax(0,1.45fr) minmax(0,1fr);gap:16px;align-items:start">
+          <div class="screen cols" style="padding:22px 28px 32px;display:grid;grid-template-columns:minmax(0,1.45fr) minmax(0,1fr);gap:16px;align-items:start">
             <div class="card" style="padding:8px 4px 18px">
               <sc-for list="{{ budgets }}" as="b" hint-placeholder-count="6">
                 <div class="rowline" style="padding:14px 18px;margin:0 4px;border-radius:14px">
@@ -352,7 +421,7 @@
 
           <!-- Отчёты -->
           <sc-if value="{{ isReports }}" hint-placeholder-val="{{ false }}">
-          <div style="padding:22px 28px 32px">
+          <div class="screen" style="padding:22px 28px 32px">
             <div style="display:flex;gap:12px;align-items:center;margin-bottom:16px">
               <div class="seg">
                 <span class="segopt" data-on="1">Месяц</span>
@@ -362,11 +431,11 @@
               <button class="btn btn-t">Выгрузить</button>
             </div>
             <div class="card" style="padding:6px 18px 14px">
-              <div class="num" style="display:grid;grid-template-columns:minmax(0,1.4fr) repeat(4,minmax(0,1fr));gap:12px;padding:12px 0 10px;font-size:12px;color:var(--ink3);border-bottom:1px solid var(--line)">
+              <div class="num rgrid" style="display:grid;grid-template-columns:minmax(0,1.4fr) repeat(4,minmax(0,1fr));gap:12px;padding:12px 0 10px;font-size:12px;color:var(--ink3);border-bottom:1px solid var(--line)">
                 <span style="font-variant-numeric:normal">Категория</span><span style="text-align:right">{{ reportHead1 }}</span><span style="text-align:right">{{ reportHead2 }}</span><span style="text-align:right">{{ reportHead3 }}</span><span style="text-align:right">Среднее</span>
               </div>
               <sc-for list="{{ reportRows }}" as="r" hint-placeholder-count="9">
-                <div class="num" style="display:grid;grid-template-columns:minmax(0,1.4fr) repeat(4,minmax(0,1fr));gap:12px;padding:11px 0;font-size:14px;font-weight:{{ r.weight }};border-bottom:1px solid var(--line)">
+                <div class="num rgrid" style="display:grid;grid-template-columns:minmax(0,1.4fr) repeat(4,minmax(0,1fr));gap:12px;padding:11px 0;font-size:14px;font-weight:{{ r.weight }};border-bottom:1px solid var(--line)">
                   <span style="font-variant-numeric:normal">{{ r.cat }}</span>
                   <span style="text-align:right">{{ r.m1 }}</span><span style="text-align:right">{{ r.m2 }}</span><span style="text-align:right">{{ r.m3 }}</span><span style="text-align:right;color:var(--ink2)">{{ r.avg }}</span>
                 </div>
@@ -377,7 +446,7 @@
 
           <!-- Аналитика -->
           <sc-if value="{{ isCharts }}" hint-placeholder-val="{{ false }}">
-          <div style="padding:22px 28px 32px;display:flex;flex-direction:column;gap:16px">
+          <div class="screen" style="padding:22px 28px 32px;display:flex;flex-direction:column;gap:16px">
             <div class="card" style="padding:14px 18px;display:flex;flex-wrap:wrap;align-items:center;gap:12px">
               <div style="display:flex;align-items:center;gap:8px">
                 <input class="inp" type="date" style="width:auto" value="{{ anaFrom }}" onChange="{{ onAnaFrom }}">
@@ -389,7 +458,7 @@
               </select>
               <span class="num" style="margin-left:auto;font-size:13px;color:var(--ink2)">{{ anaSummary }}</span>
             </div>
-            <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:16px;align-items:start">
+            <div class="cols" style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:16px;align-items:start">
             <div class="card" style="padding:20px 22px">
               <div class="big" style="font-size:17px">Траты по категориям</div>
               <div style="font-size:12px;color:var(--ink3)">{{ anaRangeLabel }}</div>
@@ -446,14 +515,14 @@
 
           <!-- Категории -->
           <sc-if value="{{ isCategories }}" hint-placeholder-val="{{ false }}">
-          <div style="padding:22px 28px 32px;max-width:860px;display:flex;flex-direction:column;gap:14px">
+          <div class="screen" style="padding:22px 28px 32px;max-width:860px;display:flex;flex-direction:column;gap:14px">
             <div class="seg" style="align-self:flex-start">
               <span class="segopt" data-on="{{ catTabExp }}" onClick="{{ showExpenseCats }}">Расходы</span>
               <span class="segopt" data-on="{{ catTabInc }}" onClick="{{ showIncomeCats }}">Доходы</span>
             </div>
             <div class="card" style="padding:6px 4px 10px">
               <sc-for list="{{ tabCats }}" as="c" hint-placeholder-count="11">
-                <div class="rowline" style="display:flex;align-items:center;gap:8px;padding:11px 14px;margin:0 4px;border-radius:12px">
+                <div class="rowline catrow" style="display:flex;align-items:center;gap:8px;padding:11px 14px;margin:0 4px;border-radius:12px">
                   <div style="flex:1;min-width:0;padding-left:{{ c.indent }}">
                     <div style="font-size:{{ c.size }};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ c.name }}</div>
                     <div class="num" style="font-size:12px;color:var(--ink3)">{{ c.meta }}</div>
@@ -464,7 +533,7 @@
                 </div>
               </sc-for>
             </div>
-            <div style="display:flex;align-items:center;gap:12px">
+            <div class="wrap-sm" style="display:flex;align-items:center;gap:12px">
               <button class="btn btn-p" onClick="{{ openNewTabCat }}">{{ addCatLabel }}</button>
               <span style="font-size:13px;color:var(--ink3)">«Изменить» позволяет перенести категорию к другому родителю внутри своего типа</span>
             </div>
@@ -473,7 +542,7 @@
 
           <!-- Настройки -->
           <sc-if value="{{ isSettings }}" hint-placeholder-val="{{ false }}">
-          <div style="padding:22px 28px 32px;max-width:620px;display:flex;flex-direction:column;gap:16px">
+          <div class="screen" style="padding:22px 28px 32px;max-width:620px;display:flex;flex-direction:column;gap:16px">
             <div class="card" style="padding:20px 22px;display:flex;flex-direction:column;gap:18px">
               <div><span class="lbl">Основная валюта</span><input class="inp" value="Российский рубль (₽)" readOnly="{{ true }}"></div>
               <div><span class="lbl">Начало финансового месяца</span>
@@ -579,7 +648,7 @@
 
     <!-- диалог: новая операция -->
     <sc-if value="{{ opDialog }}" hint-placeholder-val="{{ false }}">
-    <div style="position:fixed;inset:0;display:grid;place-items:start center;padding:24px;overflow:auto;background:rgba(0,0,0,.28);backdrop-filter:blur(6px)" onClick="{{ close }}">
+    <div class="dlg" style="position:fixed;inset:0;display:grid;place-items:start center;padding:24px;overflow:auto;background:rgba(0,0,0,.28);backdrop-filter:blur(6px)" onClick="{{ close }}">
       <div class="card" style="width:min(540px,100%);max-height:calc(100vh - 48px);overflow-y:auto;padding:24px;border-radius:22px;box-shadow:0 24px 60px rgba(0,0,0,.22)" onClick="{{ stop }}">
         <div class="big" style="font-size:21px">Новая операция</div>
         <div class="seg" style="margin-top:14px">
@@ -684,7 +753,7 @@
 
     <!-- диалог: счёт -->
     <sc-if value="{{ accDialog }}" hint-placeholder-val="{{ false }}">
-    <div style="position:fixed;inset:0;display:grid;place-items:start center;padding:24px;overflow:auto;background:rgba(0,0,0,.28);backdrop-filter:blur(6px)" onClick="{{ close }}">
+    <div class="dlg" style="position:fixed;inset:0;display:grid;place-items:start center;padding:24px;overflow:auto;background:rgba(0,0,0,.28);backdrop-filter:blur(6px)" onClick="{{ close }}">
       <div class="card" style="width:min(440px,100%);max-height:calc(100vh - 48px);overflow-y:auto;padding:24px;border-radius:22px;box-shadow:0 24px 60px rgba(0,0,0,.22)" onClick="{{ stop }}">
         <div class="big" style="font-size:21px">{{ accDialogTitle }}</div>
         <div style="margin-top:16px"><span class="lbl">Название</span><input class="inp" value="{{ accName }}" onChange="{{ onAccName }}" placeholder="Например, Сбербанк"></div>
@@ -718,7 +787,7 @@
 
     <!-- диалог: категория -->
     <sc-if value="{{ catDialog }}" hint-placeholder-val="{{ false }}">
-    <div style="position:fixed;inset:0;display:grid;place-items:start center;padding:24px;overflow:auto;background:rgba(0,0,0,.28);backdrop-filter:blur(6px)" onClick="{{ close }}">
+    <div class="dlg" style="position:fixed;inset:0;display:grid;place-items:start center;padding:24px;overflow:auto;background:rgba(0,0,0,.28);backdrop-filter:blur(6px)" onClick="{{ close }}">
       <div class="card" style="width:min(440px,100%);max-height:calc(100vh - 48px);overflow-y:auto;padding:24px;border-radius:22px;box-shadow:0 24px 60px rgba(0,0,0,.22)" onClick="{{ stop }}">
         <div class="big" style="font-size:21px">{{ catDialogTitle }}</div>
         <div style="margin-top:16px"><span class="lbl">Название</span><input class="inp" value="{{ catName }}" onChange="{{ onCatName }}" placeholder="Например, Футбол"></div>
@@ -744,7 +813,7 @@
 
     <!-- диалог: экспорт / импорт -->
     <sc-if value="{{ dataDialog }}" hint-placeholder-val="{{ false }}">
-    <div style="position:fixed;inset:0;display:grid;place-items:start center;padding:24px;overflow:auto;background:rgba(0,0,0,.28);backdrop-filter:blur(6px)" onClick="{{ close }}">
+    <div class="dlg" style="position:fixed;inset:0;display:grid;place-items:start center;padding:24px;overflow:auto;background:rgba(0,0,0,.28);backdrop-filter:blur(6px)" onClick="{{ close }}">
       <div class="card" style="width:min(680px,100%);max-height:calc(100vh - 48px);overflow-y:auto;padding:24px;border-radius:22px;box-shadow:0 24px 60px rgba(0,0,0,.22)" onClick="{{ stop }}">
         <div class="big" style="font-size:21px">Данные операций</div>
         <div class="seg" style="margin-top:14px">
