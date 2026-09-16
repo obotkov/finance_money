@@ -783,7 +783,7 @@
                 <div class="seg"><span class="segopt" data-on="1">1-е число</span><span class="segopt">День зарплаты</span></div>
               </div>
               <div><span class="lbl">Округление сумм</span>
-                <div class="seg"><span class="segopt" data-on="1">До рубля</span><span class="segopt">С копейками</span></div>
+                <div class="seg"><span class="segopt" data-on="{{ roundRub }}" onClick="{{ setRoundRub }}">До рубля</span><span class="segopt" data-on="{{ roundCents }}" onClick="{{ setRoundCents }}">С копейками</span></div>
               </div>
               <div><span class="lbl">Оформление</span>
                 <div class="seg">
@@ -1210,6 +1210,10 @@ const applyTheme = t => {
   if (t === "light" || t === "dark") root.setAttribute("data-theme", t); else root.removeAttribute("data-theme");
   try { localStorage.setItem("theme", t); } catch (_) { /* storage off: the choice lasts until reload */ }
 };
+// amounts show whole roubles unless the settings ask for kopecks
+const initialCents = (() => {
+  try { return localStorage.getItem("cents") === "1"; } catch (_) { return false; }
+})();
 // the open section survives a reload; an unknown or missing value opens the summary
 const SCREENS = ["summary", "ops", "accounts", "budgets", "reports", "charts", "categories", "settings"];
 const initialScreen = (() => {
@@ -1334,7 +1338,7 @@ class Component extends DCLogic {
     anaPreset: "month", anaFrom: THIS_MONTH + "-01", anaTo: TODAY,
     anaGran: "day", anaHover: null, anaCats: null, anaCatGran: "week", anaCatHover: null,
     dataText: "", dataMsg: "",
-    theme: initialTheme,
+    theme: initialTheme, cents: initialCents,
     repMode: "detail", repFrom: THIS_MONTH + "-01", repTo: TODAY, repPreset: "month", repView: "bars", repPath: [], repList: null,
     expPreset: "all", expFrom: "", expTo: "", expTypes: { expense: true, income: true, transfer: true, opening: true }, expMsg: "",
     cats: [], accounts: [], txs: [], rates: {},
@@ -1464,7 +1468,9 @@ class Component extends DCLogic {
     const abs = Math.abs(n);
     const s = crypto
       ? abs.toLocaleString("ru-RU", { maximumFractionDigits: abs < 1 ? 5 : 3 }).replace(/\u00a0/g, " ")
-      : Math.round(abs).toLocaleString("ru-RU").replace(/\u00a0/g, " ");
+      : this.state.cents
+        ? abs.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).replace(/\u00a0/g, " ")
+        : Math.round(abs).toLocaleString("ru-RU").replace(/\u00a0/g, " ");
     return s + " " + c.sym;
   }
   money(n, cur) { return (n < 0 ? "−" : "") + this.fmt(n, cur); }
@@ -1921,6 +1927,10 @@ class Component extends DCLogic {
   toRub(n, cur) { return n * CUR[cur || "RUB"].rate; }
   dayLabel(iso) { const p = iso.split("-"); return p[2] + "." + p[1]; }
   set(k, v) { this.setState({ [k]: v }); }
+  setCents(v) {
+    this.setState({ cents: v });
+    try { localStorage.setItem("cents", v ? "1" : "0"); } catch (_) { /* storage off: the choice lasts until reload */ }
+  }
   goScreen(id) {
     this.setState({ screen: id, moreOpen: false, opsCalOpen: false });
     try { localStorage.setItem("screen", id); } catch (_) { /* storage off: the section lasts until reload */ }
@@ -2374,6 +2384,9 @@ class Component extends DCLogic {
       })(),
       dataDialog: st.dialog === "data",
       themeSystemOn: st.theme === "system" ? "1" : "0", themeLightOn: st.theme === "light" ? "1" : "0", themeDarkOn: st.theme === "dark" ? "1" : "0",
+      roundRub: st.cents ? "0" : "1", roundCents: st.cents ? "1" : "0",
+      setRoundRub: () => this.setCents(false),
+      setRoundCents: () => this.setCents(true),
       setThemeSystem: () => { applyTheme("system"); this.set("theme", "system"); },
       setThemeLight: () => { applyTheme("light"); this.set("theme", "light"); },
       setThemeDark: () => { applyTheme("dark"); this.set("theme", "dark"); },
