@@ -80,6 +80,8 @@
   .seg { display: inline-flex; background: var(--fill); border-radius: 10px; padding: 2px; gap: 2px; }
   .segopt { padding: 5px 14px; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer; color: var(--ink2); }
   .segopt[data-on="1"] { background: var(--raised); color: var(--ink); box-shadow: var(--raised-sh); }
+  /* currency options are one character wide, so they get tighter padding than a normal segment */
+  .seg-cur .segopt { padding: 5px 9px; }
   .chip { display: inline-flex; align-items: center; padding: 6px 13px; border-radius: 980px; font-size: 13px; cursor: pointer; background: var(--fill); color: var(--ink); }
   .chip[data-on="1"] { background: var(--accent); color: #fff; }
   /* The header stays on top only where it fits in one row; on a narrow screen it would eat the page */
@@ -429,7 +431,12 @@
             </div>
             <sc-if value="{{ hasShares }}" hint-placeholder-val="{{ true }}">
             <div class="card" style="padding:20px 22px">
-              <div class="big" style="font-size:17px">Где лежат деньги</div>
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+                <div class="big" style="font-size:17px">Где лежат деньги</div>
+                <div class="seg seg-cur" style="margin-left:auto">
+                  <sc-for list="{{ assetCurs }}" as="c" hint-placeholder-count="3"><span class="segopt" data-on="{{ c.on }}" onClick="{{ c.pick }}" title="{{ c.title }}">{{ c.sym }}</span></sc-for>
+                </div>
+              </div>
               <!-- the centre label is HTML over the SVG: the canvas runtime can't put {{ }} text inside SVG <text> -->
               <div style="position:relative;width:176px;height:176px;max-width:100%;margin:16px auto 0">
                 <svg viewBox="0 0 120 120" width="176" height="176" role="img" aria-label="{{ sharesAria }}" style="display:block;max-width:100%">
@@ -1311,7 +1318,7 @@ const DEMO = {
 class Component extends DCLogic {
   state = {
     screen: "summary", dialog: null, editIndex: null, groupBy: "none", opsY: TODAY_Y, opsM: TODAY_M, opsDate: null,
-    moreOpen: false, opsCalOpen: false, opsSearch: false,
+    moreOpen: false, opsCalOpen: false, opsSearch: false, assetCur: "RUB",
     filter: "all", query: "",
     type: "expense", amount: "", note: "", cat: "", acc: "",
     date: TODAY, calY: TODAY_Y, calM: TODAY_M,
@@ -2049,6 +2056,9 @@ class Component extends DCLogic {
     const posTotal = Object.values(kinds).reduce((s, v) => s + v, 0) || 1;
     // Donut of positive balances by kind: segments run clockwise from 12 o'clock
     // in the fixed kind order, and a kind keeps its colour whatever its size.
+    // the card shows the shares in the currency picked on it, converted from roubles at the same rates as everywhere else
+    const assetCur = CUR[st.assetCur] ? st.assetCur : "RUB";
+    const inAssetCur = v => v / CUR[assetCur].rate;
     const RING = 2 * Math.PI * 48, GAP = 1.4; // circumference at r=48; ~2px gap at 176px
     const shareKinds = order.filter(k => kinds[k] > 0).concat(Object.keys(kinds).filter(k => order.indexOf(k) === -1));
     let arc = 0;
@@ -2058,7 +2068,7 @@ class Component extends DCLogic {
       const pct = Math.round(frac * 100) + " %";
       const share = {
         key: k, kind: k, color: KIND_COLORS[k] || KIND_COLORS.other,
-        pctLabel: pct, amountLabel: this.money(kinds[k]),
+        pctLabel: pct, amountLabel: this.money(inAssetCur(kinds[k]), assetCur),
         // hovering a segment or its legend row shows it in the centre and dims the rest
         opacity: st.donutHover && st.donutHover !== k ? "0.35" : "1",
         enter: () => this.set("donutHover", k), leave: () => this.set("donutHover", null),
@@ -2234,8 +2244,12 @@ class Component extends DCLogic {
       hasAccounts: st.accounts.length > 0, hasShares: accountShares.length > 0,
       ...(() => {
         const h = accountShares.find(s => s.kind === st.donutHover);
-        return { donutLabel: h ? h.kind : "активы", donutValue: h ? h.amountLabel : this.money(posTotal), donutPct: h ? h.pctLabel : "" };
+        return { donutLabel: h ? h.kind : "активы", donutValue: h ? h.amountLabel : this.money(inAssetCur(posTotal), assetCur), donutPct: h ? h.pctLabel : "" };
       })(),
+      assetCurs: ["RUB", "USD", "EUR"].map(code => ({
+        key: code, sym: CUR[code].sym, title: CUR[code].label,
+        on: assetCur === code ? "1" : "0", pick: () => this.set("assetCur", code)
+      })),
       sharesAria: "Где лежат деньги: " + accountShares.map(s => s.kind + " " + s.pctLabel).join(", "),
       accounts, accountShares, accountNames: st.accounts.map(a => a.name),
       totalLabel: this.money(total), freeLabel: this.money(free),
