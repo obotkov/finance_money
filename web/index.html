@@ -693,7 +693,6 @@
                   <span style="display:inline-flex;align-items:center;gap:8px;padding:4px 4px 4px 12px;border-radius:980px;background:var(--fill);font-size:13px;max-width:100%">
                     <span style="width:10px;height:10px;border-radius:3px;flex:none;background:{{ s.color }}"></span>
                     <span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ s.name }}</span>
-                    <span class="num" style="color:var(--ink2);white-space:nowrap" hidden="{{ s.hovering }}">{{ s.valueLabel }}</span>
                     <button class="btn btn-t" style="padding:2px 8px;font-size:15px;line-height:1;color:var(--ink3)" title="Убрать" aria-label="{{ s.removeAria }}" onClick="{{ s.remove }}">×</button>
                   </span>
                 </sc-for>
@@ -1840,8 +1839,8 @@ class Component extends DCLogic {
 
       catGrans: grans(st.anaCatGran, "anaCatGran", "anaCatHover"),
       catCaption: range,
+      // the chips only name the series — the figures are in the tooltip
       catSeries: series.map(s => ({ key: s.key, name: s.name, color: s.color,
-        valueLabel: this.money(sumOf(s.values)), hovering: cc.at >= 0,
         removeAria: "Убрать «" + s.name + "» с графика",
         remove: () => this.setState({ anaCats: sel.filter(id => id !== s.id), anaCatHover: null }) })),
       catCanAdd: sel.length < MAX, catLimitDisplay: sel.length < MAX ? "none" : "inline",
