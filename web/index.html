@@ -851,6 +851,28 @@
                 <button class="btn btn-s" onClick="{{ openImport }}">Загрузить CSV…</button>
               </div>
             </div>
+            <!-- демо-данные и очистка аккаунта -->
+            <div class="card" style="grid-column:1 / -1;padding:20px 22px;display:flex;flex-direction:column;gap:14px">
+              <div>
+                <div class="big" style="font-size:17px">Демо-данные и очистка</div>
+                <div style="font-size:13px;color:var(--ink3)">Посмотреть, как выглядят графики и таблицы на заполненном аккаунте, или начать с чистого листа</div>
+              </div>
+              <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+                <div style="flex:1;min-width:200px">
+                  <div style="font-size:14px;font-weight:500">Демо-данные за {{ demoYearLabel }} год</div>
+                  <div style="font-size:12px;color:var(--ink3)">Четыре счёта и операции с января по сегодня: зарплата, аренда, продукты, переводы. Заменяют то, что есть сейчас.</div>
+                </div>
+                <button class="btn btn-s" style="flex:none;opacity:{{ adminOpacity }}" onClick="{{ loadDemo }}">Загрузить демо-данные</button>
+              </div>
+              <div style="border-top:1px solid var(--line);padding-top:14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+                <div style="flex:1;min-width:200px">
+                  <div style="font-size:14px;font-weight:500">Удалить все данные</div>
+                  <div style="font-size:12px;color:var(--ink3)">Счета, операции и категории удаляются без возможности вернуть — аккаунт станет как новый, с категориями по умолчанию.</div>
+                </div>
+                <button class="btn btn-s" style="flex:none;color:var(--neg);opacity:{{ adminOpacity }}" onClick="{{ wipeAll }}">Удалить всё…</button>
+              </div>
+              <div style="font-size:12px;color:var(--accent)">{{ dataAdminMsg }}</div>
+            </div>
             <div class="card" style="padding:20px 22px;display:flex;flex-direction:column;gap:10px">
               <div style="display:flex;align-items:center;gap:10px">
                 <span class="lbl" style="margin:0">Курсы к рублю</span>
@@ -1337,7 +1359,7 @@ class Component extends DCLogic {
     catId: null, catName: "", catParent: "", catKind: "expense", catTab: "expense",
     anaPreset: "month", anaFrom: THIS_MONTH + "-01", anaTo: TODAY,
     anaGran: "day", anaHover: null, anaCats: null, anaCatGran: "week", anaCatHover: null,
-    dataText: "", dataMsg: "",
+    dataText: "", dataMsg: "", dataAdminMsg: "",
     theme: initialTheme, cents: initialCents,
     repMode: "detail", repFrom: THIS_MONTH + "-01", repTo: TODAY, repPreset: "month", repView: "bars", repPath: [], repList: null,
     expPreset: "all", expFrom: "", expTo: "", expTypes: { expense: true, income: true, transfer: true, opening: true }, expMsg: "",
@@ -1413,6 +1435,94 @@ class Component extends DCLogic {
       const cat = cats.some(c => c.name === s.cat && c.kind === kind) ? s.cat : this.firstLeaf(kind, cats);
       return Object.assign({ user: data.user || null, accounts, cats, txs: data.txs || [], rates, acc, accTo, cat }, extra);
     });
+  }
+
+  // ---- demo data and wiping the account ----
+
+  // Accounts are created through the API, not the CSV: the file has no column
+  // for the kind or the currency, and the kinds are what the donut is built of.
+  demoAccounts() {
+    return [
+      { name: "Карта", kind: "Карта", balance: 0, cur: "RUB" },
+      { name: "Наличные", kind: "Наличные", balance: 0, cur: "RUB" },
+      { name: "Накопительный счёт", kind: "Вклад", balance: 0, cur: "RUB" },
+      { name: "Брокерский счёт", kind: "Инвестиции", balance: 0, cur: "RUB" }
+    ];
+  }
+  // A year of a salary, bills, shopping and transfers as an import file: enough
+  // for every chart and table to have something to show. The same numbers every
+  // time — the amounts come from a seeded generator, not Math.random.
+  demoCsv() {
+    const Y = TODAY_Y;
+    let seed = 1234567;
+    const rnd = () => { seed = (seed * 1103515245 + 12345) % 2147483648; return seed / 2147483648; };
+    const pick = list => list[Math.floor(rnd() * list.length)];
+    const amt = (min, max, step) => Math.round((min + rnd() * (max - min)) / step) * step;
+    const day = (m, d) => Y + "-" + pad2(m + 1) + "-" + pad2(d);
+    const rows = [];
+    const add = (d, cells) => { if (d <= TODAY) rows.push([d].concat(cells)); };
+    const spend = (d, v, acc, cat, note) => add(d, [String(v), acc, "", "", "", cat, note, "расход"]);
+    const earn = (d, v, acc, cat, note) => add(d, ["", "", String(v), acc, "", cat, note, "доход"]);
+    const move = (d, v, from, to, note) => add(d, [String(v), from, String(v), to, "", "", note, "перевод"]);
+    const cash = () => (rnd() < 0.25 ? "Наличные" : "Карта");
+
+    [["Карта", 45000], ["Наличные", 8000], ["Накопительный счёт", 150000], ["Брокерский счёт", 60000]]
+      .forEach(([acc, v]) => rows.push([Y + "-01-01", "", "", "", acc, String(v), "", "Начальный остаток", "остаток"]));
+
+    for (let m = 0; m <= TODAY_M; m++) {
+      const month = MONTHS_NOM[m].toLowerCase();
+      earn(day(m, 5), 165000, "Карта", "Зарплата", "Зарплата за " + month);
+      spend(day(m, 7), 45000, "Карта", "Жильё и связь", "Аренда квартиры");
+      spend(day(m, 12), 850, "Карта", "Жильё и связь:Связь", "Мобильная связь");
+      spend(day(m, 3), 999, "Карта", "Подписки", "Подписка на музыку");
+      spend(day(m, 2), 2900, "Карта", "Транспорт", "Проездной");
+      spend(day(m, 10), 4500, "Карта", "Спорт:Бассейн", "Абонемент в бассейн");
+      move(day(m, 6), 20000, "Карта", "Накопительный счёт", "В накопления");
+      move(day(m, 15), 10000, "Карта", "Наличные", "Снятие наличных");
+      earn(day(m, 28), amt(900, 1800, 10), "Накопительный счёт", "Проценты по вкладу", "Проценты по вкладу");
+      [3, 8, 13, 18, 23, 28].forEach(d =>
+        spend(day(m, d), amt(1800, 6500, 10), cash(), "Продукты", pick(["Пятёрочка", "Лента", "Ашан", "Вкусвилл"])));
+      [6, 16, 26].forEach(d =>
+        spend(day(m, d), amt(450, 2400, 10), cash(), "Кафе и доставка", pick(["Кофейня", "Доставка еды", "Бизнес-ланч"])));
+      [9, 21].forEach(d => spend(day(m, d), amt(300, 900, 10), "Карта", "Транспорт:Такси", "Такси"));
+      if (m % 2 === 1) earn(day(m, 18), amt(20000, 45000, 500), "Карта", "Подработка:Вёрстка сайтов", "Заказ на вёрстку");
+      if (m % 2 === 0) spend(day(m, 24), amt(800, 4000, 100), "Карта", "Развлечения", pick(["Кино", "Концерт", "Выставка"]));
+      if (m % 3 === 1) spend(day(m, 14), amt(1500, 7000, 100), "Карта", "Здоровье", pick(["Аптека", "Приём врача"]));
+      if (m % 3 === 0) move(day(m, 20), 15000, "Карта", "Брокерский счёт", "Пополнение брокерского счёта");
+      if (m % 4 === 2) spend(day(m, 19), amt(3000, 12000, 100), "Карта", "Одежда", "Одежда");
+    }
+    // months are filled one by one, so the rows end up grouped by month: put
+    // them back in date order, the way an export looks
+    rows.sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
+    return [CSV_HEADER].concat(rows).map(r => r.map(csvCell).join(";")).join("\n");
+  }
+  loadDemo() {
+    const st = this.state;
+    if (!st.online) { this.set("dataAdminMsg", "Без сервера данные не меняются."); return; }
+    if (!window.confirm("Показать демо-данные за " + TODAY_Y + " год?\n\nВсё, что есть сейчас — счета, операции и категории — будет удалено.")) return;
+    this.set("dataAdminMsg", "Готовлю демо-данные…");
+    // one request at a time: api() ignores a call while another is in flight
+    const pause = () => new Promise(r => setTimeout(r, 0));
+    const accounts = this.demoAccounts();
+    const step = i => i >= accounts.length
+      ? Promise.resolve()
+      : pause().then(() => this.api("POST", "accounts", accounts[i])).then(() => step(i + 1));
+    this.api("POST", "data/reset")
+      .then(() => step(0))
+      .then(pause)
+      .then(() => this.api("POST", "import", { text: this.demoCsv() }))
+      // imported counts the file's lines; the opening balances among them are not operations
+      .then(data => this.set("dataAdminMsg", "Демо-данные за " + TODAY_Y + " год загружены: "
+        + pluralRu((data.txs || []).length, "операция", "операции", "операций") + " — откройте Сводку или Аналитику."))
+      .catch(() => this.set("dataAdminMsg", ""));
+  }
+  wipeAll() {
+    if (!this.state.online) { this.set("dataAdminMsg", "Без сервера данные не меняются."); return; }
+    if (!window.confirm("Удалить все данные?\n\nСчета, операции и категории будут удалены без возможности вернуть. Останутся категории по умолчанию.")) return;
+    this.set("dataAdminMsg", "");
+    this.api("POST", "data/reset")
+      .then(() => this.set("dataAdminMsg", "Все данные удалены — аккаунт пустой."))
+      .catch(() => {});
   }
 
   firstLeaf(kind, cats) {
@@ -2393,6 +2503,11 @@ class Component extends DCLogic {
       // «Экспорт» on the operations screen leads to the export in Settings
       openExport: () => { this.goScreen("settings"); window.scrollTo(0, 0); },
       openImport: () => this.setState({ dialog: "data", dataText: "", dataMsg: "" }),
+      demoYearLabel: String(TODAY_Y),
+      dataAdminMsg: st.dataAdminMsg,
+      adminOpacity: st.online ? "1" : "0.5",
+      loadDemo: () => this.loadDemo(),
+      wipeAll: () => this.wipeAll(),
       dataText: st.dataText, onDataText: e => this.set("dataText", e.target.value),
       onPickFile: e => {
         const file = e.target.files && e.target.files[0];

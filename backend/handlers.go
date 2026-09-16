@@ -86,6 +86,9 @@ func (a *API) Handler() http.Handler {
 		}
 		return nil
 	}))
+	mux.HandleFunc("POST /api/data/reset", a.withState(func(r *http.Request, uid int64) error {
+		return s.Reset(r.Context(), uid)
+	}))
 	mux.HandleFunc("POST /api/import", a.importCSV)
 	return a.middleware(mux)
 }

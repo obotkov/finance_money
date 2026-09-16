@@ -519,6 +519,23 @@ func (in *CategoryInput) validate() error {
 	return nil
 }
 
+// Reset empties the account: every operation, account and category of the user
+// goes, and the default categories come back — the state of a fresh sign-up.
+func (s *Store) Reset(ctx context.Context, uid int64) error {
+	return pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) error {
+		for _, q := range []string{
+			`DELETE FROM transactions WHERE user_id = $1`,
+			`DELETE FROM accounts WHERE user_id = $1`,
+			`DELETE FROM categories WHERE user_id = $1`,
+		} {
+			if _, err := tx.Exec(ctx, q, uid); err != nil {
+				return err
+			}
+		}
+		return seedCategories(ctx, tx, uid)
+	})
+}
+
 func seedCategories(ctx context.Context, tx pgx.Tx, uid int64) error {
 	names := make([]string, len(defaultCategories))
 	kinds := make([]string, len(defaultCategories))
