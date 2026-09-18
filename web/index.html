@@ -476,6 +476,9 @@
                   <sc-if value="{{ dateSelected }}" hint-placeholder-val="{{ false }}">
                     <button class="btn btn-t d-only" onClick="{{ clearOpsDate }}">весь месяц</button>
                   </sc-if>
+                  <sc-if value="{{ notToday }}" hint-placeholder-val="{{ false }}">
+                    <button class="btn btn-t d-only" onClick="{{ calToday }}">сегодня</button>
+                  </sc-if>
                 </div>
                 <div style="display:flex;gap:28px">
                   <div>
@@ -2822,6 +2825,7 @@ class Component extends DCLogic {
         pick: c.blank ? null : () => this.setState(s => ({ opsDate: s.opsDate === c.iso && !isNarrow() ? null : c.iso, opsCalOpen: false }))
       })),
       dateSelected: !!st.opsDate,
+      notToday: st.opsDate !== TODAY,
       clearOpsDate: () => this.set("opsDate", null),
       ...tabVals,
       opsCalOn: st.opsCalOpen ? "1" : "0",
