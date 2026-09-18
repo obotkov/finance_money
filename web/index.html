@@ -76,6 +76,8 @@
   .rowline:hover { background: var(--hover-soft); }
   .inp { width: 100%; background: var(--fill); border: 1px solid transparent; border-radius: 11px; padding: 9px 12px; font-size: 15px; }
   .inp:focus { background: var(--card); border-color: var(--accent); outline: none; }
+  /* a period picker: from — to and the preset, kept on one line */
+  .period { display: flex; align-items: center; gap: 8px; min-width: 0; }
   .lbl { display: block; font-size: 12px; font-weight: 500; color: var(--ink2); margin-bottom: 5px; }
   .seg { display: inline-flex; background: var(--fill); border-radius: 10px; padding: 2px; gap: 2px; }
   .segopt { padding: 5px 14px; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer; color: var(--ink2); }
@@ -119,8 +121,19 @@
     .cols { grid-template-columns: minmax(0, 1fr) !important; }
     .acc-shares { order: -1; } /* in one column the donut comes before the list of accounts */
   }
+  /* a tap on a date field opens the picker anyway, so a touch screen gives the icon's room to the date */
+  @media (max-width: 760px) and (pointer: coarse) {
+    .period input[type="date"]::-webkit-calendar-picker-indicator { display: none; }
+  }
   @media (max-width: 760px) {
     .tick[data-minor="1"] { display: none; }
+    /* the period picker shares one line: dates shrink evenly, the preset takes the rest */
+    .period { flex: 1 1 100%; gap: 4px; }
+    .period .inp { font-size: 13px !important; padding: 8px 6px !important; }
+    .period input[type="date"] { flex: 1 1 0; min-width: 0; }
+    .period > span { display: none; } /* the dash: two dates side by side read as a range anyway */
+    .period input[type="date"]::-webkit-calendar-picker-indicator { margin: 0; padding: 0; width: 11px; }
+    .period select { flex: 0 1 auto; min-width: 0; max-width: 37%; }
     .page { padding: 0 0 28px !important; }
     .appcard { border-radius: 0 !important; box-shadow: none !important; min-height: 100vh; }
 
@@ -510,12 +523,14 @@
             <sc-if value="{{ repDetail }}" hint-placeholder-val="{{ true }}">
             <div class="card" style="padding:18px 20px 20px;display:flex;flex-direction:column;gap:14px">
               <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-                <input class="inp" type="date" style="width:auto" value="{{ repFrom }}" onChange="{{ onRepFrom }}">
-                <span style="font-size:13px;color:var(--ink3)">—</span>
-                <input class="inp" type="date" style="width:auto" value="{{ repTo }}" onChange="{{ onRepTo }}">
-                <select class="inp" style="width:auto" value="{{ repPreset }}" onChange="{{ onRepPreset }}">
-                  <sc-for list="{{ repPresets }}" as="p" hint-placeholder-count="12"><option value="{{ p.value }}">{{ p.label }}</option></sc-for>
-                </select>
+                <div class="period">
+                  <input class="inp" type="date" style="width:auto" value="{{ repFrom }}" onChange="{{ onRepFrom }}">
+                  <span style="font-size:13px;color:var(--ink3)">—</span>
+                  <input class="inp" type="date" style="width:auto" value="{{ repTo }}" onChange="{{ onRepTo }}">
+                  <select class="inp" style="width:auto" value="{{ repPreset }}" onChange="{{ onRepPreset }}">
+                    <sc-for list="{{ repPresets }}" as="p" hint-placeholder-count="12"><option value="{{ p.value }}">{{ p.label }}</option></sc-for>
+                  </select>
+                </div>
                 <div class="seg" style="margin-left:auto">
                   <span class="segopt" data-on="{{ repBarsOn }}" onClick="{{ showRepBars }}">Столбцы</span>
                   <span class="segopt" data-on="{{ repDonutOn }}" onClick="{{ showRepDonut }}">Круг</span>
@@ -616,14 +631,14 @@
           <sc-if value="{{ isCharts }}" hint-placeholder-val="{{ false }}">
           <div class="screen" style="padding:22px 28px 32px;display:flex;flex-direction:column;gap:16px">
             <div class="card" style="padding:14px 18px;display:flex;flex-wrap:wrap;align-items:center;gap:12px">
-              <div style="display:flex;align-items:center;gap:8px">
+              <div class="period">
                 <input class="inp" type="date" style="width:auto" value="{{ anaFrom }}" onChange="{{ onAnaFrom }}">
                 <span style="font-size:13px;color:var(--ink3)">—</span>
                 <input class="inp" type="date" style="width:auto" value="{{ anaTo }}" onChange="{{ onAnaTo }}">
+                <select class="inp" style="width:auto" value="{{ anaPreset }}" onChange="{{ onAnaPreset }}">
+                  <sc-for list="{{ periodPresets }}" as="p" hint-placeholder-count="11"><option value="{{ p.value }}">{{ p.label }}</option></sc-for>
+                </select>
               </div>
-              <select class="inp" style="width:auto" value="{{ anaPreset }}" onChange="{{ onAnaPreset }}">
-                <sc-for list="{{ periodPresets }}" as="p" hint-placeholder-count="11"><option value="{{ p.value }}">{{ p.label }}</option></sc-for>
-              </select>
               <span class="num" style="margin-left:auto;font-size:13px;color:var(--ink2)">{{ anaSummary }}</span>
             </div>
             <div class="cols" style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:16px;align-items:start">
@@ -811,7 +826,7 @@
               </div>
               <div style="display:flex;flex-direction:column;gap:10px">
                 <span class="lbl" style="margin:0">Период</span>
-                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                <div class="period">
                   <input class="inp" type="date" style="width:auto" value="{{ expFrom }}" onChange="{{ onExpFrom }}">
                   <span style="font-size:13px;color:var(--ink3)">—</span>
                   <input class="inp" type="date" style="width:auto" value="{{ expTo }}" onChange="{{ onExpTo }}">
