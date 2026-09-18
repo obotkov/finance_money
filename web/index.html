@@ -105,7 +105,17 @@
   .chip-more { margin-left: 6px; opacity: .55; font-weight: 600; }
   .catback { flex: none; width: 31px; height: 31px; border: 0; border-radius: 50%; background: var(--fill); color: var(--ink); font-size: 20px; line-height: 1; cursor: pointer; padding: 0 0 2px; }
   /* The header stays on top only where it fits in one row; on a narrow screen it would eat the page */
-  @media (min-width: 980px) { .appbar { position: sticky; top: 0; z-index: 20; } }
+  /* wide screen: the app fills the window exactly; only the section content scrolls,
+     the header and the sidebar stay in place */
+  @media (min-width: 761px) {
+    .page { box-sizing: border-box; height: 100vh; height: 100dvh; min-height: 0 !important; padding: 20px !important; }
+    .page-in { height: 100%; }
+    .appcard { box-sizing: border-box; height: 100%; min-height: 460px; display: flex; flex-direction: column; }
+    .appbar { flex: none; position: relative; z-index: 20; }
+    .shell { flex: 1; min-height: 0; }
+    .sidebar { overflow-y: auto; }
+    .content { overflow-y: auto; overscroll-behavior: contain; }
+  }
 
   /* phone navigation, shown by the narrow-screen rules below */
   .m-only, .tabbar { display: none; }
@@ -125,7 +135,7 @@
   .sheet { z-index: 40; }
 
   .accrow { cursor: pointer; }
-  /* dialogs sit above the sticky header (z 20) and the mobile tab strip (z 15); sign-in is 50 */
+  /* dialogs sit above the header (z 20) and the mobile tab strip (z 15); sign-in is 50 */
   .dlg { z-index: 40; }
 
   /* ---- Narrow screens. The layout is inline styles, so these rules override with !important. ---- */
@@ -220,10 +230,10 @@
 </helmet>
 
 <div class="page" style="min-height:100vh;padding:26px 20px 60px">
-  <div style="max-width:1240px;margin:0 auto">
+  <div class="page-in" style="max-width:1240px;margin:0 auto">
 
     <sc-if value="{{ isDesktop }}" hint-placeholder-val="{{ true }}">
-    <!-- overflow:clip keeps the rounded corners without breaking the sticky header -->
+    <!-- overflow:clip keeps the rounded corners -->
     <div class="card appcard" style="overflow:clip;border-radius:20px">
       <!-- шапка: название, заголовок раздела и действия; на широком экране остаётся наверху при прокрутке -->
       <div class="appbar" style="display:grid;grid-template-columns:230px minmax(0,1fr);background:var(--bar-bg);backdrop-filter:saturate(180%) blur(12px);-webkit-backdrop-filter:saturate(180%) blur(12px);border-bottom:1px solid var(--line)">
@@ -262,7 +272,7 @@
         </div>
 
         <!-- содержимое -->
-        <div>
+        <div class="content">
           <!-- Сводка -->
           <sc-if value="{{ isSummary }}" hint-placeholder-val="{{ true }}">
           <div class="screen" style="padding:22px 28px 32px;display:flex;flex-direction:column;gap:22px">
@@ -2256,6 +2266,7 @@ class Component extends DCLogic {
     this.setState({ screen: id, moreOpen: false, opsCalOpen: false });
     try { localStorage.setItem("screen", id); } catch (_) { /* storage off: the section lasts until reload */ }
     if (isNarrow()) window.scrollTo(0, 0);
+    else document.querySelector(".content")?.scrollTo(0, 0);
   }
 
   monthCells(y, m, selected, marks) {
@@ -2927,7 +2938,7 @@ class Component extends DCLogic {
       setThemeLight: () => { applyTheme("light"); this.set("theme", "light"); },
       setThemeDark: () => { applyTheme("dark"); this.set("theme", "dark"); },
       // «Экспорт» on the operations screen leads to the export in Settings
-      openExport: () => { this.goScreen("settings"); window.scrollTo(0, 0); },
+      openExport: () => this.goScreen("settings"),
       openImport: () => this.setState({ dialog: "data", dataText: "", dataMsg: "" }),
       demoYearLabel: String(TODAY_Y),
       dataAdminMsg: st.dataAdminMsg,
