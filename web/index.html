@@ -84,6 +84,10 @@
   .seg-cur .segopt { padding: 5px 9px; }
   .chip { display: inline-flex; align-items: center; padding: 6px 13px; border-radius: 980px; font-size: 13px; cursor: pointer; background: var(--fill); color: var(--ink); }
   .chip[data-on="1"] { background: var(--accent); color: #fff; }
+  /* a parent category in the operation dialog: outlined, so its row reads as a group */
+  .chip-parent { font-weight: 600; background: transparent; box-shadow: inset 0 0 0 1.5px var(--line); }
+  .catgroup[data-parent="true"] { padding-top: 8px; border-top: 1px solid var(--line); }
+  .catgroup[data-parent="true"] .catkids { margin-left: 14px; padding-left: 12px; border-left: 2px solid var(--line); }
   /* The header stays on top only where it fits in one row; on a narrow screen it would eat the page */
   @media (min-width: 980px) { .appbar { position: sticky; top: 0; z-index: 20; } }
 
@@ -1044,10 +1048,24 @@
         </sc-if>
         <div style="margin-top:14px"><span class="lbl">Назначение</span><input class="inp" value="{{ note }}" onChange="{{ onNote }}" placeholder="например, продукты на неделю"></div>
         <sc-if value="{{ showCats }}" hint-placeholder-val="{{ true }}">
-        <div style="margin-top:14px"><span class="lbl">Категория</span>
-          <div style="display:flex;flex-wrap:wrap;gap:8px">
-            <sc-for list="{{ catChips }}" as="c" hint-placeholder-count="6">
-              <span class="chip" data-on="{{ c.on }}" onClick="{{ c.pick }}">{{ c.name }}</span>
+        <div style="margin-top:14px"><span class="lbl">Категория{{ catPicked }}</span>
+          <!-- a tree: top-level categories without children first, then each parent
+               on its own line with its subcategories indented under a guide line -->
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <sc-for list="{{ catGroups }}" as="g" hint-placeholder-count="3">
+              <div class="catgroup" data-parent="{{ g.hasParent }}">
+                <sc-if value="{{ g.hasParent }}" hint-placeholder-val="{{ false }}">
+                  <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+                    <span style="font-size:12px;color:var(--ink3)">{{ g.pathLabel }}</span>
+                    <span class="chip chip-parent" data-on="{{ g.pOn }}" onClick="{{ g.pPick }}">{{ g.pName }}</span>
+                  </div>
+                </sc-if>
+                <div class="catkids" style="display:flex;flex-wrap:wrap;gap:8px">
+                  <sc-for list="{{ g.chips }}" as="c" hint-placeholder-count="3">
+                    <span class="chip" data-on="{{ c.on }}" onClick="{{ c.pick }}">{{ c.name }}</span>
+                  </sc-for>
+                </div>
+              </div>
             </sc-for>
           </div>
         </div>
@@ -2313,8 +2331,23 @@ class Component extends DCLogic {
     const plural = (n, a, b, c) => { const m = n % 100, k = n % 10; return n + " " + (m > 10 && m < 20 ? c : k === 1 ? a : k > 1 && k < 5 ? b : c); };
 
     const hasKids = c => kidsOf(c.id).length > 0;
-    const catList = cats.filter(c => (st.type === "expense" ? c.kind === "expense" : c.kind === "income") && !hasKids(c)).map(c => c.name);
-    const catChips = catList.map(c => ({ key: c, name: c, on: st.cat === c ? "1" : "0", pick: () => this.setState({ cat: c }) }));
+    // The dialog's categories as rows: first the top-level categories without
+    // subcategories, then a row per category that has them — the parent itself
+    // (an operation may go straight to it) followed by its children. Deeper rows
+    // start with the path above the parent, so every chip shows where it sits.
+    const opKind = st.type === "income" ? "income" : "expense";
+    const pickCat = c => ({ key: "c" + c.id, name: c.name, on: st.cat === c.name ? "1" : "0", pick: () => this.setState({ cat: c.name }) });
+    const catGroups = [];
+    const opRoots = kidsOf(null).filter(c => c.kind === opKind);
+    const plainRoots = opRoots.filter(c => !hasKids(c));
+    if (plainRoots.length) catGroups.push({ key: "plain", hasParent: false, chips: plainRoots.map(pickCat) });
+    const groupOf = (c, above) => {
+      const p = pickCat(c);
+      catGroups.push({ key: "g" + c.id, hasParent: true, pathLabel: above.length ? above.join(" › ") + " ›" : "",
+        pOn: p.on, pName: p.name, pPick: p.pick, chips: kidsOf(c.id).filter(k => !hasKids(k)).map(pickCat) });
+      kidsOf(c.id).filter(hasKids).forEach(k => groupOf(k, above.concat([c.name])));
+    };
+    opRoots.filter(hasKids).forEach(c => groupOf(c, []));
 
     const descendantIds = id => kidsOf(id).reduce((acc, k) => acc.concat([k.id], descendantIds(k.id)), []);
     const blocked = st.catId === null ? [] : [st.catId].concat(descendantIds(st.catId));
@@ -2605,7 +2638,8 @@ class Component extends DCLogic {
       amount: st.amount, onAmount: e => this.setNumber("amount", e, false),
       note: st.note, onNote: e => this.set("note", e.target.value),
       acc: st.acc, onAcc: e => this.set("acc", e.target.value),
-      catChips, days: this.calendarCells(),
+      catGroups, catPicked: st.cat ? " — " + catPath(st.cat) : "",
+      days: this.calendarCells(),
       catDialog: st.dialog === "cat",
       catDialogTitle: st.catId === null ? "Новая категория" : "Категория",
       openNewCat: () => this.setState({ dialog: "cat", catId: null, catName: "", catParent: "", catKind: "expense" }),
