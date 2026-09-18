@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Penny</title>
 <script src="./support.js"></script>
 </head>
 <body>
@@ -238,7 +239,7 @@
       <!-- шапка: название, заголовок раздела и действия; на широком экране остаётся наверху при прокрутке -->
       <div class="appbar" style="display:grid;grid-template-columns:230px minmax(0,1fr);background:var(--bar-bg);backdrop-filter:saturate(180%) blur(12px);-webkit-backdrop-filter:saturate(180%) blur(12px);border-bottom:1px solid var(--line)">
         <div class="appbar-brand" style="padding:16px 22px;border-right:1px solid var(--line);display:flex;flex-direction:column;justify-content:center">
-          <div class="big" style="font-size:19px">Ведомость</div>
+          <div class="big" style="font-size:19px">Penny</div>
           <div style="font-size:12px;color:var(--ink3)">личный учёт</div>
         </div>
         <div class="appbar-main" style="display:flex;align-items:center;gap:14px;padding:14px 28px;min-width:0">
@@ -1265,7 +1266,7 @@
     <sc-if value="{{ needLogin }}" hint-placeholder-val="{{ false }}">
     <div style="position:fixed;inset:0;z-index:50;display:grid;place-items:center;padding:24px 16px;overflow:auto;background:var(--bg)">
       <div class="card" style="width:min(400px,100%);padding:28px 26px;border-radius:22px">
-        <div class="big" style="font-size:25px">Ведомость</div>
+        <div class="big" style="font-size:25px">Penny</div>
         <div style="font-size:13px;color:var(--ink3);margin-top:2px">личный учёт финансов</div>
         <div class="seg" style="display:flex;margin-top:20px">
           <span class="segopt" style="flex:1;text-align:center" data-on="{{ authLoginOn }}" onClick="{{ setAuthLogin }}">Вход</span>

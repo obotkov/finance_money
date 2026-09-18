@@ -1,4 +1,4 @@
-// Command api is the backend of «Ведомость»: users with email/password or
+// Command api is the backend of Penny: users with email/password or
 // Google sign-in, their accounts, operations and categories in Postgres, plus
 // exchange rates refreshed from the CBR and CoinGecko.
 package main
