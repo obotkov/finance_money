@@ -117,6 +117,7 @@
   /* ---- Narrow screens. The layout is inline styles, so these rules override with !important. ---- */
   @media (max-width: 900px) {
     .cols { grid-template-columns: minmax(0, 1fr) !important; }
+    .acc-shares { order: -1; } /* in one column the donut comes before the list of accounts */
   }
   @media (max-width: 760px) {
     .tick[data-minor="1"] { display: none; }
@@ -436,7 +437,7 @@
             <button class="btn btn-p" style="align-self:flex-start" onClick="{{ openAcc }}">Добавить счёт</button>
             </div>
             <sc-if value="{{ hasShares }}" hint-placeholder-val="{{ true }}">
-            <div class="card" style="padding:20px 22px">
+            <div class="card acc-shares" style="padding:20px 22px">
               <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
                 <div class="big" style="font-size:17px">Где лежат деньги</div>
                 <div class="seg seg-cur" style="margin-left:auto">
