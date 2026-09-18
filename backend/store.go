@@ -364,12 +364,27 @@ func (s *Store) CreateTx(ctx context.Context, uid int64, in TxInput) error {
 	if err := in.validate(); err != nil {
 		return err
 	}
-	return pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) error { return insertTx(ctx, tx, uid, in) })
+	return pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) error { return insertTx(ctx, tx, uid, in, nil) })
 }
 
-// insertTx records a validated operation and moves the account balances.
-// A transfer without an explicit received amount is converted at the stored rates.
-func insertTx(ctx context.Context, tx pgx.Tx, uid int64, in TxInput) error {
+// UpdateTx replaces an operation: the old one is rolled back from the balances
+// and the new one recorded under the same id, so its place in the list holds.
+func (s *Store) UpdateTx(ctx context.Context, uid, id int64, in TxInput) error {
+	if err := in.validate(); err != nil {
+		return err
+	}
+	return pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) error {
+		if err := removeTx(ctx, tx, uid, id); err != nil {
+			return err
+		}
+		return insertTx(ctx, tx, uid, in, &id)
+	})
+}
+
+// insertTx records a validated operation and moves the account balances; id
+// is nil for a new one. A transfer without an explicit received amount is
+// converted at the stored rates.
+func insertTx(ctx context.Context, tx pgx.Tx, uid int64, in TxInput, id *int64) error {
 	from, err := lockAccount(ctx, tx, uid, in.Account)
 	if err != nil {
 		return err
@@ -387,9 +402,9 @@ func insertTx(ctx context.Context, tx pgx.Tx, uid int64, in TxInput) error {
 			return err
 		}
 		if _, err := tx.Exec(ctx, `
-			INSERT INTO transactions (user_id, date, title, type, account_id, to_account_id, amount, received, time)
-			VALUES ($1, $2, $3, 'transfer', $4, $5, $6, $7, NULLIF($8, '')::time)`,
-			uid, in.Date, in.Title, from.id, to.id, in.Amount, got, in.Time); err != nil {
+			INSERT INTO transactions (id, user_id, date, title, type, account_id, to_account_id, amount, received, time)
+			VALUES (COALESCE($9::bigint, nextval(pg_get_serial_sequence('transactions', 'id'))), $1, $2, $3, 'transfer', $4, $5, $6, $7, NULLIF($8, '')::time)`,
+			uid, in.Date, in.Title, from.id, to.id, in.Amount, got, in.Time, id); err != nil {
 			return err
 		}
 		if err := addBalance(ctx, tx, from.id, -in.Amount); err != nil {
@@ -399,17 +414,17 @@ func insertTx(ctx context.Context, tx pgx.Tx, uid int64, in TxInput) error {
 	}
 
 	var catID *int64
-	var id int64
-	switch err := tx.QueryRow(ctx, `SELECT id FROM categories WHERE user_id = $1 AND name = $2`, uid, in.Category).Scan(&id); {
+	var cid int64
+	switch err := tx.QueryRow(ctx, `SELECT id FROM categories WHERE user_id = $1 AND name = $2`, uid, in.Category).Scan(&cid); {
 	case err == nil:
-		catID = &id
+		catID = &cid
 	case !errors.Is(err, pgx.ErrNoRows):
 		return err
 	}
 	if _, err := tx.Exec(ctx, `
-		INSERT INTO transactions (user_id, date, title, type, category_id, category_name, account_id, amount, time)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NULLIF($9, '')::time)`,
-		uid, in.Date, in.Title, in.Type, catID, in.Category, from.id, in.Amount, in.Time); err != nil {
+		INSERT INTO transactions (id, user_id, date, title, type, category_id, category_name, account_id, amount, time)
+		VALUES (COALESCE($10::bigint, nextval(pg_get_serial_sequence('transactions', 'id'))), $1, $2, $3, $4, $5, $6, $7, $8, NULLIF($9, '')::time)`,
+		uid, in.Date, in.Title, in.Type, catID, in.Category, from.id, in.Amount, in.Time, id); err != nil {
 		return err
 	}
 	delta := in.Amount
@@ -421,34 +436,36 @@ func insertTx(ctx context.Context, tx pgx.Tx, uid int64, in TxInput) error {
 
 // DeleteTx removes an operation and rolls its effect back from the balances.
 func (s *Store) DeleteTx(ctx context.Context, uid, id int64) error {
-	return pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) error {
-		var typ string
-		var from int64
-		var to *int64
-		var amount float64
-		var received *float64
-		err := tx.QueryRow(ctx, `
+	return pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) error { return removeTx(ctx, tx, uid, id) })
+}
+
+func removeTx(ctx context.Context, tx pgx.Tx, uid, id int64) error {
+	var typ string
+	var from int64
+	var to *int64
+	var amount float64
+	var received *float64
+	err := tx.QueryRow(ctx, `
 			DELETE FROM transactions WHERE id = $1 AND user_id = $2
 			RETURNING type, account_id, to_account_id, amount, received`, id, uid).
-			Scan(&typ, &from, &to, &amount, &received)
-		if errors.Is(err, pgx.ErrNoRows) {
-			return notFound("Операция не найдена")
-		}
-		if err != nil {
+		Scan(&typ, &from, &to, &amount, &received)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return notFound("Операция не найдена")
+	}
+	if err != nil {
+		return err
+	}
+	switch typ {
+	case "transfer":
+		if err := addBalance(ctx, tx, from, amount); err != nil {
 			return err
 		}
-		switch typ {
-		case "transfer":
-			if err := addBalance(ctx, tx, from, amount); err != nil {
-				return err
-			}
-			return addBalance(ctx, tx, *to, -*received)
-		case "income":
-			return addBalance(ctx, tx, from, -amount)
-		default:
-			return addBalance(ctx, tx, from, amount)
-		}
-	})
+		return addBalance(ctx, tx, *to, -*received)
+	case "income":
+		return addBalance(ctx, tx, from, -amount)
+	default:
+		return addBalance(ctx, tx, from, amount)
+	}
 }
 
 type accountRef struct {

@@ -62,7 +62,7 @@ docker compose exec api /api reset-password user@example.com # новый слу
 | GET | `/api/auth/google/start` → Google → `/api/auth/google/callback` | |
 | GET | `/api/state` | |
 | POST, PUT `/{id}`, DELETE `/{id}` | `/api/accounts` | `{name, kind, balance, cur}` |
-| POST, DELETE `/{id}` | `/api/transactions` | `{date, title, type: expense\|income\|transfer, category, account, toAccount, amount, received}` |
+| POST, PUT `/{id}`, DELETE `/{id}` | `/api/transactions` | `{date, title, type: expense\|income\|transfer, category, account, toAccount, amount, received}` |
 | POST, PUT `/{id}`, DELETE `/{id}` | `/api/categories` | `{name, parent, kind: expense\|income}` |
 | POST | `/api/import` | `{text}` — CSV в формате экспорта |
 | POST | `/api/rates/refresh` | `{}` |

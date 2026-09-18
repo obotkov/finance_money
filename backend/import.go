@@ -347,7 +347,7 @@ func importOne(ctx context.Context, tx pgx.Tx, uid int64, l importLine) error {
 			return err
 		}
 	}
-	return insertTx(ctx, tx, uid, in)
+	return insertTx(ctx, tx, uid, in, nil)
 }
 
 // ensureCategoryPath creates the missing categories of a path, each under the

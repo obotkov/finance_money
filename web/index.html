@@ -357,7 +357,7 @@
                 <span>Дата</span><span>Категория</span><span>Комментарий</span><span>Счёт</span><span style="text-align:right">Сумма</span><span></span>
               </div>
               <sc-for list="{{ visibleTxs }}" as="t" hint-placeholder-count="10">
-                <div class="rowline txrow" style="display:grid;grid-template-columns:50px minmax(0,1fr) minmax(0,1.7fr) minmax(0,1fr) minmax(0,auto) 26px;align-items:center;gap:12px;padding:12px 14px;margin:0 4px;border-radius:12px">
+                <div class="rowline txrow" title="Изменить операцию" onClick="{{ t.edit }}" style="cursor:pointer;display:grid;grid-template-columns:50px minmax(0,1fr) minmax(0,1.7fr) minmax(0,1fr) minmax(0,auto) 26px;align-items:center;gap:12px;padding:12px 14px;margin:0 4px;border-radius:12px">
                   <span class="num" style="font-size:13px;color:var(--ink3)">{{ t.dateLabel }}</span>
                   <span style="font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="{{ t.catPath }}">{{ t.catPath }}</span>
                   <span style="font-size:14px;color:var(--ink2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="{{ t.note }}">{{ t.note }}</span>
@@ -1012,7 +1012,7 @@
     <sc-if value="{{ opDialog }}" hint-placeholder-val="{{ false }}">
     <div class="dlg" style="position:fixed;inset:0;display:grid;place-items:start center;padding:24px;overflow:auto;background:var(--overlay);backdrop-filter:blur(6px)" onClick="{{ close }}">
       <div class="card" style="width:min(540px,100%);max-height:calc(100vh - 48px);overflow-y:auto;padding:24px;border-radius:22px;box-shadow:0 24px 60px rgba(0,0,0,.22)" onClick="{{ stop }}">
-        <div class="big" style="font-size:21px">Новая операция</div>
+        <div class="big" style="font-size:21px">{{ opTitle }}</div>
         <div class="seg" style="margin-top:14px">
           <span class="segopt" data-on="{{ expOn }}" onClick="{{ setExpense }}">Расход</span>
           <span class="segopt" data-on="{{ incOn }}" onClick="{{ setIncome }}">Доход</span>
@@ -1081,6 +1081,9 @@
           </div>
         </div>
         <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px">
+          <sc-if value="{{ editing }}" hint-placeholder-val="{{ false }}">
+            <button class="btn btn-t" style="margin-right:auto;color:var(--neg)" onClick="{{ delEdited }}">Удалить</button>
+          </sc-if>
           <button class="btn btn-s" onClick="{{ close }}">Отмена</button>
           <button class="btn btn-p" onClick="{{ saveOp }}">Сохранить</button>
         </div>
@@ -1364,7 +1367,7 @@ class Component extends DCLogic {
     screen: initialScreen, dialog: null, editIndex: null, groupBy: "none", opsY: TODAY_Y, opsM: TODAY_M, opsDate: null,
     moreOpen: false, opsCalOpen: false, opsSearch: false, assetCur: "RUB",
     filter: "all", query: "",
-    type: "expense", amount: "", note: "", cat: "", catNav: null, acc: "",
+    type: "expense", amount: "", note: "", cat: "", catNav: null, editTx: null, acc: "",
     date: TODAY, calY: TODAY_Y, calM: TODAY_M,
     accName: "", accKind: "Карта", accBalance: "", accCur: "RUB", accTo: "", receive: "", receiveTouched: false,
     catId: null, catName: "", catParent: "", catKind: "expense", catTab: "expense",
@@ -1434,6 +1437,40 @@ class Component extends DCLogic {
 
   // Takes the server's state (or the demo) and points the form defaults
   // at accounts and categories that exist.
+  // Opens the operation dialog filled with an existing operation.
+  editOp(t) {
+    const transfer = t.type === "transfer";
+    const [y, m] = t.d.split("-").map(Number);
+    this.setState({
+      dialog: "op", editTx: t, catNav: null,
+      type: transfer ? "transfer" : t.v > 0 ? "income" : "expense",
+      amount: groupDigits(Math.abs(t.v)),
+      // an untouched title is the category's name (or «Перевод»): the field stays empty then
+      note: t.t === t.c || (transfer && t.t === "Перевод") ? "" : t.t,
+      cat: transfer ? this.state.cat : t.c,
+      acc: t.a, accTo: transfer ? t.to : this.state.accTo,
+      receive: transfer && t.got != null ? groupDigits(t.got) : "",
+      receiveTouched: transfer && t.got != null,
+      date: t.d, calY: y, calM: m - 1
+    });
+  }
+
+  deleteOp(t) {
+    if (!window.confirm("Удалить операцию «" + t.t + "»? Баланс счёта пересчитается.")) return;
+    if (this.state.online) {
+      this.api("DELETE", "transactions/" + t.id).then(() => this.setState({ dialog: null, editTx: null }), () => {});
+      return;
+    }
+    this.setState(s => ({ txs: s.txs.filter(x => x !== t), dialog: null, editTx: null,
+      accounts: s.accounts.map(a => ({ ...a, balance: a.balance - this.txEffect(t, a.name) })) }));
+  }
+
+  // How an operation moved the named account's balance.
+  txEffect(t, acc) {
+    if (t.type !== "transfer") return t.a === acc ? t.v : 0;
+    return (t.a === acc ? -t.v : 0) + (t.to === acc ? (t.got != null ? t.got : t.v) : 0);
+  }
+
   applyServer(data, extra) {
     const rates = data.rates || {};
     Object.keys(rates).forEach(k => { if (CUR[k]) CUR[k].rate = rates[k].rub; });
@@ -2167,11 +2204,8 @@ class Component extends DCLogic {
             : this.fmt(t.v, this.curOf(t.a)))
         : this.signed(t.v, this.curOf(t.a)),
       color: t.type === "transfer" ? "var(--ink3)" : (t.v > 0 ? "var(--pos)" : "var(--neg)"),
-      del: () => {
-        if (!window.confirm("Удалить операцию «" + t.t + "»? Баланс счёта пересчитается.")) return;
-        if (st.online) { this.api("DELETE", "transactions/" + t.id).catch(() => {}); return; }
-        this.setState(s => ({ txs: s.txs.filter(x => x !== t) }));
-      }
+      edit: () => this.editOp(t),
+      del: e => { e.stopPropagation(); this.deleteOp(t); }
     });
     const q = st.query.trim().toLowerCase();
     const monthPrefix = st.opsY + "-" + String(st.opsM + 1).padStart(2, "0");
@@ -2465,7 +2499,7 @@ class Component extends DCLogic {
       openOpForDate: () => {
         if (this.needAccount()) return;
         const iso = st.opsDate || (st.opsY + "-" + String(st.opsM + 1).padStart(2, "0") + "-01");
-        this.setState(s => ({ dialog: "op", catNav: null, date: iso, calY: st.opsY, calM: st.opsM,
+        this.setState(s => ({ dialog: "op", catNav: null, ...(s.editTx ? { amount: "", note: "", receive: "", receiveTouched: false } : {}), editTx: null, date: iso, calY: st.opsY, calM: st.opsM,
           cat: s.cat || this.firstLeaf(s.type === "income" ? "income" : "expense") }));
       },
       query: st.query, onQuery: e => this.set("query", e.target.value),
@@ -2594,9 +2628,12 @@ class Component extends DCLogic {
         };
       })(),
       opDialog: st.dialog === "op", accDialog: st.dialog === "acc",
+      editing: st.dialog === "op" && !!st.editTx,
+      opTitle: st.editTx ? "Изменить операцию" : "Новая операция",
+      delEdited: () => { if (st.editTx) this.deleteOp(st.editTx); },
       openOp: () => {
         if (this.needAccount()) return;
-        this.setState(s => ({ dialog: "op", catNav: null, cat: s.cat || this.firstLeaf(s.type === "income" ? "income" : "expense") }));
+        this.setState(s => ({ dialog: "op", catNav: null, ...(s.editTx ? { amount: "", note: "", receive: "", receiveTouched: false } : {}), editTx: null, cat: s.cat || this.firstLeaf(s.type === "income" ? "income" : "expense") }));
       },
       openAcc: () => this.setState({ dialog: "acc", editIndex: null, accName: "", accKind: "Карта", accBalance: "", accCur: "RUB" }),
       close: () => this.setState({ dialog: null }),
@@ -2690,21 +2727,24 @@ class Component extends DCLogic {
         const transfer = st.type === "transfer";
         const to = this.curOf(st.accTo);
         const received = this.num(st.receiveTouched ? st.receive : this.autoReceive());
+        const old = st.editTx;
         if (st.online) {
           const dp2 = st.date.split("-");
-          this.api("POST", "transactions", {
-            date: st.date, time: st.date === TODAY ? clockNow() : "",
+          // an edit keeps the operation's time; a new one today gets the current time
+          const time = old ? (old.d === st.date ? old.tm || "" : "") : st.date === TODAY ? clockNow() : "";
+          this.api(old ? "PUT" : "POST", old ? "transactions/" + old.id : "transactions", {
+            date: st.date, time,
             title: st.note, type: st.type, category: transfer ? "" : st.cat,
             account: st.acc, toAccount: transfer ? st.accTo : "", amount: v, received: transfer && received ? received : null
-          }).then(() => this.setState({ dialog: null, amount: "", note: "", receive: "", receiveTouched: false,
+          }).then(() => this.setState({ dialog: null, editTx: null, amount: "", note: "", receive: "", receiveTouched: false,
             opsY: Number(dp2[0]), opsM: Number(dp2[1]) - 1, opsDate: st.opsDate ? st.date : null }), () => {});
           return;
         }
         const tx = transfer
           ? { d: st.date, t: st.note || "Перевод", c: "Перевод", a: st.acc, to: st.accTo, v, got: received, gotCur: to, type: "transfer" }
           : { d: st.date, t: st.note || st.cat, c: st.cat, a: st.acc, v: st.type === "income" ? v : -v };
-        const txs = [tx].concat(st.txs).sort((a, b) => (a.d < b.d ? 1 : -1));
-        const accs = st.accounts.map(a => {
+        const txs = [tx].concat(st.txs.filter(x => x !== old)).sort((a, b) => (a.d < b.d ? 1 : -1));
+        const accs = st.accounts.map(a => old ? { ...a, balance: a.balance - this.txEffect(old, a.name) } : a).map(a => {
           if (transfer) {
             if (a.name === st.acc) return { ...a, balance: a.balance - v };
             if (a.name === st.accTo) return { ...a, balance: a.balance + received };
@@ -2713,7 +2753,7 @@ class Component extends DCLogic {
           return a.name === st.acc ? { ...a, balance: a.balance + tx.v } : a;
         });
         const dp2 = tx.d.split("-");
-        this.setState({ txs, accounts: accs, dialog: null, amount: "", note: "", receive: "", receiveTouched: false,
+        this.setState({ txs, accounts: accs, dialog: null, editTx: null, amount: "", note: "", receive: "", receiveTouched: false,
           opsY: Number(dp2[0]), opsM: Number(dp2[1]) - 1, opsDate: st.opsDate ? tx.d : null });
       },
       accDialogTitle: st.editIndex === null ? "Новый счёт" : "Изменить счёт",
