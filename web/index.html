@@ -15,7 +15,7 @@
     color-scheme: light;
     --bg: #f5f5f7; --card: #ffffff; --ink: #1d1d1f; --ink2: #6e6e73; --ink3: #8e8e93;
     --line: rgba(0,0,0,.08); --fill: #f2f2f7; --accent: #0071e3; --accent-hover: #0062c4; --accent-soft: #e8f1fd;
-    --accent-light: #7fb5f0; --pos: #1a8b3c; --neg: #d70015;
+    --accent-light: #7fb5f0; --pos: #1a8b3c; --neg: #d70015; --warn: #b25e00; --warn-soft: #fdf1e0;
     --sh: 0 1px 2px rgba(0,0,0,.05), 0 4px 14px rgba(0,0,0,.04);
     --panel: #fafafc; --bar-bg: rgba(250,250,252,.92); --raised: #ffffff; --raised-sh: 0 1px 2px rgba(0,0,0,.1);
     --hover: rgba(0,0,0,.045); --hover-soft: rgba(0,0,0,.02); --btn-s: rgba(0,0,0,.05); --btn-s-hover: rgba(0,0,0,.09);
@@ -30,7 +30,7 @@
       color-scheme: dark;
       --bg: #111113; --card: #1c1c1e; --ink: #f5f5f7; --ink2: #a1a1a6; --ink3: #8e8e93;
       --line: rgba(255,255,255,.1); --fill: #2c2c2e; --accent: #0a84ff; --accent-hover: #409cff; --accent-soft: rgba(10,132,255,.18);
-      --accent-light: #4f8fd6; --pos: #30d158; --neg: #ff453a;
+      --accent-light: #4f8fd6; --pos: #30d158; --neg: #ff453a; --warn: #ffb340; --warn-soft: rgba(255,179,64,.14);
       --sh: 0 1px 2px rgba(0,0,0,.4), 0 4px 14px rgba(0,0,0,.3);
       --panel: #161618; --bar-bg: rgba(22,22,24,.9); --raised: #3a3a3c; --raised-sh: 0 1px 2px rgba(0,0,0,.5);
       --hover: rgba(255,255,255,.06); --hover-soft: rgba(255,255,255,.03); --btn-s: rgba(255,255,255,.08); --btn-s-hover: rgba(255,255,255,.14);
@@ -43,7 +43,7 @@
     color-scheme: dark;
     --bg: #111113; --card: #1c1c1e; --ink: #f5f5f7; --ink2: #a1a1a6; --ink3: #8e8e93;
     --line: rgba(255,255,255,.1); --fill: #2c2c2e; --accent: #0a84ff; --accent-hover: #409cff; --accent-soft: rgba(10,132,255,.18);
-    --accent-light: #4f8fd6; --pos: #30d158; --neg: #ff453a;
+    --accent-light: #4f8fd6; --pos: #30d158; --neg: #ff453a; --warn: #ffb340; --warn-soft: rgba(255,179,64,.14);
     --sh: 0 1px 2px rgba(0,0,0,.4), 0 4px 14px rgba(0,0,0,.3);
     --panel: #161618; --bar-bg: rgba(22,22,24,.9); --raised: #3a3a3c; --raised-sh: 0 1px 2px rgba(0,0,0,.5);
     --hover: rgba(255,255,255,.06); --hover-soft: rgba(255,255,255,.03); --btn-s: rgba(255,255,255,.08); --btn-s-hover: rgba(255,255,255,.14);
@@ -76,6 +76,18 @@
   .rowline:hover { background: var(--hover-soft); }
   .inp { width: 100%; background: var(--fill); border: 1px solid transparent; border-radius: 11px; padding: 9px 12px; font-size: 15px; }
   .inp:focus { background: var(--card); border-color: var(--accent); outline: none; }
+  /* summary */
+  .sum-n { font-size: clamp(20px, 2vw, 28px); margin-top: 4px; white-space: nowrap; }
+  .sum-bar { height: 6px; border-radius: 3px; background: var(--fill); overflow: hidden; }
+  .sum-bar > i { display: block; height: 100%; border-radius: 3px; }
+  .sum-budget .sum-bar > i { background: var(--warn); }
+  .sum-budget[data-over="1"] .sum-bar > i { background: var(--neg); }
+  .sum-budget[data-over="1"] .sum-budget-v { color: var(--neg); }
+  .tone[data-tone="good"] { color: var(--pos); }
+  .tone[data-tone="bad"] { color: var(--neg); }
+  .sum-idle { margin-left: auto; font-size: 13px; color: var(--warn); background: var(--warn-soft); padding: 6px 12px; border-radius: 10px; }
+  .sum-hero { display: none; }
+  .sum-chart-lbl { position: absolute; font-size: 11px; white-space: nowrap; pointer-events: none; }
   /* a period picker: from — to and the preset, kept on one line */
   .period { display: flex; align-items: center; gap: 8px; min-width: 0; }
   .lbl { display: block; font-size: 12px; font-weight: 500; color: var(--ink2); margin-bottom: 5px; }
@@ -119,6 +131,8 @@
   /* ---- Narrow screens. The layout is inline styles, so these rules override with !important. ---- */
   @media (max-width: 900px) {
     .cols { grid-template-columns: minmax(0, 1fr) !important; }
+    .sum-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+    .sum-three { grid-template-columns: minmax(0, 1fr) !important; }
     .acc-shares { order: -1; } /* in one column the donut comes before the list of accounts */
   }
   /* a tap on a date field opens the picker anyway, so a touch screen gives the icon's room to the date */
@@ -154,6 +168,11 @@
 
     .screen { padding: 16px 12px 28px !important; }
     .kpis { grid-template-columns: minmax(0, 1fr) !important; gap: 10px !important; }
+    /* summary on a phone: the big number card instead of four tiles, quick buttons across */
+    .sum-hero { display: block; }
+    .sum-kpis { display: none !important; }
+    .sum-quick > .btn { flex: 1 1 0; padding-left: 6px; padding-right: 6px; }
+    .sum-idle { margin-left: 0; flex: 1 1 100%; }
 
     /* operations: the chosen day on top (today at first), the calendar is a
        screen of its own opened from the date; search behind an icon */
@@ -247,23 +266,152 @@
           <!-- Сводка -->
           <sc-if value="{{ isSummary }}" hint-placeholder-val="{{ true }}">
           <div class="screen" style="padding:22px 28px 32px;display:flex;flex-direction:column;gap:22px">
-            <div class="kpis" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px">
-              <div class="card" style="padding:20px 22px">
-                <div style="font-size:13px;color:var(--ink2)">Свободные деньги</div>
-                <div class="num big" style="font-size:clamp(22px,2.3vw,32px);margin-top:4px;white-space:nowrap">{{ freeLabel }}</div>
-                <div style="font-size:12px;color:var(--ink3)">карты и наличные</div>
-              </div>
-              <div class="card" style="padding:20px 22px">
-                <div style="font-size:13px;color:var(--ink2)">Доход за сентябрь</div>
-                <div class="num big" style="font-size:clamp(22px,2.3vw,32px);margin-top:4px;white-space:nowrap;color:var(--pos)">{{ incomeLabel }}</div>
-                <div style="font-size:12px;color:var(--ink3)">зарплата и подработка</div>
-              </div>
-              <div class="card" style="padding:20px 22px">
-                <div style="font-size:13px;color:var(--ink2)">Расход за сентябрь</div>
-                <div class="num big" style="font-size:clamp(22px,2.3vw,32px);margin-top:4px;white-space:nowrap">{{ expenseLabel }}</div>
-                <div style="font-size:12px;color:var(--ink3)">{{ savedLabel }}</div>
+            <!-- quick add and a nudge when nothing was written down for days -->
+            <div class="sum-quick" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+              <button class="btn btn-s" onClick="{{ quickExpense }}">− Расход</button>
+              <button class="btn btn-s" onClick="{{ quickIncome }}">+ Доход</button>
+              <button class="btn btn-s" onClick="{{ quickTransfer }}">⇄ Перевод</button>
+              <sc-if value="{{ idle }}" hint-placeholder-val="{{ false }}">
+                <span class="sum-idle">{{ idleText }} — <a href="#" onClick="{{ goOps }}">внести</a></span>
+              </sc-if>
+            </div>
+
+            <!-- phone: one big number and the month in a line -->
+            <div class="card sum-hero" style="padding:18px 18px 16px">
+              <div style="font-size:13px;color:var(--ink2)">Свободные деньги</div>
+              <div class="num big" style="font-size:34px;margin-top:2px;white-space:nowrap">{{ freeLabel }}</div>
+              <div style="font-size:13px;color:var(--ink2)">{{ sumPerDayShort }}</div>
+              <div class="num" style="display:flex;justify-content:space-between;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--line);font-size:13px">
+                <span style="color:var(--pos)">+{{ sumIncome }}</span><span>−{{ sumExpense }}</span><span style="font-weight:600">= {{ sumDiff }}</span>
               </div>
             </div>
+
+            <div class="kpis sum-kpis" style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px">
+              <div class="card" style="padding:18px 20px">
+                <div style="font-size:13px;color:var(--ink2)">Свободные деньги</div>
+                <div class="num big sum-n">{{ freeLabel }}</div>
+                <div style="font-size:12px;color:var(--ink3)">карты и наличные</div>
+              </div>
+              <div class="card" style="padding:18px 20px">
+                <div style="font-size:13px;color:var(--ink2)">{{ sumIncomeTitle }}</div>
+                <div class="num big sum-n" style="color:var(--pos)">{{ sumIncome }}</div>
+                <div style="font-size:12px;color:var(--ink3)"><span class="tone" data-tone="{{ sumIncomeTone }}">{{ sumIncomeCh }}</span> {{ sumIncomeNote }}</div>
+              </div>
+              <div class="card" style="padding:18px 20px">
+                <div style="font-size:13px;color:var(--ink2)">{{ sumExpenseTitle }}</div>
+                <div class="num big sum-n">{{ sumExpense }}</div>
+                <div style="font-size:12px;color:var(--ink3)"><span class="tone" data-tone="{{ sumExpenseTone }}">{{ sumExpenseCh }}</span> {{ sumExpenseNote }}</div>
+              </div>
+              <div class="card" style="padding:18px 20px">
+                <div style="font-size:13px;color:var(--ink2)">Отложено</div>
+                <div class="num big sum-n">{{ sumSaved }}</div>
+                <div style="font-size:12px;color:var(--ink3)">{{ sumSavedNote }}</div>
+              </div>
+            </div>
+
+            <div class="cols" style="display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:16px;align-items:stretch">
+              <sc-if value="{{ showForecast }}" hint-placeholder-val="{{ true }}">
+              <div class="card" style="padding:18px 20px">
+                <div style="font-size:12px;font-weight:500;color:var(--accent)">Прогноз до конца месяца</div>
+                <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-top:4px">
+                  <span class="num big" style="font-size:24px">{{ sumForecast }}</span>
+                  <span style="font-size:13px;color:var(--ink2)">{{ sumForecastNote }}</span>
+                </div>
+                <div style="font-size:13px;color:var(--ink2);margin:6px 0 12px">{{ sumPerDay }}{{ sumUsual }}</div>
+                <div class="sum-bar"><i style="width:{{ sumMonthPct }};background:var(--accent)"></i></div>
+                <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:6px;font-size:12px;color:var(--ink3)">
+                  <span>{{ sumMonthDays }}</span><span>{{ sumAheadNote }}</span>
+                </div>
+              </div>
+              </sc-if>
+              <div class="card" style="padding:18px 20px">
+                <div class="big" style="font-size:15px">Траты нарастающим итогом</div>
+                <!-- labels sit over the chart as HTML: the template puts text into SVG as HTML spans, which SVG doesn't draw -->
+                <div style="position:relative;margin-top:6px">
+                <svg viewBox="0 0 300 110" style="width:100%;height:auto;display:block" role="img" aria-label="Траты этого месяца по дням против прошлого месяца">
+                  <line x1="0" y1="105" x2="300" y2="105" stroke="var(--line)"></line>
+                  <polyline points="{{ sumCumPrev }}" fill="none" stroke="var(--ink3)" stroke-width="1.5" stroke-dasharray="4 3"></polyline>
+                  <polyline points="{{ sumCumNow }}" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linejoin="round"></polyline>
+                  <circle cx="{{ sumCumX }}" cy="{{ sumCumY }}" r="3.5" fill="var(--accent)"></circle>
+                </svg>
+                <span class="num sum-chart-lbl" style="left:{{ sumCumLabelX }};top:{{ sumCumLabelY }};color:var(--ink);font-weight:500">{{ sumCumLabel }}</span>
+                <span class="sum-chart-lbl" style="left:{{ sumCumPrevX }};top:{{ sumCumPrevY }};color:var(--ink3)">{{ sumCumPrevLabel }}</span>
+                </div>
+                <div style="font-size:12px;color:var(--ink3);margin-top:4px">{{ sumCumNote }}</div>
+              </div>
+            </div>
+
+            <div class="cols sum-three" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;align-items:start">
+              <div class="card" style="padding:18px 20px">
+                <div class="big" style="font-size:15px;margin-bottom:12px">Топ категорий</div>
+                <sc-if value="{{ noTopCats }}" hint-placeholder-val="{{ false }}"><div style="font-size:13px;color:var(--ink3)">В этом месяце трат пока нет.</div></sc-if>
+                <div style="display:flex;flex-direction:column;gap:10px">
+                  <sc-for list="{{ topCats }}" as="c" hint-placeholder-count="5">
+                    <div>
+                      <div style="display:flex;justify-content:space-between;gap:8px;font-size:13px;margin-bottom:4px">
+                        <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ c.name }}</span>
+                        <span class="num" style="white-space:nowrap">{{ c.amount }} <span class="tone" data-tone="{{ c.tone }}" style="font-size:11px">{{ c.delta }}</span></span>
+                      </div>
+                      <div class="sum-bar"><i style="width:{{ c.width }};background:var(--accent)"></i></div>
+                    </div>
+                  </sc-for>
+                </div>
+              </div>
+              <div class="card" style="padding:18px 20px">
+                <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px">
+                  <span class="big" style="font-size:15px">Бюджеты у лимита</span><a href="#" onClick="{{ goBudgets }}" style="font-size:13px">Все</a>
+                </div>
+                <sc-if value="{{ budgetsCalm }}" hint-placeholder-val="{{ false }}"><div style="font-size:13px;color:var(--ink3)">Все бюджеты в норме — ни один не занят больше чем на 80 %.</div></sc-if>
+                <div style="display:flex;flex-direction:column;gap:12px">
+                  <sc-for list="{{ hotBudgets }}" as="b" hint-placeholder-count="2">
+                    <div class="sum-budget" data-over="{{ b.over }}">
+                      <div style="display:flex;justify-content:space-between;gap:8px;font-size:13px;margin-bottom:4px">
+                        <span>{{ b.cat }}</span><span class="num sum-budget-v" style="white-space:nowrap">{{ b.label }}</span>
+                      </div>
+                      <div class="sum-bar"><i style="width:{{ b.width }}"></i></div>
+                      <div style="font-size:12px;color:var(--ink3);margin-top:3px">{{ b.note }}</div>
+                    </div>
+                  </sc-for>
+                </div>
+                <sc-if value="{{ hasUnusual }}" hint-placeholder-val="{{ false }}">
+                  <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--line);font-size:12px;color:var(--ink2)">⚠︎ Необычная трата: {{ unusualText }}</div>
+                </sc-if>
+              </div>
+              <div class="card" style="padding:18px 20px">
+                <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px">
+                  <span class="big" style="font-size:15px">Скоро спишется</span><span style="font-size:12px;color:var(--ink3)">{{ upcomingTill }}</span>
+                </div>
+                <sc-if value="{{ hasUpcoming }}" hint-placeholder-val="{{ true }}">
+                  <div style="display:flex;flex-direction:column;gap:8px">
+                    <sc-for list="{{ upcoming }}" as="u" hint-placeholder-count="3">
+                      <div style="display:flex;justify-content:space-between;gap:8px;font-size:13px">
+                        <span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ u.title }} <span style="color:var(--ink3)">· {{ u.when }}</span></span>
+                        <span class="num" style="white-space:nowrap">{{ u.amount }}</span>
+                      </div>
+                    </sc-for>
+                    <div style="display:flex;justify-content:space-between;font-size:13px;font-weight:600;padding-top:8px;border-top:1px solid var(--line)">
+                      <span>Итого</span><span class="num">{{ upcomingTotal }}</span>
+                    </div>
+                  </div>
+                </sc-if>
+                <sc-if value="{{ noUpcoming }}" hint-placeholder-val="{{ false }}">
+                  <div style="font-size:13px;color:var(--ink3)">Регулярных платежей в ближайший месяц не видно. Они находятся сами: одинаковая операция раз в месяц два-три месяца подряд.</div>
+                </sc-if>
+              </div>
+            </div>
+
+            <sc-if value="{{ hasWorth }}" hint-placeholder-val="{{ true }}">
+            <div class="card" style="padding:18px 20px">
+              <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap">
+                <span class="big" style="font-size:15px">Чистый капитал {{ worthSpan }}</span>
+                <span class="num" style="font-size:14px">{{ worthNow }} <span class="tone" data-tone="{{ worthTone }}" style="font-size:12px">{{ worthCh }}</span></span>
+              </div>
+              <svg viewBox="0 0 360 62" style="width:100%;height:auto;display:block;margin-top:8px" role="img" aria-label="Чистый капитал по месяцам">
+                <polyline points="{{ worthLine }}" fill="none" stroke="var(--pos)" stroke-width="2" stroke-linejoin="round"></polyline>
+              </svg>
+              <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--ink3)"><span>{{ worthFrom }}</span><span>{{ worthTo }}</span></div>
+            </div>
+            </sc-if>
 
             <div class="cols" style="display:grid;grid-template-columns:minmax(0,1.55fr) minmax(0,1fr);gap:16px;align-items:start">
               <div class="card" style="padding:8px 4px 4px">
@@ -281,24 +429,17 @@
                   </div>
                 </sc-for>
               </div>
-
-              <div style="display:flex;flex-direction:column;gap:16px">
-                <div class="card" style="padding:8px 4px 10px">
-                  <div class="big" style="font-size:17px;padding:10px 18px 8px">Счета</div>
-                  <sc-for list="{{ accounts }}" as="a" hint-placeholder-count="5">
-                    <div class="rowline" style="display:flex;justify-content:space-between;gap:12px;padding:10px 18px;margin:0 4px;border-radius:12px">
-                      <span style="font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ a.name }}</span>
-                      <span class="num" style="font-size:14px;font-weight:500;white-space:nowrap;color:{{ a.color }}">{{ a.balanceLabel }}</span>
-                    </div>
-                  </sc-for>
+              <div class="card" style="padding:8px 4px 10px">
+                <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 18px 8px">
+                  <span class="big" style="font-size:17px">Счета</span>
+                  <a href="#" onClick="{{ goAccounts }}" style="font-size:13px">Все</a>
                 </div>
-                <sc-if value="{{ showForecast }}" hint-placeholder-val="{{ true }}">
-                <div class="card" style="padding:20px 22px">
-                  <div style="font-size:12px;font-weight:500;color:var(--accent)">Прогноз</div>
-                  <div class="big" style="font-size:17px;margin-top:4px">К концу месяца останется 41 200 ₽</div>
-                  <p style="margin:6px 0 0;font-size:13px;color:var(--ink2)">При текущем темпе трат. Обязательные платежи до 30 сентября — 18 400 ₽.</p>
-                </div>
-                </sc-if>
+                <sc-for list="{{ accounts }}" as="a" hint-placeholder-count="5">
+                  <div class="rowline" style="display:flex;justify-content:space-between;gap:12px;padding:10px 18px;margin:0 4px;border-radius:12px">
+                    <span style="font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ a.name }}</span>
+                    <span class="num" style="font-size:14px;font-weight:500;white-space:nowrap;color:{{ a.color }}">{{ a.balanceLabel }}</span>
+                  </div>
+                </sc-for>
               </div>
             </div>
           </div>
@@ -1249,6 +1390,9 @@ const CUR = {
   TON: { sym: "TON", rate: 480, label: "Toncoin · TON" }
 };
 
+// Monthly limits per category (not editable yet)
+const BUDGET_LIMITS = [["Продукты",25000],["Кафе и доставка",12000],["Транспорт",5000],["Жильё и связь",32000],["Здоровье",6000],["Подписки",2500]];
+
 const pad2 = n => String(n).padStart(2, "0");
 const TODAY = (() => { const d = new Date(); return d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate()); })();
 const TODAY_Y = Number(TODAY.slice(0, 4)), TODAY_M = Number(TODAY.slice(5, 7)) - 1, TODAY_D = Number(TODAY.slice(8));
@@ -2141,6 +2285,204 @@ class Component extends DCLogic {
     }));
   }
 
+  // ---- the summary: how the month goes, where the money goes, what is ahead ----
+  // Everything is derived from the operations; amounts are in rubles at today's rates.
+  summaryVals() {
+    const st = this.state;
+    const inRub = t => this.toRub(t.v, this.curOf(t.a));
+    const rub = a => this.toRub(a.balance, a.cur);
+    const plural = (n, a, b, c) => { const m = n % 100, k = n % 10; return m > 10 && m < 20 ? c : k === 1 ? a : k > 1 && k < 5 ? b : c; };
+    const monthAt = k => { const d = new Date(TODAY_Y, TODAY_M + k, 1); return d.getFullYear() + "-" + pad2(d.getMonth() + 1); };
+    const daysIn = ym => new Date(Number(ym.slice(0, 4)), Number(ym.slice(5, 7)), 0).getDate();
+    const shortMonths = ["янв","фев","мар","апр","мая","июн","июл","авг","сен","окт","ноя","дек"];
+    const dayMonth = (d, ym) => d + " " + shortMonths[Number(ym.slice(5, 7)) - 1];
+
+    const PREV = monthAt(-1);
+    const daysNow = daysIn(THIS_MONTH), daysLeft = daysNow - TODAY_D;
+    const prevCut = PREV + "-" + pad2(Math.min(TODAY_D, daysIn(PREV)));
+    const flows = st.txs.filter(t => t.type !== "transfer" && t.d <= TODAY);
+    const now = flows.filter(t => t.d.startsWith(THIS_MONTH));
+    const before = flows.filter(t => t.d.startsWith(PREV) && t.d <= prevCut); // last month up to the same day
+    const total = (list, sign) => list.filter(t => sign * t.v > 0).reduce((s, t) => s + Math.abs(inRub(t)), 0);
+    const income = total(now, 1), expense = total(now, -1);
+    const free = st.accounts.filter(a => a.kind === "Карта" || a.kind === "Наличные").reduce((s, a) => s + rub(a), 0);
+    // "▲ 12 %" against last month; tone says whether the move is good
+    const change = (a, b, upIsGood) => {
+      if (!b) return { text: "", tone: "0" };
+      const p = Math.round((a - b) / b * 100);
+      if (!p) return { text: "как месяц назад", tone: "0" };
+      return { text: (p > 0 ? "▲ " : "▼ ") + Math.abs(p) + " %", tone: (p > 0) === upIsGood ? "good" : "bad" };
+    };
+    const incCh = change(income, total(before, 1), true), expCh = change(expense, total(before, -1), false);
+
+    // Regular payments: the same title and category, once a month, in at least
+    // two of the last three months, at a steady amount. Not yet paid this month
+    // means it is still ahead.
+    const lastThree = [monthAt(-3), monthAt(-2), monthAt(-1)];
+    const groups = {};
+    st.txs.forEach(t => {
+      if (t.type === "transfer" || t.v >= 0) return;
+      const ym = t.d.slice(0, 7);
+      if (lastThree.indexOf(ym) === -1 && ym !== THIS_MONTH) return;
+      const g = groups[t.c + "|" + t.t] || (groups[t.c + "|" + t.t] = { title: t.t, past: [], paidNow: false });
+      if (ym === THIS_MONTH) g.paidNow = true; else g.past.push(t);
+    });
+    const regular = Object.values(groups).filter(g => {
+      const ms = new Set(g.past.map(t => t.d.slice(0, 7)));
+      const amts = g.past.map(t => -inRub(t));
+      return ms.size >= 2 && g.past.length === ms.size && Math.max(...amts) <= Math.min(...amts) * 1.3;
+    });
+    // The next date of each: this month if not paid yet, else next month's (also
+    // when this month's is over five days late — taken as skipped); the list
+    // covers the coming 30 days, the forecast only this month's.
+    const NEXT = monthAt(1);
+    const horizon = new Date(TODAY_Y, TODAY_M, TODAY_D + 30);
+    const upcoming = regular.map(g => {
+      const days = g.past.map(t => Number(t.d.slice(8))).sort((a, b) => a - b);
+      const usual = days[Math.floor(days.length / 2)];
+      const ym = g.paidNow || Math.min(usual, daysNow) < TODAY_D - 5 ? NEXT : THIS_MONTH, day = Math.min(usual, daysIn(ym));
+      const last = g.past.concat(now.filter(t => t.t === g.title && t.v < 0)).reduce((a, b) => (a.d > b.d ? a : b));
+      return { key: g.title, title: g.title, ym, day, amount: -inRub(last), thisMonth: ym === THIS_MONTH,
+        at: new Date(Number(ym.slice(0, 4)), Number(ym.slice(5, 7)) - 1, day),
+        when: ym === THIS_MONTH && day < TODAY_D ? "ожидалось " + dayMonth(day, ym) : dayMonth(day, ym) };
+    }).filter(u => u.at <= horizon).sort((a, b) => a.at - b.at);
+    const ahead = upcoming.filter(u => u.thisMonth).reduce((s, u) => s + u.amount, 0);
+    const paidRegular = regular.filter(g => g.paidNow).reduce((s, g) =>
+      s + now.filter(t => t.v < 0 && t.t === g.title).reduce((x, t) => x - inRub(t), 0), 0);
+
+    // Forecast: free money minus the payments ahead minus the usual day's spending for the days left
+    const perDayUsual = Math.max(0, expense - paidRegular) / TODAY_D;
+    const spendable = free - ahead;
+    const forecast = spendable - perDayUsual * daysLeft;
+    const perDay = spendable / (daysLeft + 1);
+
+    // Where the money goes: top-level categories this month against the same days last month
+    const rootOf = name => {
+      let node = st.cats.find(c => c.name === name);
+      while (node && node.parent != null) { const up = st.cats.find(c => c.id === node.parent); if (!up) break; node = up; }
+      return node ? node.name : name;
+    };
+    const byRoot = list => list.filter(t => t.v < 0).reduce((m, t) => { const r = rootOf(t.c); m[r] = (m[r] || 0) - inRub(t); return m; }, {});
+    const rootNow = byRoot(now), rootBefore = byRoot(before);
+    const topNames = Object.keys(rootNow).sort((a, b) => rootNow[b] - rootNow[a]).slice(0, 5);
+    const topMax = topNames.length ? rootNow[topNames[0]] : 1;
+    const topCats = topNames.map(n => {
+      const b = rootBefore[n], p = b ? Math.round((rootNow[n] - b) / b * 100) : 0;
+      return { key: n, name: n, amount: this.money(rootNow[n]), width: Math.max(2, Math.round(rootNow[n] / topMax * 100)) + "%",
+        delta: Math.abs(p) >= 10 ? (p > 0 ? "+" : "−") + Math.abs(p) + " %" : "", tone: p > 0 ? "bad" : "good" };
+    });
+
+    // Budgets at 80 % or more of the limit
+    const spentBy = now.filter(t => t.v < 0).reduce((m, t) => { m[t.c] = (m[t.c] || 0) - inRub(t); return m; }, {});
+    const hotBudgets = BUDGET_LIMITS.map(([cat, lim]) => ({ cat, lim, spent: spentBy[cat] || 0 }))
+      .filter(b => b.spent >= b.lim * 0.8).sort((a, b) => b.spent / b.lim - a.spent / a.lim)
+      .map(b => ({ key: b.cat, cat: b.cat, over: b.spent > b.lim ? "1" : "0",
+        label: this.fmt(b.spent).replace(" ₽", "") + " / " + this.money(b.lim),
+        width: Math.min(100, Math.round(b.spent / b.lim * 100)) + "%",
+        note: b.spent > b.lim ? "превышен на " + this.money(b.spent - b.lim)
+          : "осталось " + this.money(b.lim - b.spent) + " на " + (daysLeft + 1) + " " + plural(daysLeft + 1, "день", "дня", "дней") }));
+
+    // An unusual expense: at least three times the category's median over the last half-year
+    const halfYear = monthAt(-6) + "-01";
+    let unusual = null;
+    now.filter(t => t.v < 0).forEach(t => {
+      const past = st.txs.filter(x => x.type !== "transfer" && x.v < 0 && x.c === t.c && x.d >= halfYear && x.d < THIS_MONTH + "-01")
+        .map(x => -inRub(x)).sort((a, b) => a - b);
+      if (past.length < 3) return;
+      const median = past[Math.floor(past.length / 2)], amount = -inRub(t), ratio = amount / median;
+      if (amount >= 1000 && ratio >= 3 && (!unusual || ratio > unusual.ratio)) unusual = { t, median, amount, ratio };
+    });
+
+    // Spending so far this month, day by day, against the whole of last month
+    const cumulative = (ym, upTo) => {
+      const perDay = new Array(upTo + 1).fill(0);
+      flows.forEach(t => { if (t.v < 0 && t.d.startsWith(ym)) { const d = Number(t.d.slice(8)); if (d <= upTo) perDay[d] -= inRub(t); } });
+      for (let d = 1; d <= upTo; d++) perDay[d] += perDay[d - 1];
+      return perDay;
+    };
+    const cumNow = cumulative(THIS_MONTH, TODAY_D), cumPrev = cumulative(PREV, daysIn(PREV));
+    const span = Math.max(daysNow, daysIn(PREV)) - 1;
+    const top = Math.max(cumNow[TODAY_D], cumPrev[cumPrev.length - 1], 1);
+    const cx = d => Math.round((d - 1) / span * 290 + 4), cy = v => Math.round(104 - v / top * 94);
+    const line = arr => arr.slice(1).map((v, i) => cx(i + 1) + "," + cy(v)).join(" ");
+    const cumPrevAtSame = cumPrev[Math.min(TODAY_D, cumPrev.length - 1)];
+
+    // Net worth at the end of each month, rolled back from today by the income and expenses since
+    const firstTx = st.txs.reduce((m, t) => (t.d < m ? t.d : m), TODAY);
+    const worthNow = st.accounts.reduce((s, a) => s + rub(a), 0);
+    const worthPoints = [];
+    for (let k = -11; k <= 0; k++) {
+      const ym = monthAt(k);
+      if (ym < firstTx.slice(0, 7)) continue;
+      const end = k === 0 ? TODAY : ym + "-" + pad2(daysIn(ym));
+      worthPoints.push({ ym, v: worthNow - flows.filter(t => t.d > end).reduce((s, t) => s + inRub(t), 0) });
+    }
+    const wMin = Math.min(...worthPoints.map(p => p.v)), wMax = Math.max(...worthPoints.map(p => p.v));
+    const wx = i => Math.round(i / Math.max(1, worthPoints.length - 1) * 352 + 4);
+    const wy = v => Math.round(58 - (wMax === wMin ? 0.5 : (v - wMin) / (wMax - wMin)) * 50);
+    const wFirst = worthPoints.length ? worthPoints[0].v : 0;
+    const wCh = change(worthNow, wFirst > 0 ? wFirst : 0, true);
+
+    // A nudge when nothing has been written down for a few days
+    const lastD = st.txs.reduce((m, t) => (t.d <= TODAY && t.d > m ? t.d : m), "");
+    const idle = lastD ? Math.round((Date.parse(TODAY) - Date.parse(lastD)) / 864e5) : 0;
+
+    const monthName = MONTHS_NOM[TODAY_M].toLowerCase();
+    return {
+      sumIncomeTitle: "Доход за " + monthName, sumExpenseTitle: "Расход на " + TODAY_D + "-е",
+      sumIncome: this.money(income), sumExpense: this.money(expense),
+      sumIncomeCh: incCh.text, sumIncomeTone: incCh.tone, sumExpenseCh: expCh.text, sumExpenseTone: expCh.tone,
+      sumIncomeNote: incCh.text ? "к " + dayMonth(Math.min(TODAY_D, daysIn(PREV)), PREV) : "за прошлый месяц сравнить не с чем",
+      sumExpenseNote: expCh.text ? "к " + dayMonth(Math.min(TODAY_D, daysIn(PREV)), PREV) : "за прошлый месяц сравнить не с чем",
+      sumSaved: income > 0 ? Math.round((income - expense) / income * 100) + " %" : "—",
+      sumSavedNote: income > 0 ? "дохода не потрачено" : "доходов в этом месяце нет",
+      sumDiff: this.signed(income - expense),
+      sumForecast: "≈ " + this.money(forecast),
+      sumForecastNote: "останется к " + daysNow + " " + ["января","февраля","марта","апреля","мая","июня","июля","августа","сентября","октября","ноября","декабря"][TODAY_M],
+      sumPerDay: perDay > 0 ? "В день можно тратить ≈ " + this.money(perDay)
+        : ahead > 0 ? "Свободных денег не хватает на обязательные платежи" : "Свободных денег нет",
+      sumPerDayShort: perDay > 0 ? "≈ " + this.money(perDay) + " в день до " + daysNow + "-го"
+        : ahead > 0 ? "не хватает на обязательные платежи" : "карты и наличные",
+      sumUsual: expense > 0 ? " · обычно уходит " + this.money(perDayUsual) + " в день" : "",
+      sumMonthPct: Math.round(TODAY_D / daysNow * 100) + "%",
+      sumMonthDays: "прошло " + TODAY_D + " из " + daysNow + " " + plural(daysNow, "дня", "дней", "дней"),
+      sumAheadNote: ahead ? "впереди платежи на " + this.money(ahead) : "без учёта будущих доходов",
+      sumCumNow: line(cumNow), sumCumPrev: line(cumPrev),
+      sumCumX: cx(TODAY_D), sumCumY: cy(cumNow[TODAY_D]),
+      sumCumLabelX: Math.min((cx(TODAY_D) + 6) / 3, 78) + "%", sumCumLabelY: Math.max((cy(cumNow[TODAY_D]) - 16) / 1.1, 0) + "%",
+      sumCumLabel: this.money(cumNow[TODAY_D]),
+      sumCumNote: cumPrevAtSame ? (cumNow[TODAY_D] <= cumPrevAtSame ? "меньше" : "больше") + ", чем к этому дню в прошлом месяце (" + this.money(cumPrevAtSame) + ")" : "",
+      sumCumPrevLabel: MONTHS_NOM[(TODAY_M + 11) % 12].toLowerCase(),
+      sumCumPrevX: Math.max((cx(daysIn(PREV)) - 44) / 3, 0) + "%", sumCumPrevY: Math.min((cy(cumPrev[cumPrev.length - 1]) + 4) / 1.1, 85) + "%",
+      topCats, noTopCats: topCats.length === 0,
+      hotBudgets, budgetsCalm: hotBudgets.length === 0,
+      hasUnusual: !!unusual,
+      unusualText: unusual ? "«" + unusual.t.t + "» " + this.dayLabel(unusual.t.d) + " — " + this.money(unusual.amount) + ", обычно в «" + unusual.t.c + "» ≈ " + this.money(unusual.median) : "",
+      upcoming: upcoming.map(u => ({ key: u.key, title: u.title, when: u.when, amount: this.money(u.amount) })),
+      hasUpcoming: upcoming.length > 0, noUpcoming: upcoming.length === 0,
+      upcomingTotal: this.money(upcoming.reduce((s, u) => s + u.amount, 0)),
+      upcomingTill: "до " + dayMonth(horizon.getDate(), horizon.getFullYear() + "-" + pad2(horizon.getMonth() + 1)),
+      hasWorth: worthPoints.length >= 2,
+      worthLine: worthPoints.map((p, i) => wx(i) + "," + wy(p.v)).join(" "),
+      worthNow: this.money(worthNow), worthCh: wCh.text, worthTone: wCh.tone,
+      worthFrom: worthPoints.length ? shortMonths[Number(worthPoints[0].ym.slice(5, 7)) - 1] : "",
+      worthTo: shortMonths[TODAY_M],
+      worthSpan: worthPoints.length ? "за " + worthPoints.length + " " + plural(worthPoints.length, "месяц", "месяца", "месяцев") : "",
+      idle: idle >= 3, idleText: "Последняя операция " + idle + " " + plural(idle, "день", "дня", "дней") + " назад",
+      quickExpense: () => this.quickAdd("expense"), quickIncome: () => this.quickAdd("income"),
+      quickTransfer: () => this.quickAdd("transfer"),
+      goBudgets: e => { e.preventDefault(); this.goScreen("budgets"); },
+      goAccounts: e => { e.preventDefault(); this.goScreen("accounts"); }
+    };
+  }
+
+  // The operation dialog, fresh, for today and the given kind
+  quickAdd(type) {
+    if (this.needAccount()) return;
+    this.setState(s => ({ dialog: "op", catNav: null, editTx: null, amount: "", note: "", receive: "", receiveTouched: false,
+      type, date: TODAY, calY: TODAY_Y, calM: TODAY_M, cat: type === "transfer" ? s.cat : this.firstLeaf(type) }));
+  }
+
   renderVals() {
     const st = this.state;
     const monthNow = MONTHS_NOM[TODAY_M].toLowerCase() + " " + TODAY_Y;
@@ -2275,7 +2617,7 @@ class Component extends DCLogic {
         totalLabel: this.money(st.accounts.filter(a => a.kind === k).reduce((s, a) => s + rub(a), 0))
       }));
 
-    const limits = [["Продукты",25000],["Кафе и доставка",12000],["Транспорт",5000],["Жильё и связь",32000],["Здоровье",6000],["Подписки",2500]];
+    const limits = BUDGET_LIMITS;
     const spentBy = {};
     st.txs.forEach(t => {
       if (t.type === "transfer" || t.v >= 0 || !t.d.startsWith(THIS_MONTH)) return;
@@ -2463,6 +2805,7 @@ class Component extends DCLogic {
       incomeLabel: this.money(income), expenseLabel: this.money(expense),
       savedLabel: "отложено " + this.money(income - expense),
       recent: st.txs.slice().sort((a, b) => (a.d < b.d ? 1 : -1)).slice(0, 6).map(shapeTx),
+      ...this.summaryVals(),
       visibleTxs: visible.map(shapeTx),
       countLabel: visible.length + " из " + periodTxs.length + " операций",
       noTxs: visible.length === 0,
