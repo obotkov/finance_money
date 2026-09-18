@@ -89,9 +89,7 @@
   .chip[data-on="2"] { box-shadow: inset 0 0 0 1.5px var(--accent); }
   .chip[data-self="1"] { font-weight: 600; }
   .chip-more { margin-left: 6px; opacity: .55; font-weight: 600; }
-  .catnav { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
-  .catback { width: 30px; height: 30px; border: 0; border-radius: 50%; background: var(--fill); color: var(--ink); font-size: 20px; line-height: 1; cursor: pointer; padding: 0 0 2px; }
-  .cattrail { font-size: 13px; color: var(--ink2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .catback { flex: none; width: 31px; height: 31px; border: 0; border-radius: 50%; background: var(--fill); color: var(--ink); font-size: 20px; line-height: 1; cursor: pointer; padding: 0 0 2px; }
   /* The header stays on top only where it fits in one row; on a narrow screen it would eat the page */
   @media (min-width: 980px) { .appbar { position: sticky; top: 0; z-index: 20; } }
 
@@ -1054,14 +1052,11 @@
         <sc-if value="{{ showCats }}" hint-placeholder-val="{{ true }}">
         <div style="margin-top:14px"><span class="lbl">Категория{{ catPicked }}</span>
           <!-- one level at a time: a category with subcategories (marked ›) opens
-               its own list, headed by the category itself -->
-          <sc-if value="{{ catInside }}" hint-placeholder-val="{{ false }}">
-            <div class="catnav">
+               its own list, headed by the back arrow and the category itself -->
+          <div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px">
+            <sc-if value="{{ catInside }}" hint-placeholder-val="{{ false }}">
               <button class="catback" onClick="{{ catBack }}" aria-label="Назад">‹</button>
-              <span class="cattrail">{{ catTrail }}</span>
-            </div>
-          </sc-if>
-          <div style="display:flex;flex-wrap:wrap;gap:8px">
+            </sc-if>
             <sc-for list="{{ catChips }}" as="c" hint-placeholder-count="6">
               <span class="chip" data-on="{{ c.on }}" data-self="{{ c.self }}" onClick="{{ c.pick }}">{{ c.name }}<sc-if value="{{ c.opens }}" hint-placeholder-val="{{ false }}"><span class="chip-more">›</span></sc-if></span>
             </sc-for>
@@ -2349,8 +2344,6 @@ class Component extends DCLogic {
     const catChips = navCat
       ? [catChip(navCat, true)].concat(kidsOf(navCat.id).map(c => catChip(c, false)))
       : kidsOf(null).filter(c => c.kind === opKind).map(c => catChip(c, false));
-    const catTrail = [];
-    for (let c = navCat; c; c = c.parent == null ? null : byId(c.parent)) catTrail.unshift(c.name);
 
     const descendantIds = id => kidsOf(id).reduce((acc, k) => acc.concat([k.id], descendantIds(k.id)), []);
     const blocked = st.catId === null ? [] : [st.catId].concat(descendantIds(st.catId));
@@ -2642,7 +2635,7 @@ class Component extends DCLogic {
       note: st.note, onNote: e => this.set("note", e.target.value),
       acc: st.acc, onAcc: e => this.set("acc", e.target.value),
       catChips, catPicked: st.cat ? " — " + catPath(st.cat) : "",
-      catInside: !!navCat, catTrail: catTrail.join(" › "),
+      catInside: !!navCat,
       catBack: () => this.setState({ catNav: navCat && navCat.parent != null ? navCat.parent : null }),
       days: this.calendarCells(),
       catDialog: st.dialog === "cat",
