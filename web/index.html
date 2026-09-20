@@ -1523,9 +1523,7 @@
             </select>
           </div>
         </div>
-        <div style="margin-top:14px"><span class="lbl">{{ accBalanceLabel }}</span><input class="inp" value="{{ accBalance }}" onChange="{{ onAccBalance }}" placeholder="0">
-          <div style="font-size:12px;color:var(--ink3);margin-top:6px">{{ accConvertHint }}</div>
-        </div>
+        <div style="font-size:12px;color:var(--ink3);margin-top:12px">{{ accConvertHint }}</div>
         <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px">
           <sc-if value="{{ accCanDelete }}" hint-placeholder-val="{{ false }}">
             <button class="btn btn-t" style="margin-right:auto;color:var(--neg)" onClick="{{ delAcc }}">Удалить</button>
@@ -1785,14 +1783,14 @@ class Component extends DCLogic {
     filter: "all", query: "",
     type: "expense", amount: "", note: "", cat: "", catNav: null, editTx: null, acc: "",
     date: TODAY, calY: TODAY_Y, calM: TODAY_M,
-    accName: "", accKind: "Карта", accBalance: "", accCur: "RUB", accTo: "", receive: "", receiveTouched: false,
+    accName: "", accKind: "Карта", accCur: "RUB", accTo: "", receive: "", receiveTouched: false,
     catId: null, catName: "", catParent: "", catKind: "expense", catTab: "expense",
     anaPreset: "month", anaFrom: THIS_MONTH + "-01", anaTo: TODAY,
     anaGran: "day", anaHover: null, anaCats: null, anaCatGran: "week", anaCatHover: null,
     dataText: "", dataMsg: "", dataAdminMsg: "",
     theme: initialTheme, cents: initialCents,
     repMode: "detail", repFrom: THIS_MONTH + "-01", repTo: TODAY, repPreset: "month", repView: "bars", repPath: [], repList: null,
-    expPreset: "all", expFrom: "", expTo: "", expTypes: { expense: true, income: true, transfer: true, opening: true }, expMsg: "",
+    expPreset: "all", expFrom: "", expTo: "", expTypes: { expense: true, income: true, transfer: true }, expMsg: "",
     cats: [], accounts: [], txs: [], crypto: [], rates: {},
     crOpen: null, crPortId: null, crPortName: "", crPortPlace: "",
     crAssetId: null, crAssetPort: null, crAssetCoin: "BTC", crAssetAmount: "", crAssetInvested: "",
@@ -2035,7 +2033,7 @@ class Component extends DCLogic {
   needAccount() {
     if (this.state.accounts.length) return false;
     window.alert("Сначала добавьте счёт — операции записываются на счёт.");
-    this.setState({ dialog: "acc", editIndex: null, accName: "", accKind: "Карта", accBalance: "", accCur: "RUB" });
+    this.setState({ dialog: "acc", editIndex: null, accName: "", accKind: "Карта", accCur: "RUB" });
     return true;
   }
 
@@ -2126,9 +2124,11 @@ class Component extends DCLogic {
     return rows.concat(openings).sort((x, y) => (x.d < y.d ? 1 : x.d > y.d ? -1 : 0));
   }
   // The export as set up in Settings: the period (empty ends are open) and kinds.
+  // Opening balances aren't a kind to pick: without them an import wouldn't bring
+  // the accounts' balances back.
   exportRows() {
     const { expFrom: from, expTo: to, expTypes: types } = this.state;
-    return this.csvRows().filter(r => types[r.kind] && (!from || r.d >= from) && (!to || r.d <= to));
+    return this.csvRows().filter(r => (r.kind === "opening" || types[r.kind]) && (!from || r.d >= from) && (!to || r.d <= to));
   }
   toCsv(rows) {
     return [CSV_HEADER].concat(rows.map(r => r.cells)).map(r => r.map(csvCell).join(";")).join("\n");
@@ -2808,7 +2808,7 @@ class Component extends DCLogic {
       balanceLabel: this.money(a.balance, a.cur),
       rubLabel: a.cur === "RUB" ? "" : "≈ " + this.money(this.toRub(a.balance, a.cur)),
       color: a.balance < 0 ? "var(--neg)" : "var(--ink)",
-      edit: () => this.setState({ dialog: "acc", editIndex: i, accName: a.name, accKind: a.kind, accBalance: groupDigits(a.balance, true), accCur: a.cur || "RUB" })
+      edit: () => this.setState({ dialog: "acc", editIndex: i, accName: a.name, accKind: a.kind, accCur: a.cur || "RUB" })
     }));
     const rub = a => this.toRub(a.balance, a.cur);
     const total = st.accounts.reduce((s, a) => s + rub(a), 0);
@@ -3263,8 +3263,9 @@ class Component extends DCLogic {
       // export in Settings: period, kinds of operations, a five-row preview, the full file
       ...(() => {
         const rows = st.screen === "settings" ? this.exportRows() : [];
-        const first = rows.length ? (st.expFrom || rows[rows.length - 1].d) : "";
-        const last = rows.length ? (st.expTo || rows[0].d) : "";
+        const ops = rows.filter(r => r.kind !== "opening"); // счётчик — про операции
+        const first = ops.length ? (st.expFrom || ops[ops.length - 1].d) : "";
+        const last = ops.length ? (st.expTo || ops[0].d) : "";
         return {
           expPreset: st.expPreset,
           expPresets: [{ key: "all", value: "all", label: "Весь период" }]
@@ -3279,7 +3280,7 @@ class Component extends DCLogic {
           expFrom: st.expFrom, expTo: st.expTo,
           onExpFrom: e => this.setState({ expFrom: e.target.value, expPreset: "custom", expMsg: "" }),
           onExpTo: e => this.setState({ expTo: e.target.value, expPreset: "custom", expMsg: "" }),
-          expKinds: [["expense", "Расходы"], ["income", "Доходы"], ["transfer", "Переводы"], ["opening", "Начальные остатки"]].map(([k, label]) => ({
+          expKinds: [["expense", "Расходы"], ["income", "Доходы"], ["transfer", "Переводы"]].map(([k, label]) => ({
             key: k, label, on: st.expTypes[k] ? "1" : "0",
             // at least one kind stays selected
             toggle: () => this.setState(s => {
@@ -3288,9 +3289,11 @@ class Component extends DCLogic {
             })
           })),
           expHasRows: rows.length > 0,
-          expSummary: rows.length
-            ? pluralRu(rows.length, "операция", "операции", "операций") + " · " + this.rangeLabel(first, last)
-            : "За выбранный период нет операций выбранных типов",
+          expSummary: ops.length
+            ? pluralRu(ops.length, "операция", "операции", "операций") + " · " + this.rangeLabel(first, last)
+              + (ops.length < rows.length ? " · и начальные остатки счетов" : "")
+            : rows.length ? "Только начальные остатки счетов"
+              : "За выбранный период нет операций выбранных типов",
           expPreviewNote: rows.length > 5 ? "пример — первые 5 строк, в файле все" : "",
           expHead: CSV_HEADER.map((v, i) => ({ key: "h" + i, v })),
           expPreview: rows.slice(0, 5).map((r, i) => ({ key: "r" + i, cells: r.cells.map((v, j) => ({ key: i + "-" + j, v })) })),
@@ -3307,7 +3310,7 @@ class Component extends DCLogic {
         if (this.needAccount()) return;
         this.setState(s => ({ dialog: "op", catNav: null, ...(s.editTx ? { amount: "", note: "", receive: "", receiveTouched: false } : {}), editTx: null, cat: s.cat || this.firstLeaf(s.type === "income" ? "income" : "expense") }));
       },
-      openAcc: () => this.setState({ dialog: "acc", editIndex: null, accName: "", accKind: "Карта", accBalance: "", accCur: "RUB" }),
+      openAcc: () => this.setState({ dialog: "acc", editIndex: null, accName: "", accKind: "Карта", accCur: "RUB" }),
       close: () => this.setState({ dialog: null }),
       stop: e => e.stopPropagation(),
       expOn: st.type === "expense" ? "1" : "0", incOn: st.type === "income" ? "1" : "0",
@@ -3490,7 +3493,7 @@ class Component extends DCLogic {
           amountLabel: this.money(a.balance, a.cur), priceLabel: this.usdt(price) + " за 1 " + (CUR[a.cur] ? CUR[a.cur].sym : a.cur),
           valueLabel: this.usdt(crAccValue(a)),
           edit: () => this.setState({ dialog: "acc", editIndex: st.accounts.indexOf(a), accName: a.name,
-            accKind: a.kind, accBalance: groupDigits(plainNum(a.balance), true), accCur: a.cur || "RUB" })
+            accKind: a.kind, accCur: a.cur || "RUB" })
         };
       }),
       crPortDialog: st.dialog === "crport",
@@ -3585,7 +3588,6 @@ class Component extends DCLogic {
       accDialogTitle: st.editIndex === null ? "Новый счёт" : "Изменить счёт",
       accName: st.accName, onAccName: e => this.set("accName", e.target.value),
       accKind: st.accKind, onAccKind: e => this.set("accKind", e.target.value),
-      accBalance: st.accBalance, onAccBalance: e => this.setNumber("accBalance", e, true),
       accCur: st.accCur, onAccCur: e => this.set("accCur", e.target.value),
       rateRows: Object.keys(CUR).filter(k => k !== "RUB").map(k => ({
         key: k, label: CUR[k].label,
@@ -3601,11 +3603,14 @@ class Component extends DCLogic {
       })(),
       refreshRates: () => { if (st.online) this.api("POST", "rates/refresh", {}).catch(() => {}); },
       currencyOptions: Object.keys(CUR).map(k => ({ key: k, value: k, label: CUR[k].label })),
-      accBalanceLabel: "Баланс, " + CUR[st.accCur].sym,
+      // Баланс не редактируется: он складывается из операций, а новый счёт открывается с нулём
       accConvertHint: (() => {
-        if (st.accCur === "RUB") return "Итоги считаются в рублях";
-        const v = parseFloat(String(st.accBalance).replace(/[^\d.,-]/g, "").replace(",", ".")) || 0;
-        return "Курс " + this.fmt(1, st.accCur) + " ≈ " + this.money(CUR[st.accCur].rate) + (v ? " · в сводке ≈ " + this.money(this.toRub(v, st.accCur)) : "");
+        const rate = st.accCur === "RUB" ? "Итоги считаются в рублях"
+          : "Курс " + this.fmt(1, st.accCur) + " ≈ " + this.money(CUR[st.accCur].rate);
+        const acc = st.editIndex === null ? null : st.accounts[st.editIndex];
+        return rate + (acc
+          ? " · сейчас на счёте " + this.money(acc.balance, acc.cur) + ", баланс меняют операции"
+          : " · счёт открывается с нулём, дальше баланс считают операции");
       })(),
       accCanDelete: st.editIndex !== null,
       delAcc: () => {
@@ -3618,7 +3623,8 @@ class Component extends DCLogic {
       saveAcc: () => {
         const name = st.accName.trim();
         if (!name) { this.setState({ dialog: null }); return; }
-        const balance = parseFloat(String(st.accBalance).replace(/[^\d.,-]/g, "").replace(",", ".")) || 0;
+        // новый счёт открывается с нулём, у существующего баланс остаётся как есть
+        const balance = st.editIndex === null ? 0 : st.accounts[st.editIndex].balance;
         if (st.online) {
           const body = { name, kind: st.accKind, balance, cur: st.accCur };
           const req = st.editIndex === null
