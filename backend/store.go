@@ -22,7 +22,17 @@ const transferCategory = "Перевод"
 // maxCategoryDepth limits nesting to four levels (depth 0..3), as the page does.
 const maxCategoryDepth = 3
 
-var currencies = map[string]bool{"RUB": true, "USD": true, "EUR": true, "USDT": true, "BTC": true, "ETH": true, "TON": true}
+// Валюта счёта: рубли, доллары, евро и любая монета из coinIDs — счёт в монете
+// держит купленное, а сделка по нему записывается переводом.
+var currencies = accountCurrencies()
+
+func accountCurrencies() map[string]bool {
+	out := map[string]bool{"RUB": true, "USD": true, "EUR": true}
+	for code := range coinIDs {
+		out[code] = true
+	}
+	return out
+}
 
 // defaultCategories are copied to every new user.
 var defaultCategories = []struct{ name, kind string }{
