@@ -1781,7 +1781,8 @@ const DEMO = {
 
 class Component extends DCLogic {
   state = {
-    screen: initialScreen, dialog: null, editIndex: null, groupBy: "none", opsY: TODAY_Y, opsM: TODAY_M, opsDate: null,
+    // операции открываются на сегодня; «весь месяц» рядом с датой снимает выбор дня
+    screen: initialScreen, dialog: null, editIndex: null, groupBy: "none", opsY: TODAY_Y, opsM: TODAY_M, opsDate: TODAY,
     moreOpen: false, opsCalOpen: false, opsSearch: false, assetCur: "RUB",
     filter: "all", query: "",
     type: "expense", amount: "", note: "", cat: "", catNav: null, editTx: null, acc: "",
@@ -1805,8 +1806,6 @@ class Component extends DCLogic {
   componentDidMount() {
     // a system theme change repaints the charts that pick their slots by theme
     if (window.matchMedia) matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => this.forceUpdate());
-    // a phone has no calendar next to the list: operations open on today
-    if (isNarrow()) this.setState({ opsDate: TODAY });
     // Google sign-in failures come back as ?auth_error=<message>
     const authError = new URLSearchParams(location.search).get("auth_error");
     if (authError) {
@@ -3159,7 +3158,9 @@ class Component extends DCLogic {
         if (st.opsSearch || st.query) { this.setState({ opsSearch: false, query: "" }); return; }
         this.setState({ opsSearch: true }, () => { const el = document.querySelector(".ops-search"); if (el) el.focus(); });
       },
-      noTxsHint: isNarrow() ? "Нажмите +, чтобы добавить." : "Нажмите на дату в календаре, чтобы добавить первую.",
+      noTxsHint: isNarrow() ? "Нажмите +, чтобы добавить."
+        : st.opsDate ? "Добавьте её кнопкой над списком." // день уже выбран — кнопка «Добавить за …» рядом
+        : "Нажмите на дату в календаре, чтобы добавить первую.",
       periodLabel: st.opsDate
         ? Number(st.opsDate.split("-")[2]) + " " + months[Number(st.opsDate.split("-")[1]) - 1]
         : monthsNom[st.opsM] + " " + st.opsY,
