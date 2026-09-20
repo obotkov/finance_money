@@ -104,9 +104,9 @@
   .chip[data-on="2"] { box-shadow: inset 0 0 0 1.5px var(--accent); }
   .chip[data-self="1"] { font-weight: 600; }
   .chip-more { margin-left: 6px; opacity: .55; font-weight: 600; }
-  /* значок монеты: кружок её цвета с тикером — картинки из сети не нужны */
+  /* значок монеты: логотип из web/coins, а если файла нет — кружок её цвета с тикером */
   .coin { display: inline-flex; align-items: center; justify-content: center; flex: none;
-    width: 22px; height: 22px; border-radius: 50%; color: #fff; font-weight: 700; line-height: 1; font-size: 11px; }
+    width: 22px; height: 22px; border-radius: 50%; overflow: hidden; color: #fff; font-weight: 700; line-height: 1; font-size: 11px; }
   .coin[data-len="1"] { font-size: 13px; }
   .coin[data-len="3"] { font-size: 8.5px; }
   .coin[data-len="4"] { font-size: 7px; letter-spacing: -.2px; }
@@ -618,7 +618,7 @@
                   </div>
                   <sc-for list="{{ g.items }}" as="a" hint-placeholder-count="2">
                     <div class="rowline accrow" style="display:flex;align-items:center;gap:12px;padding:14px 16px;margin:0 4px;border-radius:14px" onClick="{{ a.edit }}">
-                      <span class="coin" data-len="{{ a.iconLen }}" style="background:{{ a.iconBg }}">{{ a.icon }}</span>
+                      <span class="coin" data-len="{{ a.iconLen }}" style="{{ a.iconStyle }}">{{ a.icon }}</span>
                       <div style="flex:1;min-width:0">
                         <div style="font-size:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ a.name }}</div>
                         <div style="font-size:12px;color:var(--ink3)">{{ a.rubLabel }}</div>
@@ -635,7 +635,7 @@
             <div class="card" style="padding:6px 4px 16px">
               <sc-for list="{{ accounts }}" as="a" hint-placeholder-count="5">
                 <div class="rowline accrow" style="display:flex;align-items:center;gap:12px;padding:16px;margin:0 4px;border-radius:14px" onClick="{{ a.edit }}">
-                  <span class="coin" data-len="{{ a.iconLen }}" style="background:{{ a.iconBg }}">{{ a.icon }}</span>
+                  <span class="coin" data-len="{{ a.iconLen }}" style="{{ a.iconStyle }}">{{ a.icon }}</span>
                   <div style="flex:1;min-width:0">
                     <div style="font-size:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ a.name }}</div>
                     <div style="font-size:12px;color:var(--ink3)">{{ a.kind }}</div>
@@ -783,7 +783,7 @@
               <sc-for list="{{ crAccounts }}" as="a" hint-placeholder-count="2">
                 <div class="rowline craccrow" title="Открыть счёт" onClick="{{ a.open }}" style="cursor:pointer;display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) 16px;align-items:center;gap:12px;padding:12px 14px;margin:0 4px;border-radius:12px">
                   <span style="min-width:0;display:flex;align-items:center;gap:10px">
-                    <span class="coin" data-len="{{ a.iconLen }}" style="background:{{ a.iconBg }}">{{ a.icon }}</span>
+                    <span class="coin" data-len="{{ a.iconLen }}" style="{{ a.iconStyle }}">{{ a.icon }}</span>
                     <span style="min-width:0">
                       <span style="display:block;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ a.name }}</span>
                       <span style="display:block;font-size:12px;color:var(--ink3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ a.cur }}</span>
@@ -810,7 +810,7 @@
               <sc-for list="{{ crAssets }}" as="a" hint-placeholder-count="3">
                 <div class="rowline crarow" title="Изменить монету" onClick="{{ a.edit }}" style="cursor:pointer;display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) 26px;align-items:center;gap:12px;padding:12px 14px;margin:0 4px;border-radius:12px">
                   <span style="min-width:0;display:flex;align-items:center;gap:10px">
-                    <span class="coin" data-len="{{ a.iconLen }}" style="background:{{ a.iconBg }}">{{ a.icon }}</span>
+                    <span class="coin" data-len="{{ a.iconLen }}" style="{{ a.iconStyle }}">{{ a.icon }}</span>
                     <span style="min-width:0">
                       <span style="display:block;font-size:15px">{{ a.coin }}</span>
                       <span style="display:block;font-size:12px;color:var(--ink3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ a.name }}</span>
@@ -852,7 +852,7 @@
               </div>
               <div class="crarow" style="display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) 26px;align-items:center;gap:12px;padding:12px 14px;margin:0 4px">
                 <span style="min-width:0;display:flex;align-items:center;gap:10px">
-                  <span class="coin" data-len="{{ crAccIconLen }}" style="background:{{ crAccIconBg }}">{{ crAccIcon }}</span>
+                  <span class="coin" data-len="{{ crAccIconLen }}" style="{{ crAccIconStyle }}">{{ crAccIcon }}</span>
                   <span style="min-width:0">
                     <span style="display:block;font-size:15px">{{ crAccCoin }}</span>
                     <span style="display:block;font-size:12px;color:var(--ink3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ crAccCoinName }}</span>
@@ -1315,7 +1315,7 @@
               </div>
               <sc-for list="{{ rateRows }}" as="r" hint-placeholder-count="6">
                 <div class="num" style="display:flex;align-items:center;gap:10px;font-size:14px">
-                  <span class="coin" data-len="{{ r.iconLen }}" style="background:{{ r.iconBg }}">{{ r.icon }}</span>
+                  <span class="coin" data-len="{{ r.iconLen }}" style="{{ r.iconStyle }}">{{ r.icon }}</span>
                   <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ r.label }}</span>
                   <span style="text-align:right;white-space:nowrap">
                     <span style="display:block">{{ r.value }}</span>
@@ -1596,7 +1596,7 @@
             <sc-if value="{{ dealHasChips }}" hint-placeholder-val="{{ false }}">
             <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px">
               <sc-for list="{{ dealChips }}" as="c" hint-placeholder-count="3">
-                <span class="chip" data-on="{{ c.on }}" onClick="{{ c.pick }}"><span class="coin" data-len="{{ c.iconLen }}" style="background:{{ c.iconBg }}">{{ c.icon }}</span>{{ c.label }}</span>
+                <span class="chip" data-on="{{ c.on }}" onClick="{{ c.pick }}"><span class="coin" data-len="{{ c.iconLen }}" style="{{ c.iconStyle }}">{{ c.icon }}</span>{{ c.label }}</span>
               </sc-for>
             </div>
             </sc-if>
@@ -1841,10 +1841,18 @@ const COIN_COLOR = {
   SUI: "#4da2ff", NOT: "#9aa0a6", MATIC: "#8247e5",
   RUB: "#8b8b8b", USD: "#3f8a5c", EUR: "#3b6fd4"
 };
-// Значок валюты для строки списка: кружок, его цвет и что в нём написано.
+// Логотипы монет лежат файлами в web/coins — тут перечислены те, для которых файл есть.
+// Положили новый svg — допишите сюда код монеты, и значок подхватится во всех списках.
+const COIN_LOGO = ["BTC", "ETH", "USDT", "USDC", "TON", "SOL", "BNB", "XRP", "ADA",
+  "DOGE", "TRX", "AVAX", "LINK", "DOT", "LTC", "SUI", "MATIC"];
+// Значок валюты для строки списка: логотип монеты, а без файла — кружок её цвета с тикером.
 const curBadge = code => {
+  const bg = COIN_COLOR[code] || "#8b8b8b";
+  if (COIN_LOGO.indexOf(code) >= 0) {
+    return { icon: "", iconLen: "1", iconStyle: "background:" + bg + " url(coins/" + code.toLowerCase() + ".svg) center/cover no-repeat" };
+  }
   const text = COIN[code] ? code : CUR[code] ? CUR[code].sym : code;
-  return { icon: text, iconBg: COIN_COLOR[code] || "#8b8b8b", iconLen: String(Math.min(text.length, 4)) };
+  return { icon: text, iconLen: String(Math.min(text.length, 4)), iconStyle: "background:" + bg };
 };
 // Любая монета годится в валюту счёта: курс приходит с сервера, до него — цена из COINS
 COINS.forEach(([code, name, rub]) => { if (!CUR[code]) CUR[code] = { sym: code, rate: rub, label: name + " · " + code }; });
@@ -3856,7 +3864,7 @@ class Component extends DCLogic {
       }),
       // ---- внутри крипто-счёта: его монета и движение средств ----
       crAccIcon: crOpenAcc ? curBadge(crOpenAcc.cur).icon : "",
-      crAccIconBg: crOpenAcc ? curBadge(crOpenAcc.cur).iconBg : "",
+      crAccIconStyle: crOpenAcc ? curBadge(crOpenAcc.cur).iconStyle : "",
       crAccIconLen: crOpenAcc ? curBadge(crOpenAcc.cur).iconLen : "1",
       crAccCoin: crOpenAcc ? crOpenAcc.cur : "",
       crAccCoinName: crOpenAcc ? (COIN[crOpenAcc.cur] ? COIN[crOpenAcc.cur].name : CUR[crOpenAcc.cur] ? CUR[crOpenAcc.cur].label : crOpenAcc.cur) : "",
