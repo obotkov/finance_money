@@ -639,7 +639,7 @@
               <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
                 <div class="big" style="font-size:17px">Где лежат деньги</div>
                 <div class="seg seg-cur" style="margin-left:auto">
-                  <sc-for list="{{ assetCurs }}" as="c" hint-placeholder-count="3"><span class="segopt" data-on="{{ c.on }}" onClick="{{ c.pick }}" title="{{ c.title }}">{{ c.sym }}</span></sc-for>
+                  <sc-for list="{{ assetCurs }}" as="c" hint-placeholder-count="4"><span class="segopt" data-on="{{ c.on }}" onClick="{{ c.pick }}" title="{{ c.title }}">{{ c.sym }}</span></sc-for>
                 </div>
               </div>
               <!-- the centre label is HTML over the SVG: the canvas runtime can't put {{ }} text inside SVG <text> -->
@@ -2874,6 +2874,12 @@ class Component extends DCLogic {
     // the card shows the shares in the currency picked on it, converted from roubles at the same rates as everywhere else
     const assetCur = CUR[st.assetCur] ? st.assetCur : "RUB";
     const inAssetCur = v => v / CUR[assetCur].rate;
+    // USDT здесь — денежная единица, а не монета с шестью знаками: округление как у остальных сумм
+    const assetLabel = v => {
+      if (assetCur !== "USDT") return this.money(inAssetCur(v), assetCur);
+      const n = inAssetCur(v);
+      return n.toLocaleString("ru-RU", { maximumFractionDigits: st.cents ? 2 : 0 }).replace(/\u00a0/g, " ") + " USDT";
+    };
     const RING = 2 * Math.PI * 48, GAP = 1.4; // circumference at r=48; ~2px gap at 176px
     const shareKinds = order.filter(k => kinds[k] > 0).concat(Object.keys(kinds).filter(k => order.indexOf(k) === -1));
     let arc = 0;
@@ -2883,7 +2889,7 @@ class Component extends DCLogic {
       const pct = Math.round(frac * 100) + " %";
       const share = {
         key: k, kind: k, color: KIND_COLORS[k] || KIND_COLORS.other,
-        pctLabel: pct, amountLabel: this.money(inAssetCur(kinds[k]), assetCur),
+        pctLabel: pct, amountLabel: assetLabel(kinds[k]),
         // hovering a segment or its legend row shows it in the centre and dims the rest
         opacity: st.donutHover && st.donutHover !== k ? "0.35" : "1",
         enter: () => this.set("donutHover", k), leave: () => this.set("donutHover", null),
@@ -3107,9 +3113,9 @@ class Component extends DCLogic {
       hasAccounts: st.accounts.length > 0, hasShares: accountShares.length > 0,
       ...(() => {
         const h = accountShares.find(s => s.kind === st.donutHover);
-        return { donutLabel: h ? h.kind : "активы", donutValue: h ? h.amountLabel : this.money(inAssetCur(posTotal), assetCur), donutPct: h ? h.pctLabel : "" };
+        return { donutLabel: h ? h.kind : "активы", donutValue: h ? h.amountLabel : assetLabel(posTotal), donutPct: h ? h.pctLabel : "" };
       })(),
-      assetCurs: ["RUB", "USD", "EUR"].map(code => ({
+      assetCurs: ["RUB", "USD", "EUR", "USDT"].map(code => ({
         key: code, sym: CUR[code].sym, title: CUR[code].label,
         on: assetCur === code ? "1" : "0", pick: () => this.set("assetCur", code)
       })),
