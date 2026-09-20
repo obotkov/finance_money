@@ -744,6 +744,28 @@
             </div>
             </sc-if>
 
+            <!-- счета с типом «Криптокошелёк» из раздела «Счета» -->
+            <sc-if value="{{ crHasAccounts }}" hint-placeholder-val="{{ false }}">
+            <div class="card" style="padding:6px 4px 10px">
+              <div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding:12px 18px 8px">
+                <span style="font-size:13px;color:var(--ink2)">Крипто-счета <span style="color:var(--ink3)">— из раздела «Счета»</span></span>
+                <span class="num" style="font-size:13px;font-weight:500;color:var(--ink2);white-space:nowrap">{{ crAccTotalLabel }}</span>
+              </div>
+              <sc-for list="{{ crAccounts }}" as="a" hint-placeholder-count="2">
+                <div class="rowline crarow" title="Изменить счёт" onClick="{{ a.edit }}" style="cursor:pointer;display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) 26px;align-items:center;gap:12px;padding:12px 14px;margin:0 4px;border-radius:12px">
+                  <span style="min-width:0">
+                    <span style="display:block;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ a.name }}</span>
+                    <span style="display:block;font-size:12px;color:var(--ink3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ a.cur }}</span>
+                  </span>
+                  <span class="num" style="text-align:right;font-size:15px;white-space:nowrap">{{ a.amountLabel }}</span>
+                  <span class="num" style="text-align:right;font-size:12px;color:var(--ink3);white-space:nowrap">{{ a.priceLabel }}</span>
+                  <span class="num" style="text-align:right;font-size:16px;font-weight:500;white-space:nowrap">{{ a.valueLabel }}</span>
+                  <span style="color:var(--ink3);font-size:17px;text-align:right">›</span>
+                </div>
+              </sc-for>
+            </div>
+            </sc-if>
+
             <!-- монеты открытого портфеля -->
             <sc-if value="{{ crHasAssets }}" hint-placeholder-val="{{ false }}">
             <div class="card" style="padding:6px 4px">
@@ -3037,6 +3059,13 @@ class Component extends DCLogic {
       return codes.length > 4 ? codes.slice(0, 3).join(" · ") + " и ещё " + (codes.length - 3) : codes.join(" · ");
     };
     const crAssetCount = st.crypto.reduce((n, p) => n + p.assets.length, 0);
+    // Счета с типом «Криптокошелёк» — те же деньги, просто заведены в разделе «Счета».
+    // Они входят в общий баланс, но вложенной суммы у них нет, поэтому прибыль
+    // считается только по портфелям.
+    const crUsdtRub = this.coinRub("USDT");
+    const crAccounts = st.accounts.filter(a => a.kind === "Криптокошелёк");
+    const crAccValue = a => (crUsdtRub > 0 ? this.toRub(a.balance, a.cur) / crUsdtRub : 0);
+    const crAccTotal = crAccounts.reduce((sum, a) => sum + crAccValue(a), 0);
     const crNum = v => parseFloat(String(v).replace(/[^\d.,-]/g, "").replace(",", ".")) || 0;
 
     return {
@@ -3410,16 +3439,20 @@ class Component extends DCLogic {
       crPortPlaceLabel: crOpenPort
         ? (crOpenPort.place || "крипто-портфель") + " · " + pluralRu(crOpenPort.assets.length, "монета", "монеты", "монет")
         : "",
-      crBalance: this.usdt(crScopeValue),
-      crBalanceNote: "≈ " + this.money(crScopeValue * this.coinRub("USDT"))
-        + (crOpenPort || !st.crypto.length ? "" : " · " + pluralRu(crAssetCount, "монета", "монеты", "монет")),
+      crBalance: this.usdt(crScopeValue + (crOpenPort ? 0 : crAccTotal)),
+      crBalanceNote: "≈ " + this.money((crScopeValue + (crOpenPort ? 0 : crAccTotal)) * crUsdtRub)
+        + (crOpenPort ? "" : [crAssetCount ? pluralRu(crAssetCount, "монета", "монеты", "монет") : "",
+          crAccounts.length ? pluralRu(crAccounts.length, "счёт", "счёта", "счетов") : ""]
+          .filter(Boolean).map(t => " · " + t).join("")),
       crInvested: this.usdt(crScopeInvested),
-      crInvestedNote: crOpenPort ? "вложено в этот портфель" : "вложено во все портфели",
+      crInvestedNote: crOpenPort ? "вложено в этот портфель"
+        : crAccounts.length ? "вложено в портфели · у счетов суммы нет" : "вложено во все портфели",
       crPnl: this.usdt(crScopePnl, true),
       crPnlColor: crColor(crScopePnl),
       crPnlTone: crTone(crScopePnl),
       crPnlPct: crPctLabel(crScopePnl, crScopeInvested),
-      crPnlNote: crScopeInvested > 0 ? "к вложенному" : "укажите вложенную сумму",
+      crPnlNote: crScopeInvested <= 0 ? "укажите вложенную сумму"
+        : !crOpenPort && crAccounts.length ? "к вложенному, по портфелям" : "к вложенному",
       crPortfolios: st.crypto.map(p => {
         const value = crValue(p), invested = crInvested(p), pnl = value - invested;
         return {
@@ -3446,6 +3479,18 @@ class Component extends DCLogic {
             this.setState({ crypto: st.crypto.map(p => p.id !== crOpenPort.id ? p
               : { ...p, assets: p.assets.filter(x => x.id !== a.id) }) });
           }
+        };
+      }),
+      crHasAccounts: !crOpenPort && crAccounts.length > 0,
+      crAccTotalLabel: this.usdt(crAccTotal),
+      crAccounts: crAccounts.map(a => {
+        const price = crUsdtRub > 0 ? this.toRub(1, a.cur) / crUsdtRub : 0;
+        return {
+          key: a.name + (a.id || ""), name: a.name, cur: CUR[a.cur] ? CUR[a.cur].label : a.cur,
+          amountLabel: this.money(a.balance, a.cur), priceLabel: this.usdt(price) + " за 1 " + (CUR[a.cur] ? CUR[a.cur].sym : a.cur),
+          valueLabel: this.usdt(crAccValue(a)),
+          edit: () => this.setState({ dialog: "acc", editIndex: st.accounts.indexOf(a), accName: a.name,
+            accKind: a.kind, accBalance: groupDigits(plainNum(a.balance), true), accCur: a.cur || "RUB" })
         };
       }),
       crPortDialog: st.dialog === "crport",
