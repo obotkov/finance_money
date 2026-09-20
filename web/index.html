@@ -144,6 +144,7 @@
     .cols { grid-template-columns: minmax(0, 1fr) !important; }
     .sum-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
     .sum-three { grid-template-columns: minmax(0, 1fr) !important; }
+    .cr-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; gap: 10px !important; }
     .acc-shares { order: -1; } /* in one column the donut comes before the list of accounts */
   }
   /* a tap on a date field opens the picker anyway, so a touch screen gives the icon's room to the date */
@@ -215,6 +216,35 @@
     .txrow > :nth-child(4) { grid-area: 2 / 3; text-align: right; font-size: 12px !important; max-width: 40vw; } /* account */
     .txrow > :nth-child(5) { grid-area: 1 / 3; }             /* amount */
     .txrow > :nth-child(6) { grid-area: 1 / 4 / 3 / 5; }     /* delete */
+
+    /* crypto: the balance across the top, the other two widgets side by side */
+    .cr-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 10px !important; }
+    .cr-kpis > .card { padding: 14px 15px !important; }
+    .cr-kpis > :first-child { grid-column: 1 / -1; }
+    .cr-kpis > :not(:first-child) .sum-n { font-size: 18px !important; }
+    /* the rows: name and balance on the first line, coins and the profit under them */
+    .crhead { display: none !important; }
+    .crrow {
+      grid-template-columns: minmax(0, 1fr) auto 14px !important;
+      column-gap: 10px !important; row-gap: 2px !important; padding: 11px 10px !important;
+    }
+    .crrow > :nth-child(1) { grid-area: 1 / 1; }             /* название */
+    .crrow > :nth-child(2) { grid-area: 2 / 1; font-size: 12px !important; } /* монеты */
+    .crrow > :nth-child(3) { display: none !important; }     /* вложено — видно внутри портфеля */
+    .crrow > :nth-child(4) { grid-area: 1 / 2; }             /* баланс */
+    .crrow > :nth-child(5) { grid-area: 2 / 2; }             /* прибыль */
+    .crrow > :nth-child(6) { grid-area: 1 / 3 / 3 / 4; }     /* стрелка */
+    .crarow {
+      grid-template-columns: minmax(0, 1fr) auto 22px !important;
+      column-gap: 10px !important; row-gap: 2px !important; padding: 11px 10px !important;
+    }
+    .crarow > :nth-child(1) { grid-area: 1 / 1; }            /* монета */
+    .crarow > :nth-child(2) { grid-area: 2 / 1; }            /* количество */
+    .crarow > :nth-child(3) { grid-area: 2 / 2; }            /* цена */
+    .crarow > :nth-child(4) { grid-area: 1 / 2; }            /* стоимость */
+    .crarow > :nth-child(5) { grid-area: 1 / 3 / 3 / 4; }    /* удалить */
+    .cr-head { flex-wrap: wrap; }
+    .cr-head > :last-child { flex: 1 1 100%; }
 
     .acc-edit { display: none !important; } /* the whole row opens the account dialog */
     .rgrid { gap: 6px !important; font-size: 12px !important; }
@@ -635,6 +665,118 @@
                   </div>
                 </sc-for>
               </div>
+            </div>
+            </sc-if>
+          </div>
+          </sc-if>
+
+          <!-- Криптовалюта -->
+          <sc-if value="{{ isCrypto }}" hint-placeholder-val="{{ false }}">
+          <div class="screen" style="padding:22px 28px 32px;display:flex;flex-direction:column;gap:18px">
+            <!-- внутри портфеля: назад к списку, название и его кнопки -->
+            <sc-if value="{{ crInside }}" hint-placeholder-val="{{ false }}">
+            <div class="cr-head" style="display:flex;align-items:center;gap:12px">
+              <button class="btn btn-t" style="padding-left:0" onClick="{{ crBack }}">‹ все портфели</button>
+              <div style="min-width:0">
+                <div class="big" style="font-size:18px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ crPortTitle }}</div>
+                <div style="font-size:12px;color:var(--ink3)">{{ crPortPlaceLabel }}</div>
+              </div>
+              <div style="margin-left:auto;display:flex;gap:10px;flex:none">
+                <button class="btn btn-s" onClick="{{ crEditPort }}">Изменить</button>
+                <button class="btn btn-p" onClick="{{ crAddAsset }}">Добавить монету</button>
+              </div>
+            </div>
+            </sc-if>
+
+            <!-- три виджета: баланс, вложено и прибыль -->
+            <div class="kpis cr-kpis" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px">
+              <div class="card" style="padding:18px 20px">
+                <div style="font-size:13px;color:var(--ink2)">Общий баланс</div>
+                <div class="num big sum-n">{{ crBalance }}</div>
+                <div style="font-size:12px;color:var(--ink3)">{{ crBalanceNote }}</div>
+              </div>
+              <div class="card" style="padding:18px 20px">
+                <div style="font-size:13px;color:var(--ink2)">Вложено</div>
+                <div class="num big sum-n">{{ crInvested }}</div>
+                <div style="font-size:12px;color:var(--ink3)">{{ crInvestedNote }}</div>
+              </div>
+              <div class="card" style="padding:18px 20px">
+                <div style="font-size:13px;color:var(--ink2)">Прибыль и убыток</div>
+                <div class="num big sum-n" style="color:{{ crPnlColor }}">{{ crPnl }}</div>
+                <div style="font-size:12px;color:var(--ink3)"><span class="tone" data-tone="{{ crPnlTone }}">{{ crPnlPct }}</span> {{ crPnlNote }}</div>
+              </div>
+            </div>
+
+            <!-- список портфелей -->
+            <sc-if value="{{ crList }}" hint-placeholder-val="{{ true }}">
+            <div style="display:flex;flex-direction:column;gap:16px">
+              <div class="card" style="padding:6px 4px">
+                <div class="crhead" style="display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1.1fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) 16px;gap:12px;padding:10px 14px 8px;margin:0 4px;font-size:12px;color:var(--ink3);border-bottom:1px solid var(--line)">
+                  <span>Портфель</span><span>Монеты</span><span style="text-align:right">Вложено</span><span style="text-align:right">Баланс</span><span style="text-align:right">Прибыль</span><span></span>
+                </div>
+                <sc-for list="{{ crPortfolios }}" as="p" hint-placeholder-count="3">
+                  <div class="rowline crrow" title="Открыть портфель" onClick="{{ p.open }}" style="cursor:pointer;display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1.1fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) 16px;align-items:center;gap:12px;padding:12px 14px;margin:0 4px;border-radius:12px">
+                    <span style="min-width:0">
+                      <span style="display:block;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ p.name }}</span>
+                      <span style="display:block;font-size:12px;color:var(--ink3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ p.place }}</span>
+                    </span>
+                    <span style="font-size:13px;color:var(--ink2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="{{ p.coins }}">{{ p.coins }}</span>
+                    <span class="num" style="text-align:right;font-size:14px;color:var(--ink3);white-space:nowrap">{{ p.investedLabel }}</span>
+                    <span class="num" style="text-align:right;font-size:16px;font-weight:500;white-space:nowrap">{{ p.balanceLabel }}</span>
+                    <span class="num" style="text-align:right;white-space:nowrap">
+                      <span style="display:block;font-size:14px;color:{{ p.pnlColor }}">{{ p.pnlLabel }}</span>
+                      <span style="display:block;font-size:12px;color:var(--ink3)">{{ p.pnlPct }}</span>
+                    </span>
+                    <span style="color:var(--ink3);font-size:17px;text-align:right">›</span>
+                  </div>
+                </sc-for>
+              </div>
+              <button class="btn btn-p" style="align-self:flex-start" onClick="{{ crAddPort }}">Добавить портфель</button>
+            </div>
+            </sc-if>
+
+            <!-- пустой раздел -->
+            <sc-if value="{{ crEmpty }}" hint-placeholder-val="{{ false }}">
+            <div class="card" style="padding:24px 22px;display:flex;flex-direction:column;align-items:flex-start;gap:12px">
+              <div class="big" style="font-size:17px">Портфелей пока нет</div>
+              <p style="margin:0;font-size:13px;color:var(--ink2);max-width:560px">Добавьте кошелёк или биржу и внесите монеты: сколько их и сколько денег в них вложено. Баланс посчитается по текущим курсам, а прибыль — как разница с вложенным.</p>
+              <button class="btn btn-p" onClick="{{ crAddPort }}">Добавить портфель</button>
+            </div>
+            </sc-if>
+
+            <!-- монеты открытого портфеля -->
+            <sc-if value="{{ crHasAssets }}" hint-placeholder-val="{{ false }}">
+            <div class="card" style="padding:6px 4px">
+              <div class="crhead" style="display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) 26px;gap:12px;padding:10px 14px 8px;margin:0 4px;font-size:12px;color:var(--ink3);border-bottom:1px solid var(--line)">
+                <span>Монета</span><span style="text-align:right">Количество</span><span style="text-align:right">Цена</span><span style="text-align:right">Стоимость</span><span></span>
+              </div>
+              <sc-for list="{{ crAssets }}" as="a" hint-placeholder-count="3">
+                <div class="rowline crarow" title="Изменить монету" onClick="{{ a.edit }}" style="cursor:pointer;display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) 26px;align-items:center;gap:12px;padding:12px 14px;margin:0 4px;border-radius:12px">
+                  <span style="min-width:0">
+                    <span style="display:block;font-size:15px">{{ a.coin }}</span>
+                    <span style="display:block;font-size:12px;color:var(--ink3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ a.name }}</span>
+                  </span>
+                  <span class="num" style="text-align:right;white-space:nowrap">
+                    <span style="display:block;font-size:15px">{{ a.amountLabel }}</span>
+                    <span style="display:block;font-size:12px;color:var(--ink3)">{{ a.investedLabel }}</span>
+                  </span>
+                  <span class="num" style="text-align:right;white-space:nowrap">
+                    <span style="display:block;font-size:14px;color:var(--ink2)">{{ a.priceLabel }}</span>
+                    <span style="display:block;font-size:12px;color:var(--ink3)">{{ a.buyLabel }}</span>
+                  </span>
+                  <span class="num" style="text-align:right;white-space:nowrap">
+                    <span style="display:block;font-size:16px;font-weight:500">{{ a.valueLabel }}</span>
+                    <span style="display:block;font-size:12px;color:{{ a.pnlColor }}">{{ a.pnlLabel }}</span>
+                  </span>
+                  <button class="btn btn-t" style="padding:2px 0;color:var(--ink3);font-size:17px;line-height:1" title="Удалить монету" onClick="{{ a.del }}">×</button>
+                </div>
+              </sc-for>
+            </div>
+            </sc-if>
+            <sc-if value="{{ crNoAssets }}" hint-placeholder-val="{{ false }}">
+            <div class="card" style="padding:24px 22px;display:flex;flex-direction:column;align-items:flex-start;gap:12px">
+              <div style="font-size:14px;color:var(--ink2)">В портфеле пока нет монет.</div>
+              <button class="btn btn-p" onClick="{{ crAddAsset }}">Добавить монету</button>
             </div>
             </sc-if>
           </div>
@@ -1262,6 +1404,53 @@
     </div>
     </sc-if>
 
+    <!-- диалог: крипто-портфель -->
+    <sc-if value="{{ crPortDialog }}" hint-placeholder-val="{{ false }}">
+    <div class="dlg" style="position:fixed;inset:0;display:grid;place-items:start center;padding:24px;overflow:auto;background:var(--overlay);backdrop-filter:blur(6px)" onClick="{{ close }}">
+      <div class="card" style="width:min(440px,100%);max-height:calc(100vh - 48px);overflow-y:auto;padding:24px;border-radius:22px;box-shadow:0 24px 60px rgba(0,0,0,.22)" onClick="{{ stop }}">
+        <div class="big" style="font-size:21px">{{ crPortDialogTitle }}</div>
+        <div style="margin-top:16px"><span class="lbl">Название</span><input class="inp" value="{{ crPortName }}" onChange="{{ onCrPortName }}" placeholder="Например, Binance"></div>
+        <div style="margin-top:14px"><span class="lbl">Где лежит</span><input class="inp" value="{{ crPortPlace }}" onChange="{{ onCrPortPlace }}" placeholder="биржа, холодный кошелёк">
+          <div style="font-size:12px;color:var(--ink3);margin-top:6px">Подпись под названием в списке — можно оставить пустым.</div>
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px">
+          <sc-if value="{{ crPortCanDelete }}" hint-placeholder-val="{{ false }}">
+            <button class="btn btn-t" style="margin-right:auto;color:var(--neg)" onClick="{{ delCrPort }}">Удалить</button>
+          </sc-if>
+          <button class="btn btn-s" onClick="{{ close }}">Отмена</button>
+          <button class="btn btn-p" onClick="{{ saveCrPort }}">Сохранить</button>
+        </div>
+      </div>
+    </div>
+    </sc-if>
+
+    <!-- диалог: монета в портфеле -->
+    <sc-if value="{{ crAssetDialog }}" hint-placeholder-val="{{ false }}">
+    <div class="dlg" style="position:fixed;inset:0;display:grid;place-items:start center;padding:24px;overflow:auto;background:var(--overlay);backdrop-filter:blur(6px)" onClick="{{ close }}">
+      <div class="card" style="width:min(440px,100%);max-height:calc(100vh - 48px);overflow-y:auto;padding:24px;border-radius:22px;box-shadow:0 24px 60px rgba(0,0,0,.22)" onClick="{{ stop }}">
+        <div class="big" style="font-size:21px">{{ crAssetDialogTitle }}</div>
+        <div style="font-size:13px;color:var(--ink3);margin-top:2px">{{ crAssetPortLabel }}</div>
+        <div style="margin-top:16px"><span class="lbl">Монета</span>
+          <select class="inp" value="{{ crAssetCoin }}" onChange="{{ onCrAssetCoin }}">
+            <sc-for list="{{ coinOptions }}" as="o" hint-placeholder-count="10"><option value="{{ o.value }}">{{ o.label }}</option></sc-for>
+          </select>
+        </div>
+        <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px;margin-top:14px">
+          <div><span class="lbl">Количество</span><input class="inp" inputMode="decimal" value="{{ crAssetAmount }}" onChange="{{ onCrAssetAmount }}" placeholder="0"></div>
+          <div><span class="lbl">Вложено, USDT</span><input class="inp" inputMode="decimal" value="{{ crAssetInvested }}" onChange="{{ onCrAssetInvested }}" placeholder="0"></div>
+        </div>
+        <div style="font-size:12px;color:var(--ink3);margin-top:8px">{{ crAssetHint }}</div>
+        <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px">
+          <sc-if value="{{ crAssetCanDelete }}" hint-placeholder-val="{{ false }}">
+            <button class="btn btn-t" style="margin-right:auto;color:var(--neg)" onClick="{{ delCrAsset }}">Удалить</button>
+          </sc-if>
+          <button class="btn btn-s" onClick="{{ close }}">Отмена</button>
+          <button class="btn btn-p" onClick="{{ saveCrAsset }}">Сохранить</button>
+        </div>
+      </div>
+    </div>
+    </sc-if>
+
     <!-- вход и регистрация -->
     <sc-if value="{{ needLogin }}" hint-placeholder-val="{{ false }}">
     <div style="position:fixed;inset:0;z-index:50;display:grid;place-items:center;padding:24px 16px;overflow:auto;background:var(--bg)">
@@ -1404,6 +1593,20 @@ const CUR = {
   TON: { sym: "TON", rate: 480, label: "Toncoin · TON" }
 };
 
+// Coins a crypto portfolio may hold: the name for the list and a rough rouble
+// price for the demo — with a server the prices come from its rates (CoinGecko).
+// The codes match coinIDs in backend/rates.go.
+const COINS = [
+  ["BTC", "Bitcoin", 5400000], ["ETH", "Ethereum", 290000], ["USDT", "Tether", 92],
+  ["USDC", "USD Coin", 92], ["TON", "Toncoin", 480], ["SOL", "Solana", 18000],
+  ["BNB", "BNB", 55000], ["XRP", "XRP", 220], ["ADA", "Cardano", 80],
+  ["DOGE", "Dogecoin", 22], ["TRX", "TRON", 25], ["AVAX", "Avalanche", 3500],
+  ["LINK", "Chainlink", 1900], ["DOT", "Polkadot", 600], ["LTC", "Litecoin", 9000],
+  ["SUI", "Sui", 300], ["NOT", "Notcoin", 0.9], ["MATIC", "Polygon", 40]
+];
+const COIN = {};
+COINS.forEach(([code, name, rub]) => { COIN[code] = { name, rub }; });
+
 // Monthly limits per category (not editable yet)
 const BUDGET_LIMITS = [["Продукты",25000],["Кафе и доставка",12000],["Транспорт",5000],["Жильё и связь",32000],["Здоровье",6000],["Подписки",2500]];
 
@@ -1425,7 +1628,7 @@ const initialCents = (() => {
   try { return localStorage.getItem("cents") === "1"; } catch (_) { return false; }
 })();
 // the open section survives a reload; an unknown or missing value opens the summary
-const SCREENS = ["summary", "ops", "accounts", "budgets", "reports", "charts", "categories", "settings"];
+const SCREENS = ["summary", "ops", "accounts", "crypto", "budgets", "reports", "charts", "categories", "settings"];
 const initialScreen = (() => {
   let s = null;
   try { s = localStorage.getItem("screen"); } catch (_) { /* storage off */ }
@@ -1467,6 +1670,8 @@ const groupDigits = (raw, allowNegative) => {
   if (frac !== null && int === "") int = "0";
   return (neg ? "-" : "") + int.replace(/\B(?=(\d{3})+(?!\d))/g, " ") + (frac === null ? "" : "," + frac);
 };
+// A number as digits, never as "1.2e-7": tiny crypto amounts go into fields too.
+const plainNum = n => (n !== 0 && Math.abs(n) < 1e-4 ? n.toFixed(12).replace(/0+$/, "") : String(n));
 // Columns of the operations CSV, for export here and import on the server (backend/import.go)
 const CSV_HEADER = ["Дата", "Сумма (откуда)", "Счёт (откуда)", "Сумма (куда)", "Счёт (куда)", "Баланс", "Категория", "Описание", "Тип"];
 const csvCell = v => { const s = v == null ? "" : String(v); return /[";\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
@@ -1518,6 +1723,21 @@ const DEMO = {
       { name: "Криптокошелёк", kind: "Криптокошелёк", balance: 0.14, cur: "BTC" },
       { name: "Кредитная карта", kind: "Кредит", balance: -18200, cur: "RUB" }
     ],
+    crypto: [
+      { id: 1, name: "Binance", place: "биржа", assets: [
+        { id: 11, coin: "BTC", amount: 0.062, invested: 3200 },
+        { id: 12, coin: "ETH", amount: 1.4, invested: 3900 },
+        { id: 13, coin: "SOL", amount: 18, invested: 2600 }
+      ] },
+      { id: 2, name: "Ledger", place: "холодный кошелёк", assets: [
+        { id: 21, coin: "BTC", amount: 0.081, invested: 2700 },
+        { id: 22, coin: "USDT", amount: 1500, invested: 1500 }
+      ] },
+      { id: 3, name: "Tonkeeper", place: "кошелёк", assets: [
+        { id: 31, coin: "TON", amount: 640, invested: 2100 },
+        { id: 32, coin: "NOT", amount: 42000, invested: 380 }
+      ] }
+    ],
     txs: [
       { d: "2026-09-14", t: "Пятёрочка, продукты", c: "Продукты", a: "Тинькофф Black", v: -2340 },
       { d: "2026-09-13", t: "Подработка, вёрстка сайта", c: "Подработка", a: "Тинькофф Black", v: 25000 },
@@ -1551,7 +1771,9 @@ class Component extends DCLogic {
     theme: initialTheme, cents: initialCents,
     repMode: "detail", repFrom: THIS_MONTH + "-01", repTo: TODAY, repPreset: "month", repView: "bars", repPath: [], repList: null,
     expPreset: "all", expFrom: "", expTo: "", expTypes: { expense: true, income: true, transfer: true, opening: true }, expMsg: "",
-    cats: [], accounts: [], txs: [], rates: {},
+    cats: [], accounts: [], txs: [], crypto: [], rates: {},
+    crOpen: null, crPortId: null, crPortName: "", crPortPlace: "",
+    crAssetId: null, crAssetPort: null, crAssetCoin: "BTC", crAssetAmount: "", crAssetInvested: "",
     online: false, busy: false, demo: false, donutHover: null,
     user: null, needLogin: false, googleEnabled: false,
     authMode: "login", authEmail: "", authPassword: "", authName: "", authError: ""
@@ -1655,7 +1877,8 @@ class Component extends DCLogic {
       const accTo = names.indexOf(s.accTo) !== -1 && s.accTo !== acc ? s.accTo : (names.find(n => n !== acc) || "");
       const kind = s.type === "income" ? "income" : "expense";
       const cat = cats.some(c => c.name === s.cat && c.kind === kind) ? s.cat : this.firstLeaf(kind, cats);
-      return Object.assign({ user: data.user || null, accounts, cats, txs: data.txs || [], rates, acc, accTo, cat }, extra);
+      return Object.assign({ user: data.user || null, accounts, cats, txs: data.txs || [],
+        crypto: data.crypto || [], rates, acc, accTo, cat }, extra);
     });
   }
 
@@ -1807,6 +2030,25 @@ class Component extends DCLogic {
   }
   money(n, cur) { return (n < 0 ? "−" : "") + this.fmt(n, cur); }
   signed(n, cur) { return (n < 0 ? "−" : "+") + this.fmt(n, cur); }
+
+  // ---- crypto: everything in the section is counted in USDT ----
+  // The price of a coin comes from the same rates as the rest of the app
+  // (roubles per unit); without a server it falls back to the demo price.
+  coinRub(code) {
+    const r = this.state.rates[code];
+    if (r && r.rub > 0) return r.rub;
+    return COIN[code] ? COIN[code].rub : (CUR[code] ? CUR[code].rate : 0);
+  }
+  coinUsdt(code) { const u = this.coinRub("USDT"); return u > 0 ? this.coinRub(code) / u : 0; }
+  usdt(n, sign) {
+    const s = Math.abs(n).toLocaleString("ru-RU", { maximumFractionDigits: 2 }).replace(/\u00a0/g, " ");
+    return (n < 0 ? "−" : sign && n > 0 ? "+" : "") + s + " USDT";
+  }
+  // Small holdings need more digits than big ones: 0,00042 BTC and 42 000 NOT
+  coinAmount(n, coin) {
+    const abs = Math.abs(n);
+    return n.toLocaleString("ru-RU", { maximumFractionDigits: abs < 1 ? 6 : abs < 1000 ? 4 : 2 }).replace(/\u00a0/g, " ") + (coin ? " " + coin : "");
+  }
   // Every operation as a CSV row in the columns of CSV_HEADER, newest first,
   // with its date and kind to filter by. Баланс is what the operation's account
   // held right after it (the source for expenses and transfers, the target for
@@ -2506,6 +2748,9 @@ class Component extends DCLogic {
       summary: ["Сводка", monthNow + " · прошло " + pluralRu(TODAY_D, "день", "дня", "дней")],
       ops: ["Операции", monthNow],
       accounts: ["Счета и активы", st.accounts.length + " счетов · рубли, валюта и крипто"],
+      crypto: ["Криптовалюта", st.crypto.length
+        ? pluralRu(st.crypto.length, "портфель", "портфеля", "портфелей") + " · баланс и прибыль в USDT"
+        : "кошельки и биржи · баланс и прибыль в USDT"],
       budgets: ["Бюджеты и лимиты", monthNow],
       reports: ["Отчёт по тратам и доходам", st.repMode === "months"
         ? monthName(reportKeys[0]).toLowerCase() + " — " + monthName(reportKeys[2]).toLowerCase() + ", по категориям"
@@ -2515,7 +2760,7 @@ class Component extends DCLogic {
       settings: ["Настройки", "учёт и напоминания"]
     };
     const nav = [
-      ["summary","Сводка"],["ops","Операции"],["accounts","Счета"],["budgets","Бюджеты"],
+      ["summary","Сводка"],["ops","Операции"],["accounts","Счета"],["crypto","Криптовалюта"],["budgets","Бюджеты"],
       ["reports","Отчёты"],["charts","Аналитика"],["categories","Категории"],["settings","Настройки"]
     ].map(([id, label]) => ({
       key: id, label, on: st.screen === id ? "1" : "0",
@@ -2772,6 +3017,28 @@ class Component extends DCLogic {
     const dp = st.date.split("-");
     const platform = this.props.platform ?? "Десктоп";
 
+    // ---- Криптовалюта ----
+    // Стоимость монеты — количество по текущему курсу, прибыль — разница с
+    // вложенным. Виджеты считают либо все портфели, либо открытый.
+    const crValue = p => p.assets.reduce((sum, a) => sum + a.amount * this.coinUsdt(a.coin), 0);
+    const crInvested = p => p.assets.reduce((sum, a) => sum + a.invested, 0);
+    const crOpenPort = st.crypto.find(p => p.id === st.crOpen) || null;
+    const crScope = crOpenPort ? [crOpenPort] : st.crypto;
+    const crScopeValue = crScope.reduce((sum, p) => sum + crValue(p), 0);
+    const crScopeInvested = crScope.reduce((sum, p) => sum + crInvested(p), 0);
+    const crScopePnl = crScopeValue - crScopeInvested;
+    const crPctLabel = (pnl, invested) => invested > 0
+      ? (pnl < 0 ? "−" : "+") + Math.abs(pnl / invested * 100).toFixed(1).replace(".", ",") + " %" : "—";
+    const crTone = pnl => (pnl > 0 ? "good" : pnl < 0 ? "bad" : "");
+    const crColor = pnl => (pnl > 0 ? "var(--pos)" : pnl < 0 ? "var(--neg)" : "var(--ink2)");
+    const crCoinsLabel = p => {
+      if (!p.assets.length) return "пусто";
+      const codes = p.assets.map(a => a.coin);
+      return codes.length > 4 ? codes.slice(0, 3).join(" · ") + " и ещё " + (codes.length - 3) : codes.join(" · ");
+    };
+    const crAssetCount = st.crypto.reduce((n, p) => n + p.assets.length, 0);
+    const crNum = v => parseFloat(String(v).replace(/[^\d.,-]/g, "").replace(",", ".")) || 0;
+
     return {
       isDesktop: platform === "Десктоп", isMobile: platform === "Мобильный",
       showForecast: this.props.showForecast ?? true,
@@ -2797,6 +3064,7 @@ class Component extends DCLogic {
       nav, title: titles[st.screen][0],
       subtitle: titles[st.screen][1] + (st.demo ? " · демо-режим: сервер недоступен, изменения не сохраняются" : ""),
       isSummary: st.screen === "summary", isOps: st.screen === "ops", isAccounts: st.screen === "accounts",
+      isCrypto: st.screen === "crypto",
       isBudgets: st.screen === "budgets", isReports: st.screen === "reports", isCharts: st.screen === "charts",
       isCategories: st.screen === "categories", isSettings: st.screen === "settings",
       goOps: e => { e.preventDefault(); this.goScreen("ops"); },
@@ -3130,6 +3398,144 @@ class Component extends DCLogic {
         const dp2 = tx.d.split("-");
         this.setState({ txs, accounts: accs, dialog: null, editTx: null, amount: "", note: "", receive: "", receiveTouched: false,
           opsY: Number(dp2[0]), opsM: Number(dp2[1]) - 1, opsDate: st.opsDate ? tx.d : null });
+      },
+      // ---- Криптовалюта: виджеты, список портфелей и монеты внутри ----
+      crInside: !!crOpenPort,
+      crList: !crOpenPort && st.crypto.length > 0,
+      crEmpty: !crOpenPort && st.crypto.length === 0,
+      crHasAssets: !!crOpenPort && crOpenPort.assets.length > 0,
+      crNoAssets: !!crOpenPort && crOpenPort.assets.length === 0,
+      crBack: () => this.set("crOpen", null),
+      crPortTitle: crOpenPort ? crOpenPort.name : "",
+      crPortPlaceLabel: crOpenPort
+        ? (crOpenPort.place || "крипто-портфель") + " · " + pluralRu(crOpenPort.assets.length, "монета", "монеты", "монет")
+        : "",
+      crBalance: this.usdt(crScopeValue),
+      crBalanceNote: "≈ " + this.money(crScopeValue * this.coinRub("USDT"))
+        + (crOpenPort || !st.crypto.length ? "" : " · " + pluralRu(crAssetCount, "монета", "монеты", "монет")),
+      crInvested: this.usdt(crScopeInvested),
+      crInvestedNote: crOpenPort ? "вложено в этот портфель" : "вложено во все портфели",
+      crPnl: this.usdt(crScopePnl, true),
+      crPnlColor: crColor(crScopePnl),
+      crPnlTone: crTone(crScopePnl),
+      crPnlPct: crPctLabel(crScopePnl, crScopeInvested),
+      crPnlNote: crScopeInvested > 0 ? "к вложенному" : "укажите вложенную сумму",
+      crPortfolios: st.crypto.map(p => {
+        const value = crValue(p), invested = crInvested(p), pnl = value - invested;
+        return {
+          key: p.id, name: p.name, place: p.place || "крипто-портфель", coins: crCoinsLabel(p),
+          investedLabel: this.usdt(invested), balanceLabel: this.usdt(value),
+          pnlLabel: this.usdt(pnl, true), pnlPct: crPctLabel(pnl, invested), pnlColor: crColor(pnl),
+          open: () => this.setState({ crOpen: p.id })
+        };
+      }),
+      crAssets: (crOpenPort ? crOpenPort.assets : []).map(a => {
+        const price = this.coinUsdt(a.coin), value = a.amount * price, pnl = value - a.invested;
+        return {
+          key: a.id, coin: a.coin, name: COIN[a.coin] ? COIN[a.coin].name : a.coin,
+          amountLabel: this.coinAmount(a.amount, a.coin), investedLabel: "вложено " + this.usdt(a.invested),
+          priceLabel: this.usdt(price),
+          buyLabel: a.amount > 0 && a.invested > 0 ? "покупка " + this.usdt(a.invested / a.amount) : "",
+          valueLabel: this.usdt(value), pnlLabel: this.usdt(pnl, true), pnlColor: crColor(pnl),
+          edit: () => this.setState({ dialog: "crasset", crAssetId: a.id, crAssetPort: crOpenPort.id,
+            crAssetCoin: a.coin, crAssetAmount: groupDigits(plainNum(a.amount)), crAssetInvested: groupDigits(plainNum(a.invested)) }),
+          del: e => {
+            e.stopPropagation();
+            if (!window.confirm("Убрать " + a.coin + " из портфеля «" + crOpenPort.name + "»?")) return;
+            if (st.online) { this.api("DELETE", "crypto/assets/" + a.id).catch(() => {}); return; }
+            this.setState({ crypto: st.crypto.map(p => p.id !== crOpenPort.id ? p
+              : { ...p, assets: p.assets.filter(x => x.id !== a.id) }) });
+          }
+        };
+      }),
+      crPortDialog: st.dialog === "crport",
+      crPortDialogTitle: st.crPortId === null ? "Новый портфель" : "Портфель",
+      crPortName: st.crPortName, onCrPortName: e => this.set("crPortName", e.target.value),
+      crPortPlace: st.crPortPlace, onCrPortPlace: e => this.set("crPortPlace", e.target.value),
+      crPortCanDelete: st.crPortId !== null,
+      crAddPort: () => this.setState({ dialog: "crport", crPortId: null, crPortName: "", crPortPlace: "" }),
+      crEditPort: () => {
+        if (!crOpenPort) return;
+        this.setState({ dialog: "crport", crPortId: crOpenPort.id, crPortName: crOpenPort.name, crPortPlace: crOpenPort.place || "" });
+      },
+      delCrPort: () => {
+        const p = st.crypto.find(x => x.id === st.crPortId);
+        if (!p) { this.setState({ dialog: null }); return; }
+        if (!window.confirm("Удалить портфель «" + p.name + "»"
+          + (p.assets.length ? " вместе с монетами в нём (" + p.assets.length + ")?" : "?"))) return;
+        if (st.online) { this.api("DELETE", "crypto/portfolios/" + p.id).then(() => this.setState({ dialog: null, crOpen: null }), () => {}); return; }
+        this.setState({ crypto: st.crypto.filter(x => x.id !== p.id), dialog: null, crOpen: null });
+      },
+      saveCrPort: () => {
+        const name = st.crPortName.trim(), place = st.crPortPlace.trim();
+        if (!name) { this.setState({ dialog: null }); return; }
+        if (st.online) {
+          const body = { name, place };
+          const req = st.crPortId === null
+            ? this.api("POST", "crypto/portfolios", body)
+            : this.api("PUT", "crypto/portfolios/" + st.crPortId, body);
+          req.then(() => this.setState({ dialog: null }), () => {});
+          return;
+        }
+        if (st.crPortId !== null) {
+          this.setState({ crypto: st.crypto.map(p => p.id === st.crPortId ? { ...p, name, place } : p), dialog: null });
+          return;
+        }
+        const id = st.crypto.reduce((m, p) => Math.max(m, p.id), 0) + 1;
+        this.setState({ crypto: st.crypto.concat([{ id, name, place, assets: [] }]), dialog: null, crOpen: id });
+      },
+      crAssetDialog: st.dialog === "crasset",
+      crAssetDialogTitle: st.crAssetId === null ? "Новая монета" : "Монета в портфеле",
+      crAssetPortLabel: (() => {
+        const p = st.crypto.find(x => x.id === st.crAssetPort);
+        return p ? "портфель «" + p.name + "»" : "";
+      })(),
+      coinOptions: COINS.map(([code, name]) => ({ key: code, value: code, label: code + " · " + name })),
+      crAssetCoin: st.crAssetCoin, onCrAssetCoin: e => this.set("crAssetCoin", e.target.value),
+      crAssetAmount: st.crAssetAmount, onCrAssetAmount: e => this.setNumber("crAssetAmount", e),
+      crAssetInvested: st.crAssetInvested, onCrAssetInvested: e => this.setNumber("crAssetInvested", e),
+      crAssetCanDelete: st.crAssetId !== null,
+      crAssetHint: (() => {
+        const amount = crNum(st.crAssetAmount), invested = crNum(st.crAssetInvested);
+        const price = this.coinUsdt(st.crAssetCoin);
+        const base = "Курс: " + this.usdt(price) + " за 1 " + st.crAssetCoin;
+        if (!amount) return base + ". Вложенное — сумма, которую вы за монету отдали.";
+        const value = amount * price;
+        return base + " · сейчас это " + this.usdt(value)
+          + (invested ? ", прибыль " + this.usdt(value - invested, true) : "");
+      })(),
+      crAddAsset: () => {
+        if (!crOpenPort) return;
+        this.setState({ dialog: "crasset", crAssetId: null, crAssetPort: crOpenPort.id,
+          crAssetCoin: "BTC", crAssetAmount: "", crAssetInvested: "" });
+      },
+      delCrAsset: () => {
+        if (st.crAssetId === null) { this.setState({ dialog: null }); return; }
+        if (!window.confirm("Убрать " + st.crAssetCoin + " из портфеля?")) return;
+        if (st.online) { this.api("DELETE", "crypto/assets/" + st.crAssetId).then(() => this.setState({ dialog: null }), () => {}); return; }
+        this.setState({ crypto: st.crypto.map(p => ({ ...p, assets: p.assets.filter(a => a.id !== st.crAssetId) })), dialog: null });
+      },
+      saveCrAsset: () => {
+        const coin = st.crAssetCoin, amount = crNum(st.crAssetAmount), invested = crNum(st.crAssetInvested);
+        const port = st.crypto.find(p => p.id === st.crAssetPort);
+        if (!port) { this.setState({ dialog: null }); return; }
+        if (amount < 0 || invested < 0) { window.alert("Количество и вложенная сумма не могут быть отрицательными."); return; }
+        if (port.assets.some(a => a.coin === coin && a.id !== st.crAssetId)) {
+          window.alert(coin + " уже есть в этом портфеле — откройте монету и измените количество.");
+          return;
+        }
+        if (st.online) {
+          const body = { portfolio: port.id, coin, amount, invested };
+          const req = st.crAssetId === null
+            ? this.api("POST", "crypto/assets", body)
+            : this.api("PUT", "crypto/assets/" + st.crAssetId, body);
+          req.then(() => this.setState({ dialog: null }), () => {});
+          return;
+        }
+        const assets = st.crAssetId === null
+          ? port.assets.concat([{ id: Date.now(), coin, amount, invested }])
+          : port.assets.map(a => a.id === st.crAssetId ? { ...a, coin, amount, invested } : a);
+        this.setState({ crypto: st.crypto.map(p => p.id === port.id ? { ...p, assets } : p), dialog: null });
       },
       accDialogTitle: st.editIndex === null ? "Новый счёт" : "Изменить счёт",
       accName: st.accName, onAccName: e => this.set("accName", e.target.value),

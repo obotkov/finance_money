@@ -75,6 +75,24 @@ type Tx struct {
 	Type   string   `json:"type"`
 }
 
+// CryptoPortfolio is a wallet or an exchange account with coins inside. The
+// page counts its balance from the rates and its profit from Invested.
+type CryptoPortfolio struct {
+	ID     int64         `json:"id"`
+	Name   string        `json:"name"`
+	Place  string        `json:"place"`
+	Assets []CryptoAsset `json:"assets"`
+}
+
+// CryptoAsset is one coin in a portfolio: how much of it there is and how much
+// was put into it, in USDT.
+type CryptoAsset struct {
+	ID       int64   `json:"id"`
+	Coin     string  `json:"coin"`
+	Amount   float64 `json:"amount"`
+	Invested float64 `json:"invested"`
+}
+
 type Rate struct {
 	Rub       float64   `json:"rub"`
 	Source    string    `json:"source"`
@@ -83,11 +101,12 @@ type Rate struct {
 
 // State is everything the page renders for one user.
 type State struct {
-	User     *User           `json:"user,omitempty"`
-	Accounts []Account       `json:"accounts"`
-	Cats     []Category      `json:"cats"`
-	Txs      []Tx            `json:"txs"`
-	Rates    map[string]Rate `json:"rates"`
+	User     *User             `json:"user,omitempty"`
+	Accounts []Account         `json:"accounts"`
+	Cats     []Category        `json:"cats"`
+	Txs      []Tx              `json:"txs"`
+	Crypto   []CryptoPortfolio `json:"crypto"`
+	Rates    map[string]Rate   `json:"rates"`
 }
 
 // APIError is a user-facing error: its message is shown in the page as is.
@@ -230,6 +249,11 @@ func (s *Store) State(ctx context.Context, uid int64) (*State, error) {
 		}
 		return t, err
 	})
+	if err != nil {
+		return nil, err
+	}
+
+	st.Crypto, err = s.cryptoPortfolios(ctx, uid)
 	if err != nil {
 		return nil, err
 	}
@@ -536,14 +560,182 @@ func (in *CategoryInput) validate() error {
 	return nil
 }
 
-// Reset empties the account: every operation, account and category of the user
-// goes, and the default categories come back — the state of a fresh sign-up.
+// ---- crypto portfolios ----
+
+// cryptoPortfolios returns the user's portfolios with their coins inside.
+func (s *Store) cryptoPortfolios(ctx context.Context, uid int64) ([]CryptoPortfolio, error) {
+	rows, _ := s.db.Query(ctx, `SELECT id, name, place FROM crypto_portfolios WHERE user_id = $1 ORDER BY id`, uid)
+	ports, err := pgx.CollectRows(rows, func(r pgx.CollectableRow) (CryptoPortfolio, error) {
+		p := CryptoPortfolio{Assets: []CryptoAsset{}}
+		err := r.Scan(&p.ID, &p.Name, &p.Place)
+		return p, err
+	})
+	if err != nil {
+		return nil, err
+	}
+	at := make(map[int64]int, len(ports))
+	for i, p := range ports {
+		at[p.ID] = i
+	}
+	rows, _ = s.db.Query(ctx, `
+		SELECT portfolio_id, id, coin, amount, invested
+		FROM crypto_assets WHERE user_id = $1 ORDER BY id`, uid)
+	defer rows.Close()
+	for rows.Next() {
+		var portfolio int64
+		var a CryptoAsset
+		if err := rows.Scan(&portfolio, &a.ID, &a.Coin, &a.Amount, &a.Invested); err != nil {
+			return nil, err
+		}
+		if i, ok := at[portfolio]; ok {
+			ports[i].Assets = append(ports[i].Assets, a)
+		}
+	}
+	if ports == nil {
+		ports = []CryptoPortfolio{}
+	}
+	return ports, rows.Err()
+}
+
+type CryptoPortfolioInput struct {
+	Name  string `json:"name"`
+	Place string `json:"place"`
+}
+
+func (in *CryptoPortfolioInput) validate() error {
+	in.Name, in.Place = strings.TrimSpace(in.Name), strings.TrimSpace(in.Place)
+	if in.Name == "" {
+		return badRequest("Укажите название портфеля")
+	}
+	return nil
+}
+
+// CryptoAssetInput carries the portfolio only on creation; an edit keeps the
+// coin where it is.
+type CryptoAssetInput struct {
+	Portfolio int64   `json:"portfolio"`
+	Coin      string  `json:"coin"`
+	Amount    float64 `json:"amount"`
+	Invested  float64 `json:"invested"`
+}
+
+func (in *CryptoAssetInput) validate() error {
+	in.Coin = strings.ToUpper(strings.TrimSpace(in.Coin))
+	if coinIDs[in.Coin] == "" {
+		return badRequest("Неизвестная монета " + in.Coin)
+	}
+	if in.Amount < 0 || in.Invested < 0 {
+		return badRequest("Количество и вложенная сумма не могут быть отрицательными")
+	}
+	return nil
+}
+
+func (s *Store) CreateCryptoPortfolio(ctx context.Context, uid int64, in CryptoPortfolioInput) error {
+	if err := in.validate(); err != nil {
+		return err
+	}
+	_, err := s.db.Exec(ctx, `INSERT INTO crypto_portfolios (user_id, name, place) VALUES ($1, $2, $3)`,
+		uid, in.Name, in.Place)
+	return err
+}
+
+func (s *Store) UpdateCryptoPortfolio(ctx context.Context, uid, id int64, in CryptoPortfolioInput) error {
+	if err := in.validate(); err != nil {
+		return err
+	}
+	tag, err := s.db.Exec(ctx, `
+		UPDATE crypto_portfolios SET name = $3, place = $4 WHERE id = $1 AND user_id = $2`,
+		id, uid, in.Name, in.Place)
+	if err == nil && tag.RowsAffected() == 0 {
+		return notFound("Портфель не найден")
+	}
+	return err
+}
+
+// DeleteCryptoPortfolio removes the portfolio with the coins in it.
+func (s *Store) DeleteCryptoPortfolio(ctx context.Context, uid, id int64) error {
+	tag, err := s.db.Exec(ctx, `DELETE FROM crypto_portfolios WHERE id = $1 AND user_id = $2`, id, uid)
+	if err == nil && tag.RowsAffected() == 0 {
+		return notFound("Портфель не найден")
+	}
+	return err
+}
+
+func (s *Store) CreateCryptoAsset(ctx context.Context, uid int64, in CryptoAssetInput) error {
+	if err := in.validate(); err != nil {
+		return err
+	}
+	var exists bool
+	if err := s.db.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM crypto_portfolios WHERE id = $1 AND user_id = $2)`,
+		in.Portfolio, uid).Scan(&exists); err != nil {
+		return err
+	}
+	if !exists {
+		return notFound("Портфель не найден")
+	}
+	if err := s.coinIsFree(ctx, uid, in.Portfolio, in.Coin, 0); err != nil {
+		return err
+	}
+	_, err := s.db.Exec(ctx, `
+		INSERT INTO crypto_assets (user_id, portfolio_id, coin, amount, invested) VALUES ($1, $2, $3, $4, $5)`,
+		uid, in.Portfolio, in.Coin, in.Amount, in.Invested)
+	return err
+}
+
+func (s *Store) UpdateCryptoAsset(ctx context.Context, uid, id int64, in CryptoAssetInput) error {
+	if err := in.validate(); err != nil {
+		return err
+	}
+	var portfolio int64
+	err := s.db.QueryRow(ctx, `SELECT portfolio_id FROM crypto_assets WHERE id = $1 AND user_id = $2`, id, uid).Scan(&portfolio)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return notFound("Монета не найдена")
+	}
+	if err != nil {
+		return err
+	}
+	if err := s.coinIsFree(ctx, uid, portfolio, in.Coin, id); err != nil {
+		return err
+	}
+	_, err = s.db.Exec(ctx, `
+		UPDATE crypto_assets SET coin = $3, amount = $4, invested = $5 WHERE id = $1 AND user_id = $2`,
+		id, uid, in.Coin, in.Amount, in.Invested)
+	return err
+}
+
+func (s *Store) DeleteCryptoAsset(ctx context.Context, uid, id int64) error {
+	tag, err := s.db.Exec(ctx, `DELETE FROM crypto_assets WHERE id = $1 AND user_id = $2`, id, uid)
+	if err == nil && tag.RowsAffected() == 0 {
+		return notFound("Монета не найдена")
+	}
+	return err
+}
+
+// coinIsFree keeps one row per coin in a portfolio, so its amount is in one
+// place; except is the id of the row being edited (0 when creating).
+func (s *Store) coinIsFree(ctx context.Context, uid, portfolio int64, coin string, except int64) error {
+	var taken bool
+	err := s.db.QueryRow(ctx, `SELECT EXISTS (
+		SELECT 1 FROM crypto_assets WHERE user_id = $1 AND portfolio_id = $2 AND coin = $3 AND id <> $4)`,
+		uid, portfolio, coin, except).Scan(&taken)
+	if err != nil {
+		return err
+	}
+	if taken {
+		return badRequest(coin + " уже есть в этом портфеле — откройте монету и измените количество")
+	}
+	return nil
+}
+
+// Reset empties the account: every operation, account, category and crypto
+// portfolio of the user goes, and the default categories come back — the state of a fresh sign-up.
 func (s *Store) Reset(ctx context.Context, uid int64) error {
 	return pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) error {
 		for _, q := range []string{
 			`DELETE FROM transactions WHERE user_id = $1`,
 			`DELETE FROM accounts WHERE user_id = $1`,
 			`DELETE FROM categories WHERE user_id = $1`,
+			`DELETE FROM crypto_portfolios WHERE user_id = $1`,
 		} {
 			if _, err := tx.Exec(ctx, q, uid); err != nil {
 				return err

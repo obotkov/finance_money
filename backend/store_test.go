@@ -37,3 +37,37 @@ func TestTxInputValidate(t *testing.T) {
 		t.Error("time 25:00 should be rejected")
 	}
 }
+
+func TestCryptoInputValidate(t *testing.T) {
+	cases := []struct {
+		name string
+		in   CryptoAssetInput
+		ok   bool
+	}{
+		{"coin", CryptoAssetInput{Coin: "BTC", Amount: 0.14, Invested: 8000}, true},
+		{"lower case", CryptoAssetInput{Coin: " sol ", Amount: 12}, true},
+		{"unknown coin", CryptoAssetInput{Coin: "XYZ", Amount: 1}, false},
+		{"negative amount", CryptoAssetInput{Coin: "BTC", Amount: -1}, false},
+		{"negative invested", CryptoAssetInput{Coin: "BTC", Invested: -1}, false},
+		{"empty coin", CryptoAssetInput{Amount: 1}, false},
+	}
+	for _, c := range cases {
+		err := c.in.validate()
+		if (err == nil) != c.ok {
+			t.Errorf("%s: err = %v, want ok = %v", c.name, err, c.ok)
+		}
+	}
+	in := CryptoAssetInput{Coin: " sol "}
+	_ = in.validate()
+	if in.Coin != "SOL" {
+		t.Errorf("coin = %q, want SOL", in.Coin)
+	}
+
+	p := CryptoPortfolioInput{Name: "  Binance  ", Place: " биржа "}
+	if err := p.validate(); err != nil || p.Name != "Binance" || p.Place != "биржа" {
+		t.Errorf("portfolio: err = %v, name = %q, place = %q", err, p.Name, p.Place)
+	}
+	if err := (&CryptoPortfolioInput{Name: "   "}).validate(); err == nil {
+		t.Error("a portfolio without a name should be rejected")
+	}
+}

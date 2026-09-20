@@ -26,9 +26,18 @@ const (
 )
 
 // Fiat comes from the Bank of Russia, crypto from CoinGecko (by coin id).
+// coinIDs is also the list of coins a crypto portfolio may hold; coreCoins are
+// the ones an account can be kept in, so a refresh without them is a failure.
 var (
 	fiatCodes = []string{"USD", "EUR"}
-	coinIDs   = map[string]string{"BTC": "bitcoin", "ETH": "ethereum", "TON": "the-open-network", "USDT": "tether"}
+	coreCoins = []string{"BTC", "ETH", "TON", "USDT"}
+	coinIDs   = map[string]string{
+		"BTC": "bitcoin", "ETH": "ethereum", "TON": "the-open-network", "USDT": "tether",
+		"USDC": "usd-coin", "SOL": "solana", "BNB": "binancecoin", "XRP": "ripple",
+		"ADA": "cardano", "DOGE": "dogecoin", "TRX": "tron", "AVAX": "avalanche-2",
+		"LINK": "chainlink", "DOT": "polkadot", "LTC": "litecoin", "SUI": "sui",
+		"NOT": "notcoin", "MATIC": "matic-network",
+	}
 )
 
 type RateUpdater struct {
@@ -178,7 +187,10 @@ func parseCoinGecko(body []byte) (map[string]float64, error) {
 	for code, id := range coinIDs {
 		rub := resp[id]["rub"]
 		if rub <= 0 {
-			return nil, fmt.Errorf("no RUB price for %s", id)
+			if slices.Contains(coreCoins, code) {
+				return nil, fmt.Errorf("no RUB price for %s", id)
+			}
+			continue // a coin CoinGecko didn't price keeps its previous rate
 		}
 		out[code] = rub
 	}

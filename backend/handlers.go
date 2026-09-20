@@ -81,6 +81,14 @@ func (a *API) Handler() http.Handler {
 	mux.HandleFunc("PUT /api/categories/{id}", a.withState(withIDBody(s.UpdateCategory)))
 	mux.HandleFunc("DELETE /api/categories/{id}", a.withState(withID(s.DeleteCategory)))
 
+	mux.HandleFunc("POST /api/crypto/portfolios", a.withState(withBody(s.CreateCryptoPortfolio)))
+	mux.HandleFunc("PUT /api/crypto/portfolios/{id}", a.withState(withIDBody(s.UpdateCryptoPortfolio)))
+	mux.HandleFunc("DELETE /api/crypto/portfolios/{id}", a.withState(withID(s.DeleteCryptoPortfolio)))
+
+	mux.HandleFunc("POST /api/crypto/assets", a.withState(withBody(s.CreateCryptoAsset)))
+	mux.HandleFunc("PUT /api/crypto/assets/{id}", a.withState(withIDBody(s.UpdateCryptoAsset)))
+	mux.HandleFunc("DELETE /api/crypto/assets/{id}", a.withState(withID(s.DeleteCryptoAsset)))
+
 	mux.HandleFunc("POST /api/rates/refresh", a.withState(func(r *http.Request, _ int64) error {
 		if err := a.rates.Refresh(r.Context()); err != nil {
 			return &APIError{http.StatusBadGateway, "Не удалось обновить курсы: " + err.Error()}
