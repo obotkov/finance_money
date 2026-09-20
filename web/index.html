@@ -104,6 +104,13 @@
   .chip[data-on="2"] { box-shadow: inset 0 0 0 1.5px var(--accent); }
   .chip[data-self="1"] { font-weight: 600; }
   .chip-more { margin-left: 6px; opacity: .55; font-weight: 600; }
+  /* значок монеты: кружок её цвета с тикером — картинки из сети не нужны */
+  .coin { display: inline-flex; align-items: center; justify-content: center; flex: none;
+    width: 22px; height: 22px; border-radius: 50%; color: #fff; font-weight: 700; line-height: 1; font-size: 11px; }
+  .coin[data-len="1"] { font-size: 13px; }
+  .coin[data-len="3"] { font-size: 8.5px; }
+  .coin[data-len="4"] { font-size: 7px; letter-spacing: -.2px; }
+  .chip > .coin { margin: -2px 7px -2px -6px; }
   .catback { flex: none; width: 31px; height: 31px; border: 0; border-radius: 50%; background: var(--fill); color: var(--ink); font-size: 20px; line-height: 1; cursor: pointer; padding: 0 0 2px; }
   /* The header stays on top only where it fits in one row; on a narrow screen it would eat the page */
   /* wide screen: the app fills the window exactly; only the section content scrolls,
@@ -610,7 +617,8 @@
                     <span class="num" style="font-size:13px;font-weight:500;color:var(--ink2);white-space:nowrap">{{ g.totalLabel }}</span>
                   </div>
                   <sc-for list="{{ g.items }}" as="a" hint-placeholder-count="2">
-                    <div class="rowline accrow" style="display:flex;align-items:center;gap:16px;padding:14px 16px;margin:0 4px;border-radius:14px" onClick="{{ a.edit }}">
+                    <div class="rowline accrow" style="display:flex;align-items:center;gap:12px;padding:14px 16px;margin:0 4px;border-radius:14px" onClick="{{ a.edit }}">
+                      <span class="coin" data-len="{{ a.iconLen }}" style="background:{{ a.iconBg }}">{{ a.icon }}</span>
                       <div style="flex:1;min-width:0">
                         <div style="font-size:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ a.name }}</div>
                         <div style="font-size:12px;color:var(--ink3)">{{ a.rubLabel }}</div>
@@ -626,7 +634,8 @@
             <sc-if value="{{ flat }}" hint-placeholder-val="{{ false }}">
             <div class="card" style="padding:6px 4px 16px">
               <sc-for list="{{ accounts }}" as="a" hint-placeholder-count="5">
-                <div class="rowline accrow" style="display:flex;align-items:center;gap:16px;padding:16px;margin:0 4px;border-radius:14px" onClick="{{ a.edit }}">
+                <div class="rowline accrow" style="display:flex;align-items:center;gap:12px;padding:16px;margin:0 4px;border-radius:14px" onClick="{{ a.edit }}">
+                  <span class="coin" data-len="{{ a.iconLen }}" style="background:{{ a.iconBg }}">{{ a.icon }}</span>
                   <div style="flex:1;min-width:0">
                     <div style="font-size:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ a.name }}</div>
                     <div style="font-size:12px;color:var(--ink3)">{{ a.kind }}</div>
@@ -773,9 +782,12 @@
               </div>
               <sc-for list="{{ crAccounts }}" as="a" hint-placeholder-count="2">
                 <div class="rowline craccrow" title="Открыть счёт" onClick="{{ a.open }}" style="cursor:pointer;display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) 16px;align-items:center;gap:12px;padding:12px 14px;margin:0 4px;border-radius:12px">
-                  <span style="min-width:0">
-                    <span style="display:block;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ a.name }}</span>
-                    <span style="display:block;font-size:12px;color:var(--ink3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ a.cur }}</span>
+                  <span style="min-width:0;display:flex;align-items:center;gap:10px">
+                    <span class="coin" data-len="{{ a.iconLen }}" style="background:{{ a.iconBg }}">{{ a.icon }}</span>
+                    <span style="min-width:0">
+                      <span style="display:block;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ a.name }}</span>
+                      <span style="display:block;font-size:12px;color:var(--ink3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ a.cur }}</span>
+                    </span>
                   </span>
                   <span class="num" style="text-align:right;font-size:15px;white-space:nowrap">{{ a.amountLabel }}</span>
                   <span class="num" style="text-align:right;font-size:14px;color:var(--ink3);white-space:nowrap">{{ a.investedLabel }}</span>
@@ -797,9 +809,12 @@
               </div>
               <sc-for list="{{ crAssets }}" as="a" hint-placeholder-count="3">
                 <div class="rowline crarow" title="Изменить монету" onClick="{{ a.edit }}" style="cursor:pointer;display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) 26px;align-items:center;gap:12px;padding:12px 14px;margin:0 4px;border-radius:12px">
-                  <span style="min-width:0">
-                    <span style="display:block;font-size:15px">{{ a.coin }}</span>
-                    <span style="display:block;font-size:12px;color:var(--ink3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ a.name }}</span>
+                  <span style="min-width:0;display:flex;align-items:center;gap:10px">
+                    <span class="coin" data-len="{{ a.iconLen }}" style="background:{{ a.iconBg }}">{{ a.icon }}</span>
+                    <span style="min-width:0">
+                      <span style="display:block;font-size:15px">{{ a.coin }}</span>
+                      <span style="display:block;font-size:12px;color:var(--ink3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ a.name }}</span>
+                    </span>
                   </span>
                   <span class="num" style="text-align:right;white-space:nowrap">
                     <span style="display:block;font-size:15px">{{ a.amountLabel }}</span>
@@ -836,9 +851,12 @@
                 <span>Монета</span><span style="text-align:right">Количество</span><span style="text-align:right">Цена</span><span style="text-align:right">Стоимость</span><span></span>
               </div>
               <div class="crarow" style="display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) 26px;align-items:center;gap:12px;padding:12px 14px;margin:0 4px">
-                <span style="min-width:0">
-                  <span style="display:block;font-size:15px">{{ crAccCoin }}</span>
-                  <span style="display:block;font-size:12px;color:var(--ink3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ crAccCoinName }}</span>
+                <span style="min-width:0;display:flex;align-items:center;gap:10px">
+                  <span class="coin" data-len="{{ crAccIconLen }}" style="background:{{ crAccIconBg }}">{{ crAccIcon }}</span>
+                  <span style="min-width:0">
+                    <span style="display:block;font-size:15px">{{ crAccCoin }}</span>
+                    <span style="display:block;font-size:12px;color:var(--ink3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ crAccCoinName }}</span>
+                  </span>
                 </span>
                 <span class="num" style="text-align:right;white-space:nowrap">
                   <span style="display:block;font-size:15px">{{ crAccAmountLabel }}</span>
@@ -1296,7 +1314,14 @@
                 <button class="btn btn-t" style="margin-left:auto" onClick="{{ refreshRates }}">Обновить</button>
               </div>
               <sc-for list="{{ rateRows }}" as="r" hint-placeholder-count="6">
-                <div class="num" style="display:flex;justify-content:space-between;font-size:14px"><span>{{ r.label }}</span><span>{{ r.value }}</span></div>
+                <div class="num" style="display:flex;align-items:center;gap:10px;font-size:14px">
+                  <span class="coin" data-len="{{ r.iconLen }}" style="background:{{ r.iconBg }}">{{ r.icon }}</span>
+                  <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ r.label }}</span>
+                  <span style="text-align:right;white-space:nowrap">
+                    <span style="display:block">{{ r.value }}</span>
+                    <span style="display:block;font-size:12px;color:var(--ink3)">{{ r.usdt }}</span>
+                  </span>
+                </div>
               </sc-for>
               <div style="font-size:12px;color:var(--ink3)">{{ ratesNote }}</div>
             </div>
@@ -1571,7 +1596,7 @@
             <sc-if value="{{ dealHasChips }}" hint-placeholder-val="{{ false }}">
             <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px">
               <sc-for list="{{ dealChips }}" as="c" hint-placeholder-count="3">
-                <span class="chip" data-on="{{ c.on }}" onClick="{{ c.pick }}">{{ c.label }}</span>
+                <span class="chip" data-on="{{ c.on }}" onClick="{{ c.pick }}"><span class="coin" data-len="{{ c.iconLen }}" style="background:{{ c.iconBg }}">{{ c.icon }}</span>{{ c.label }}</span>
               </sc-for>
             </div>
             </sc-if>
@@ -1808,6 +1833,19 @@ const COINS = [
 ];
 const COIN = {};
 COINS.forEach(([code, name, rub]) => { COIN[code] = { name, rub }; });
+// Цвета значков — фирменные цвета монет; у рублей, долларов и евро в кружке знак валюты.
+const COIN_COLOR = {
+  BTC: "#f7931a", ETH: "#627eea", USDT: "#26a17b", USDC: "#2775ca", TON: "#0098ea",
+  SOL: "#9945ff", BNB: "#f0b90b", XRP: "#7a869a", ADA: "#0033ad", DOGE: "#c2a633",
+  TRX: "#eb0029", AVAX: "#e84142", LINK: "#2a5ada", DOT: "#e6007a", LTC: "#345d9d",
+  SUI: "#4da2ff", NOT: "#9aa0a6", MATIC: "#8247e5",
+  RUB: "#8b8b8b", USD: "#3f8a5c", EUR: "#3b6fd4"
+};
+// Значок валюты для строки списка: кружок, его цвет и что в нём написано.
+const curBadge = code => {
+  const text = COIN[code] ? code : CUR[code] ? CUR[code].sym : code;
+  return { icon: text, iconBg: COIN_COLOR[code] || "#8b8b8b", iconLen: String(Math.min(text.length, 4)) };
+};
 // Любая монета годится в валюту счёта: курс приходит с сервера, до него — цена из COINS
 COINS.forEach(([code, name, rub]) => { if (!CUR[code]) CUR[code] = { sym: code, rate: rub, label: name + " · " + code }; });
 // Валюты счетов, которые считаются криптой: у них больше знаков после запятой,
@@ -2249,6 +2287,12 @@ class Component extends DCLogic {
     return COIN[code] ? COIN[code].rub : (CUR[code] ? CUR[code].rate : 0);
   }
   coinUsdt(code) { const u = this.coinRub("USDT"); return u > 0 ? this.coinRub(code) / u : 0; }
+  // Цена в USDT: у дорогих монет хватает копеек, у дешёвых нужны знаки
+  coinPrice(code) {
+    const p = this.coinUsdt(code);
+    if (!(p > 0)) return "";
+    return p.toLocaleString("ru-RU", { maximumFractionDigits: p >= 100 ? 2 : p >= 1 ? 3 : p >= 0.01 ? 4 : 6 }).replace(/\u00a0/g, " ") + " USDT";
+  }
   usdt(n, sign) {
     if (Math.abs(n) < 0.005) n = 0; // копейки от курсов не должны рисовать «−0 USDT»
     const s = Math.abs(n).toLocaleString("ru-RU", { maximumFractionDigits: 2 }).replace(/\u00a0/g, " ");
@@ -2992,7 +3036,7 @@ class Component extends DCLogic {
       tabVals["go" + (id === "ops" ? "Ops2" : k)] = () => this.goScreen(id);
     });
 
-    const accounts = st.accounts.map((a, i) => ({
+    const accounts = st.accounts.map((a, i) => Object.assign(curBadge(a.cur || "RUB"), {
       key: a.name + i, name: a.name,
       kind: a.cur === "RUB" ? a.kind : a.kind + " · " + a.cur,
       balanceLabel: this.money(a.balance, a.cur),
@@ -3772,7 +3816,7 @@ class Component extends DCLogic {
       }),
       crAssets: (crOpenPort ? crOpenPort.assets : []).map(a => {
         const price = this.coinUsdt(a.coin), value = a.amount * price, pnl = value - a.invested;
-        return {
+        return Object.assign(curBadge(a.coin), {
           key: a.id, coin: a.coin, name: COIN[a.coin] ? COIN[a.coin].name : a.coin,
           amountLabel: this.coinAmount(a.amount, a.coin), investedLabel: "вложено " + this.usdt(a.invested),
           priceLabel: this.usdt(price),
@@ -3788,7 +3832,7 @@ class Component extends DCLogic {
             this.setState({ crypto: st.crypto.map(p => p.id !== crOpenPort.id ? p
               : { ...p, assets: p.assets.filter(x => x.id !== a.id) }) });
           }
-        };
+        });
       }),
       crSumInvested: crOpenPort ? this.usdt(crInvested(crOpenPort)) : "",
       crSumValue: crOpenPort ? this.usdt(crValue(crOpenPort)) : "",
@@ -3801,16 +3845,19 @@ class Component extends DCLogic {
       crAccTotalLabel: this.usdt(crAccTotal),
       crAccounts: crAccounts.map(a => {
         const invested = crAccInvested(a), value = crAccValue(a), pnl = value - invested;
-        return {
+        return Object.assign(curBadge(a.cur), {
           key: a.name + (a.id || ""), name: a.name, cur: CUR[a.cur] ? CUR[a.cur].label : a.cur,
           amountLabel: this.money(a.balance, a.cur),
           investedLabel: this.usdt(invested),
           valueLabel: this.usdt(value),
           pnlLabel: Math.abs(pnl) < 0.005 ? "" : this.usdt(pnl, true), pnlColor: crColor(pnl),
           open: () => this.setState({ crAccOpen: a.name })
-        };
+        });
       }),
       // ---- внутри крипто-счёта: его монета и движение средств ----
+      crAccIcon: crOpenAcc ? curBadge(crOpenAcc.cur).icon : "",
+      crAccIconBg: crOpenAcc ? curBadge(crOpenAcc.cur).iconBg : "",
+      crAccIconLen: crOpenAcc ? curBadge(crOpenAcc.cur).iconLen : "1",
       crAccCoin: crOpenAcc ? crOpenAcc.cur : "",
       crAccCoinName: crOpenAcc ? (COIN[crOpenAcc.cur] ? COIN[crOpenAcc.cur].name : CUR[crOpenAcc.cur] ? CUR[crOpenAcc.cur].label : crOpenAcc.cur) : "",
       crAccAmountLabel: crOpenAcc ? this.coinAmount(crOpenAcc.balance, crOpenAcc.cur) : "",
@@ -3860,7 +3907,7 @@ class Component extends DCLogic {
       dealCoin, onDealCoin: e => this.setState({ dealCoin: e.target.value, dealTarget: null }),
       dealCoinOptions: dealCoins.map(c => ({ key: c, value: c, label: c + (COIN[c] ? " · " + COIN[c].name : "") })),
       dealHasChips: dealHeld.length > 0,
-      dealChips: dealHeld.filter(a => a.cur !== dealCur).slice(0, 6).map(a => ({
+      dealChips: dealHeld.filter(a => a.cur !== dealCur).slice(0, 6).map(a => Object.assign(curBadge(a.cur), {
         key: "c" + a.cur + a.name, label: a.cur, on: a.cur === dealCoin ? "1" : "0",
         pick: () => this.setState({ dealCoin: a.cur, dealTarget: null })
       })),
@@ -4033,10 +4080,12 @@ class Component extends DCLogic {
         this.setState(toCrypto ? { accKind: kind, accCur: "USDT" } : { accKind: kind });
       },
       accCur: st.accCur, onAccCur: e => this.set("accCur", e.target.value),
-      rateRows: Object.keys(CUR).filter(k => k !== "RUB").map(k => ({
+      rateRows: Object.keys(CUR).filter(k => k !== "RUB").map(k => Object.assign({
         key: k, label: CUR[k].label,
-        value: CUR[k].rate.toLocaleString("ru-RU", { maximumFractionDigits: 2 }).replace(/ /g, " ") + " ₽"
-      })),
+        value: CUR[k].rate.toLocaleString("ru-RU", { maximumFractionDigits: 2 }).replace(/ /g, " ") + " ₽",
+        // цена в USDT: у самого USDT её писать незачем
+        usdt: k === "USDT" ? "" : this.coinPrice(k)
+      }, curBadge(k))),
       ratesNote: (() => {
         const list = Object.values(st.rates);
         if (!st.online || !list.length) return "Демо-режим: курсы по умолчанию.";
