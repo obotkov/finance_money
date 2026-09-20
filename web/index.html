@@ -1624,6 +1624,9 @@ const COINS = [
   ["LINK", "Chainlink", 1900], ["DOT", "Polkadot", 600], ["LTC", "Litecoin", 9000],
   ["SUI", "Sui", 300], ["NOT", "Notcoin", 0.9], ["MATIC", "Polygon", 40]
 ];
+// Валюты счетов, которые считаются криптой: у них больше знаков после запятой,
+// и на них переключается счёт типа «Криптокошелёк».
+const CRYPTO_CURS = ["USDT", "BTC", "ETH", "TON"];
 const COIN = {};
 COINS.forEach(([code, name, rub]) => { COIN[code] = { name, rub }; });
 
@@ -2039,7 +2042,7 @@ class Component extends DCLogic {
 
   fmt(n, cur) {
     const c = CUR[cur || "RUB"];
-    const crypto = ["BTC", "ETH", "TON", "USDT"].indexOf(cur) !== -1;
+    const crypto = CRYPTO_CURS.indexOf(cur) !== -1;
     const abs = Math.abs(n);
     const s = crypto
       ? abs.toLocaleString("ru-RU", { maximumFractionDigits: abs < 1 ? 5 : 3 }).replace(/\u00a0/g, " ")
@@ -3587,7 +3590,13 @@ class Component extends DCLogic {
       },
       accDialogTitle: st.editIndex === null ? "Новый счёт" : "Изменить счёт",
       accName: st.accName, onAccName: e => this.set("accName", e.target.value),
-      accKind: st.accKind, onAccKind: e => this.set("accKind", e.target.value),
+      accKind: st.accKind,
+      // крипто-счёт почти всегда в USDT: подставляем её, если валюта осталась обычной
+      onAccKind: e => {
+        const kind = e.target.value;
+        const toCrypto = kind === "Криптокошелёк" && CRYPTO_CURS.indexOf(st.accCur) === -1;
+        this.setState(toCrypto ? { accKind: kind, accCur: "USDT" } : { accKind: kind });
+      },
       accCur: st.accCur, onAccCur: e => this.set("accCur", e.target.value),
       rateRows: Object.keys(CUR).filter(k => k !== "RUB").map(k => ({
         key: k, label: CUR[k].label,
