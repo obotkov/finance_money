@@ -234,6 +234,16 @@
     .crrow > :nth-child(4) { grid-area: 1 / 2; }             /* баланс */
     .crrow > :nth-child(5) { grid-area: 2 / 2; }             /* прибыль */
     .crrow > :nth-child(6) { grid-area: 1 / 3 / 3 / 4; }     /* стрелка */
+    /* крипто-счёт: название и баланс слева, стоимость с прибылью справа */
+    .craccrow {
+      grid-template-columns: minmax(0, 1fr) auto 14px !important;
+      column-gap: 10px !important; row-gap: 2px !important; padding: 11px 10px !important;
+    }
+    .craccrow > :nth-child(1) { grid-area: 1 / 1; }          /* счёт */
+    .craccrow > :nth-child(2) { grid-area: 2 / 1; font-size: 12px !important; text-align: left !important; } /* баланс */
+    .craccrow > :nth-child(3) { display: none !important; }  /* внесено — видно внутри счёта */
+    .craccrow > :nth-child(4) { grid-area: 1 / 2 / 3 / 3; }  /* стоимость и прибыль */
+    .craccrow > :nth-child(5) { grid-area: 1 / 3 / 3 / 4; }  /* стрелка */
     .crarow {
       grid-template-columns: minmax(0, 1fr) auto 22px !important;
       column-gap: 10px !important; row-gap: 2px !important; padding: 11px 10px !important;
@@ -676,15 +686,22 @@
             <!-- внутри портфеля: назад к списку, название и его кнопки -->
             <sc-if value="{{ crInside }}" hint-placeholder-val="{{ false }}">
             <div class="cr-head" style="display:flex;align-items:center;gap:12px">
-              <button class="btn btn-t" style="padding-left:0" onClick="{{ crBack }}">‹ все портфели</button>
+              <button class="btn btn-t" style="padding-left:0" onClick="{{ crBack }}">{{ crBackLabel }}</button>
               <div style="min-width:0">
                 <div class="big" style="font-size:18px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ crPortTitle }}</div>
                 <div style="font-size:12px;color:var(--ink3)">{{ crPortPlaceLabel }}</div>
               </div>
+              <sc-if value="{{ crInsidePort }}" hint-placeholder-val="{{ true }}">
               <div style="margin-left:auto;display:flex;gap:10px;flex:none">
                 <button class="btn btn-s" onClick="{{ crEditPort }}">Изменить</button>
                 <button class="btn btn-p" onClick="{{ crAddAsset }}">Добавить монету</button>
               </div>
+              </sc-if>
+              <sc-if value="{{ crInsideAcc }}" hint-placeholder-val="{{ false }}">
+              <div style="margin-left:auto;display:flex;gap:10px;flex:none">
+                <button class="btn btn-s" onClick="{{ crEditAcc }}">Изменить счёт</button>
+              </div>
+              </sc-if>
             </div>
             </sc-if>
 
@@ -751,15 +768,21 @@
                 <span style="font-size:13px;color:var(--ink2)">Крипто-счета <span style="color:var(--ink3)">— из раздела «Счета»</span></span>
                 <span class="num" style="font-size:13px;font-weight:500;color:var(--ink2);white-space:nowrap">{{ crAccTotalLabel }}</span>
               </div>
+              <div class="crhead" style="display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) 16px;gap:12px;padding:2px 14px 8px;margin:0 4px;font-size:12px;color:var(--ink3);border-bottom:1px solid var(--line)">
+                <span>Счёт</span><span style="text-align:right">Баланс</span><span style="text-align:right">Внесено</span><span style="text-align:right">Стоимость</span><span></span>
+              </div>
               <sc-for list="{{ crAccounts }}" as="a" hint-placeholder-count="2">
-                <div class="rowline crarow" title="Изменить счёт" onClick="{{ a.edit }}" style="cursor:pointer;display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) 26px;align-items:center;gap:12px;padding:12px 14px;margin:0 4px;border-radius:12px">
+                <div class="rowline craccrow" title="Открыть счёт" onClick="{{ a.open }}" style="cursor:pointer;display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) 16px;align-items:center;gap:12px;padding:12px 14px;margin:0 4px;border-radius:12px">
                   <span style="min-width:0">
                     <span style="display:block;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ a.name }}</span>
                     <span style="display:block;font-size:12px;color:var(--ink3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ a.cur }}</span>
                   </span>
                   <span class="num" style="text-align:right;font-size:15px;white-space:nowrap">{{ a.amountLabel }}</span>
-                  <span class="num" style="text-align:right;font-size:12px;color:var(--ink3);white-space:nowrap">{{ a.priceLabel }}</span>
-                  <span class="num" style="text-align:right;font-size:16px;font-weight:500;white-space:nowrap">{{ a.valueLabel }}</span>
+                  <span class="num" style="text-align:right;font-size:14px;color:var(--ink3);white-space:nowrap">{{ a.investedLabel }}</span>
+                  <span class="num" style="text-align:right;white-space:nowrap">
+                    <span style="display:block;font-size:16px;font-weight:500">{{ a.valueLabel }}</span>
+                    <span style="display:block;font-size:12px;color:{{ a.pnlColor }}">{{ a.pnlLabel }}</span>
+                  </span>
                   <span style="color:var(--ink3);font-size:17px;text-align:right">›</span>
                 </div>
               </sc-for>
@@ -788,17 +811,70 @@
                   </span>
                   <span class="num" style="text-align:right;white-space:nowrap">
                     <span style="display:block;font-size:16px;font-weight:500">{{ a.valueLabel }}</span>
-                    <span style="display:block;font-size:12px;color:{{ a.pnlColor }}">{{ a.pnlLabel }}</span>
+                    <span style="display:block;font-size:12px;color:{{ a.pnlColor }}">{{ a.pnlLine }}</span>
                   </span>
                   <button class="btn btn-t" style="padding:2px 0;color:var(--ink3);font-size:17px;line-height:1" title="Удалить монету" onClick="{{ a.del }}">×</button>
                 </div>
               </sc-for>
+              <div style="display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:4px 12px;margin:4px 4px 0;padding:11px 14px 4px;border-top:1px solid var(--line)">
+                <span style="font-size:13px;color:var(--ink2)">Итого по портфелю</span>
+                <span class="num" style="font-size:13px;color:var(--ink3)">вложено {{ crSumInvested }} · стоимость <span style="color:var(--ink)">{{ crSumValue }}</span> · <span style="color:{{ crSumPnlColor }}">{{ crSumPnlLine }}</span></span>
+              </div>
             </div>
             </sc-if>
             <sc-if value="{{ crNoAssets }}" hint-placeholder-val="{{ false }}">
             <div class="card" style="padding:24px 22px;display:flex;flex-direction:column;align-items:flex-start;gap:12px">
               <div style="font-size:14px;color:var(--ink2)">В портфеле пока нет монет.</div>
               <button class="btn btn-p" onClick="{{ crAddAsset }}">Добавить монету</button>
+            </div>
+            </sc-if>
+
+            <!-- внутри крипто-счёта: его монета и движение средств -->
+            <sc-if value="{{ crInsideAcc }}" hint-placeholder-val="{{ false }}">
+            <div class="card" style="padding:6px 4px">
+              <div class="crhead" style="display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) 26px;gap:12px;padding:10px 14px 8px;margin:0 4px;font-size:12px;color:var(--ink3);border-bottom:1px solid var(--line)">
+                <span>Монета</span><span style="text-align:right">Количество</span><span style="text-align:right">Цена</span><span style="text-align:right">Стоимость</span><span></span>
+              </div>
+              <div class="crarow" style="display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) 26px;align-items:center;gap:12px;padding:12px 14px;margin:0 4px">
+                <span style="min-width:0">
+                  <span style="display:block;font-size:15px">{{ crAccCoin }}</span>
+                  <span style="display:block;font-size:12px;color:var(--ink3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ crAccCoinName }}</span>
+                </span>
+                <span class="num" style="text-align:right;white-space:nowrap">
+                  <span style="display:block;font-size:15px">{{ crAccAmountLabel }}</span>
+                  <span style="display:block;font-size:12px;color:var(--ink3)">{{ crAccInvestedLabel }}</span>
+                </span>
+                <span class="num" style="text-align:right;white-space:nowrap">
+                  <span style="display:block;font-size:14px;color:var(--ink2)">{{ crAccPriceLabel }}</span>
+                  <span style="display:block;font-size:12px;color:var(--ink3)">{{ crAccBuyLabel }}</span>
+                </span>
+                <span class="num" style="text-align:right;white-space:nowrap">
+                  <span style="display:block;font-size:16px;font-weight:500">{{ crAccValueLabel }}</span>
+                  <span style="display:block;font-size:12px;color:{{ crAccPnlColor }}">{{ crAccPnlLine }}</span>
+                </span>
+                <span></span>
+              </div>
+            </div>
+            <div class="card" style="padding:6px 4px 10px">
+              <div style="display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:4px 12px;padding:12px 18px 8px">
+                <span style="font-size:13px;color:var(--ink2)">Движение средств <span style="color:var(--ink3)">— поступления и списания по счёту</span></span>
+                <span class="num" style="font-size:13px;color:var(--ink3);white-space:nowrap">{{ crAccFlowLabel }}</span>
+              </div>
+              <sc-for list="{{ crAccOps }}" as="o" hint-placeholder-count="4">
+                <div class="rowline" style="display:flex;align-items:center;gap:12px;padding:11px 14px;margin:0 4px;border-radius:12px">
+                  <div style="flex:1;min-width:0">
+                    <div style="font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ o.title }}</div>
+                    <div class="num" style="font-size:12px;color:var(--ink3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ o.meta }}</div>
+                  </div>
+                  <span class="num" style="text-align:right;white-space:nowrap">
+                    <span style="display:block;font-size:15px;font-weight:500;color:{{ o.color }}">{{ o.amountLabel }}</span>
+                    <span style="display:block;font-size:12px;color:var(--ink3)">{{ o.usdtLabel }}</span>
+                  </span>
+                </div>
+              </sc-for>
+              <sc-if value="{{ crAccNoOps }}" hint-placeholder-val="{{ false }}">
+              <div style="padding:6px 18px 12px;font-size:13px;color:var(--ink2)">Поступлений и списаний на этом счёте пока нет — переведите деньги с карты, и сумма перевода станет вложенной.</div>
+              </sc-if>
             </div>
             </sc-if>
           </div>
@@ -1772,7 +1848,7 @@ const DEMO = {
       { d: "2026-09-07", t: "Аптека", c: "Здоровье", a: "Тинькофф Black", v: -1840 },
       { d: "2026-09-06", t: "Аренда льда, хоккей", c: "Хоккей", a: "Наличные", v: -2800 },
       { d: "2026-09-05", t: "Перевод на накопительный", c: "Перевод", a: "Тинькофф Black", to: "Накопительный счёт", v: 40000, type: "transfer" },
-      { d: "2026-09-05", t: "Покупка USDT", c: "Перевод", a: "Тинькофф Black", to: "Криптокошелёк", v: 15000, type: "transfer" },
+      { d: "2026-09-05", t: "Покупка биткоина", c: "Перевод", a: "Тинькофф Black", to: "Криптокошелёк", v: 15000, got: 0.14, gotCur: "BTC", type: "transfer" },
       { d: "2026-09-04", t: "Доставка ужина", c: "Кафе и доставка", a: "Тинькофф Black", v: -1490 },
       { d: "2026-09-03", t: "Подписки: музыка, облако", c: "Подписки", a: "Кредитная карта", v: -2190 },
       { d: "2026-09-02", t: "Вкусвилл", c: "Продукты", a: "Тинькофф Black", v: -3120 }
@@ -1796,7 +1872,7 @@ class Component extends DCLogic {
     repMode: "detail", repFrom: THIS_MONTH + "-01", repTo: TODAY, repPreset: "month", repView: "bars", repPath: [], repList: null,
     expPreset: "all", expFrom: "", expTo: "", expTypes: { expense: true, income: true, transfer: true }, expMsg: "",
     cats: [], accounts: [], txs: [], crypto: [], rates: {},
-    crOpen: null, crPortId: null, crPortName: "", crPortPlace: "",
+    crOpen: null, crAccOpen: null, crPortId: null, crPortName: "", crPortPlace: "",
     crAssetId: null, crAssetPort: null, crAssetCoin: "BTC", crAssetAmount: "", crAssetInvested: "",
     online: false, busy: false, demo: false, donutHover: null,
     user: null, needLogin: false, googleEnabled: false,
@@ -3053,10 +3129,6 @@ class Component extends DCLogic {
     const crValue = p => p.assets.reduce((sum, a) => sum + a.amount * this.coinUsdt(a.coin), 0);
     const crInvested = p => p.assets.reduce((sum, a) => sum + a.invested, 0);
     const crOpenPort = st.crypto.find(p => p.id === st.crOpen) || null;
-    const crScope = crOpenPort ? [crOpenPort] : st.crypto;
-    const crScopeValue = crScope.reduce((sum, p) => sum + crValue(p), 0);
-    const crScopeInvested = crScope.reduce((sum, p) => sum + crInvested(p), 0);
-    const crScopePnl = crScopeValue - crScopeInvested;
     const crPctLabel = (pnl, invested) => invested > 0
       ? (pnl < 0 ? "−" : "+") + Math.abs(pnl / invested * 100).toFixed(1).replace(".", ",") + " %" : "—";
     const crTone = pnl => (pnl > 0 ? "good" : pnl < 0 ? "bad" : "");
@@ -3068,12 +3140,39 @@ class Component extends DCLogic {
     };
     const crAssetCount = st.crypto.reduce((n, p) => n + p.assets.length, 0);
     // Счета с типом «Криптокошелёк» — те же деньги, просто заведены в разделе «Счета».
-    // Они входят в общий баланс, но вложенной суммы у них нет, поэтому прибыль
-    // считается только по портфелям.
+    // Вложенное у них считается по операциям: сколько стоило то, что на счёт завели,
+    // минус выведенное. У стейблкоина монеты и есть сумма (перевод 84 000 ₽ → 1 000 USDT
+    // даёт ровно 1 000 USDT), у остальных берётся вторая сторона перевода — цена покупки,
+    // а не сегодняшний курс монеты. Остаток, пришедший импортом, операцией не является
+    // и во вложенное не попадает.
     const crUsdtRub = this.coinRub("USDT");
     const crAccounts = st.accounts.filter(a => a.kind === "Криптокошелёк");
-    const crAccValue = a => (crUsdtRub > 0 ? this.toRub(a.balance, a.cur) / crUsdtRub : 0);
+    const crToUsdt = (n, cur) => (crUsdtRub > 0 ? this.toRub(n, cur) / crUsdtRub : 0);
+    const crAccValue = a => crToUsdt(a.balance, a.cur);
+    const crStable = cur => cur === "USDT" || cur === "USDC";
+    const crFlowUsdt = (t, a) => {
+      const v = this.txEffect(t, a.name);
+      if (v === 0 || crStable(a.cur) || t.type !== "transfer") return crToUsdt(v, a.cur);
+      const out = t.a === a.name;
+      const amount = out ? (t.got != null ? t.got : t.v) : t.v;
+      return crToUsdt(out ? -amount : amount, this.curOf(out ? t.to : t.a));
+    };
+    const crAccOps = a => st.txs.filter(t => this.txEffect(t, a.name) !== 0);
+    const crAccInvested = a => st.txs.reduce((sum, t) => sum + crFlowUsdt(t, a), 0);
+    const crAccIn = a => st.txs.reduce((sum, t) => sum + Math.max(this.txEffect(t, a.name), 0), 0);
+    const crAccOut = a => st.txs.reduce((sum, t) => sum + Math.max(-this.txEffect(t, a.name), 0), 0);
+    const crDate = d => d.split("-").reverse().join(".");
     const crAccTotal = crAccounts.reduce((sum, a) => sum + crAccValue(a), 0);
+    const crOpenAcc = crAccounts.find(a => a.name === st.crAccOpen) || null;
+
+    // Виджеты считают либо всё, либо то, во что провалились: портфель или счёт.
+    const crPortScope = crOpenPort ? [crOpenPort] : crOpenAcc ? [] : st.crypto;
+    const crAccScope = crOpenAcc ? [crOpenAcc] : crOpenPort ? [] : crAccounts;
+    const crScopeValue = crPortScope.reduce((sum, p) => sum + crValue(p), 0)
+      + crAccScope.reduce((sum, a) => sum + crAccValue(a), 0);
+    const crScopeInvested = crPortScope.reduce((sum, p) => sum + crInvested(p), 0)
+      + crAccScope.reduce((sum, a) => sum + crAccInvested(a), 0);
+    const crScopePnl = crScopeValue - crScopeInvested;
     const crNum = v => parseFloat(String(v).replace(/[^\d.,-]/g, "").replace(",", ".")) || 0;
 
     return {
@@ -3442,30 +3541,38 @@ class Component extends DCLogic {
           opsY: Number(dp2[0]), opsM: Number(dp2[1]) - 1, opsDate: st.opsDate ? tx.d : null });
       },
       // ---- Криптовалюта: виджеты, список портфелей и монеты внутри ----
-      crInside: !!crOpenPort,
-      crList: !crOpenPort && st.crypto.length > 0,
-      crEmpty: !crOpenPort && st.crypto.length === 0,
+      crInside: !!crOpenPort || !!crOpenAcc,
+      crInsidePort: !!crOpenPort,
+      crInsideAcc: !!crOpenAcc,
+      crList: !crOpenPort && !crOpenAcc && st.crypto.length > 0,
+      crEmpty: !crOpenPort && !crOpenAcc && st.crypto.length === 0,
       crHasAssets: !!crOpenPort && crOpenPort.assets.length > 0,
       crNoAssets: !!crOpenPort && crOpenPort.assets.length === 0,
-      crBack: () => this.set("crOpen", null),
-      crPortTitle: crOpenPort ? crOpenPort.name : "",
+      crBack: () => this.setState({ crOpen: null, crAccOpen: null }),
+      crBackLabel: crOpenAcc ? "‹ весь раздел" : "‹ все портфели",
+      crPortTitle: crOpenPort ? crOpenPort.name : crOpenAcc ? crOpenAcc.name : "",
       crPortPlaceLabel: crOpenPort
         ? (crOpenPort.place || "крипто-портфель") + " · " + pluralRu(crOpenPort.assets.length, "монета", "монеты", "монет")
-        : "",
-      crBalance: this.usdt(crScopeValue + (crOpenPort ? 0 : crAccTotal)),
-      crBalanceNote: "≈ " + this.money((crScopeValue + (crOpenPort ? 0 : crAccTotal)) * crUsdtRub)
-        + (crOpenPort ? "" : [crAssetCount ? pluralRu(crAssetCount, "монета", "монеты", "монет") : "",
-          crAccounts.length ? pluralRu(crAccounts.length, "счёт", "счёта", "счетов") : ""]
-          .filter(Boolean).map(t => " · " + t).join("")),
+        : crOpenAcc
+          ? "крипто-счёт · " + (CUR[crOpenAcc.cur] ? CUR[crOpenAcc.cur].label : crOpenAcc.cur)
+            + " · " + pluralRu(crAccOps(crOpenAcc).length, "операция", "операции", "операций")
+          : "",
+      crBalance: this.usdt(crScopeValue),
+      crBalanceNote: "≈ " + this.money(crScopeValue * crUsdtRub)
+        + (crOpenAcc ? (crOpenAcc.cur === "USDT" ? "" : " · " + this.coinAmount(crOpenAcc.balance, crOpenAcc.cur))
+          : crOpenPort ? "" : [crAssetCount ? pluralRu(crAssetCount, "монета", "монеты", "монет") : "",
+            crAccounts.length ? pluralRu(crAccounts.length, "счёт", "счёта", "счетов") : ""]
+            .filter(Boolean).map(t => " · " + t).join("")),
       crInvested: this.usdt(crScopeInvested),
       crInvestedNote: crOpenPort ? "вложено в этот портфель"
-        : crAccounts.length ? "вложено в портфели · у счетов суммы нет" : "вложено во все портфели",
+        : crOpenAcc ? "поступления минус списания"
+        : !st.crypto.length ? "заведено на крипто-счета"
+        : crAccounts.length ? "в портфелях и на счетах" : "вложено во все портфели",
       crPnl: this.usdt(crScopePnl, true),
       crPnlColor: crColor(crScopePnl),
       crPnlTone: crTone(crScopePnl),
       crPnlPct: crPctLabel(crScopePnl, crScopeInvested),
-      crPnlNote: crScopeInvested <= 0 ? "укажите вложенную сумму"
-        : !crOpenPort && crAccounts.length ? "к вложенному, по портфелям" : "к вложенному",
+      crPnlNote: crScopeInvested <= 0 ? "укажите вложенную сумму" : "к вложенному",
       crPortfolios: st.crypto.map(p => {
         const value = crValue(p), invested = crInvested(p), pnl = value - invested;
         return {
@@ -3482,7 +3589,8 @@ class Component extends DCLogic {
           amountLabel: this.coinAmount(a.amount, a.coin), investedLabel: "вложено " + this.usdt(a.invested),
           priceLabel: this.usdt(price),
           buyLabel: a.amount > 0 && a.invested > 0 ? "покупка " + this.usdt(a.invested / a.amount) : "",
-          valueLabel: this.usdt(value), pnlLabel: this.usdt(pnl, true), pnlColor: crColor(pnl),
+          valueLabel: this.usdt(value), pnlColor: crColor(pnl),
+          pnlLine: this.usdt(pnl, true) + (a.invested > 0 ? " · " + crPctLabel(pnl, a.invested) : ""),
           edit: () => this.setState({ dialog: "crasset", crAssetId: a.id, crAssetPort: crOpenPort.id,
             crAssetCoin: a.coin, crAssetAmount: groupDigits(plainNum(a.amount)), crAssetInvested: groupDigits(plainNum(a.invested)) }),
           del: e => {
@@ -3494,18 +3602,64 @@ class Component extends DCLogic {
           }
         };
       }),
-      crHasAccounts: !crOpenPort && crAccounts.length > 0,
+      crSumInvested: crOpenPort ? this.usdt(crInvested(crOpenPort)) : "",
+      crSumValue: crOpenPort ? this.usdt(crValue(crOpenPort)) : "",
+      crSumPnlColor: crColor(crOpenPort ? crValue(crOpenPort) - crInvested(crOpenPort) : 0),
+      crSumPnlLine: crOpenPort
+        ? this.usdt(crValue(crOpenPort) - crInvested(crOpenPort), true)
+          + (crInvested(crOpenPort) > 0 ? " · " + crPctLabel(crValue(crOpenPort) - crInvested(crOpenPort), crInvested(crOpenPort)) : "")
+        : "",
+      crHasAccounts: !crOpenPort && !crOpenAcc && crAccounts.length > 0,
       crAccTotalLabel: this.usdt(crAccTotal),
       crAccounts: crAccounts.map(a => {
-        const price = crUsdtRub > 0 ? this.toRub(1, a.cur) / crUsdtRub : 0;
+        const invested = crAccInvested(a), value = crAccValue(a), pnl = value - invested;
         return {
           key: a.name + (a.id || ""), name: a.name, cur: CUR[a.cur] ? CUR[a.cur].label : a.cur,
-          amountLabel: this.money(a.balance, a.cur), priceLabel: this.usdt(price) + " за 1 " + (CUR[a.cur] ? CUR[a.cur].sym : a.cur),
-          valueLabel: this.usdt(crAccValue(a)),
-          edit: () => this.setState({ dialog: "acc", editIndex: st.accounts.indexOf(a), accName: a.name,
-            accKind: a.kind, accCur: a.cur || "RUB" })
+          amountLabel: this.money(a.balance, a.cur),
+          investedLabel: this.usdt(invested),
+          valueLabel: this.usdt(value),
+          pnlLabel: Math.abs(pnl) < 0.005 ? "" : this.usdt(pnl, true), pnlColor: crColor(pnl),
+          open: () => this.setState({ crAccOpen: a.name })
         };
       }),
+      // ---- внутри крипто-счёта: его монета и движение средств ----
+      crAccCoin: crOpenAcc ? crOpenAcc.cur : "",
+      crAccCoinName: crOpenAcc ? (COIN[crOpenAcc.cur] ? COIN[crOpenAcc.cur].name : CUR[crOpenAcc.cur] ? CUR[crOpenAcc.cur].label : crOpenAcc.cur) : "",
+      crAccAmountLabel: crOpenAcc ? this.coinAmount(crOpenAcc.balance, crOpenAcc.cur) : "",
+      crAccInvestedLabel: crOpenAcc ? "внесено " + this.usdt(crAccInvested(crOpenAcc)) : "",
+      crAccPriceLabel: crOpenAcc ? this.usdt(crToUsdt(1, crOpenAcc.cur)) : "",
+      crAccBuyLabel: crOpenAcc && !crStable(crOpenAcc.cur) && crOpenAcc.balance > 0 && crAccInvested(crOpenAcc) > 0
+        ? "покупка " + this.usdt(crAccInvested(crOpenAcc) / crOpenAcc.balance) : "",
+      crAccValueLabel: crOpenAcc ? this.usdt(crAccValue(crOpenAcc)) : "",
+      crAccPnlLine: !crOpenAcc || Math.abs(crAccValue(crOpenAcc) - crAccInvested(crOpenAcc)) < 0.005 ? ""
+        : this.usdt(crAccValue(crOpenAcc) - crAccInvested(crOpenAcc), true)
+          + (crAccInvested(crOpenAcc) > 0
+            ? " · " + crPctLabel(crAccValue(crOpenAcc) - crAccInvested(crOpenAcc), crAccInvested(crOpenAcc)) : ""),
+      crAccPnlColor: crColor(crOpenAcc ? crAccValue(crOpenAcc) - crAccInvested(crOpenAcc) : 0),
+      crAccFlowLabel: !crOpenAcc ? "" : [
+        crAccIn(crOpenAcc) > 0 ? "+" + this.fmt(crAccIn(crOpenAcc), crOpenAcc.cur) : "",
+        crAccOut(crOpenAcc) > 0 ? "−" + this.fmt(crAccOut(crOpenAcc), crOpenAcc.cur) : ""
+      ].filter(Boolean).join(" · "),
+      crAccHasOps: !!crOpenAcc && crAccOps(crOpenAcc).length > 0,
+      crAccNoOps: !!crOpenAcc && crAccOps(crOpenAcc).length === 0,
+      crAccOps: (crOpenAcc ? crAccOps(crOpenAcc) : []).slice()
+        .sort((x, y) => (x.d + (x.tm || "") < y.d + (y.tm || "") ? 1 : -1))
+        .map((t, i) => {
+          const v = this.txEffect(t, crOpenAcc.name);
+          const other = t.type === "transfer" ? (t.a === crOpenAcc.name ? "на " + t.to : "с " + t.a) : t.c;
+          return {
+            key: "o" + (t.id || i), title: t.t,
+            meta: crDate(t.d) + " · " + other,
+            amountLabel: (v > 0 ? "+" : "−") + this.fmt(Math.abs(v), crOpenAcc.cur),
+            usdtLabel: this.usdt(crFlowUsdt(t, crOpenAcc), true),
+            color: v > 0 ? "var(--pos)" : "var(--neg)"
+          };
+        }),
+      crEditAcc: () => {
+        if (!crOpenAcc) return;
+        this.setState({ dialog: "acc", editIndex: st.accounts.indexOf(crOpenAcc), accName: crOpenAcc.name,
+          accKind: crOpenAcc.kind, accCur: crOpenAcc.cur || "RUB" });
+      },
       crPortDialog: st.dialog === "crport",
       crPortDialogTitle: st.crPortId === null ? "Новый портфель" : "Портфель",
       crPortName: st.crPortName, onCrPortName: e => this.set("crPortName", e.target.value),
@@ -3641,18 +3795,26 @@ class Component extends DCLogic {
         if (!name) { this.setState({ dialog: null }); return; }
         // новый счёт открывается с нулём, у существующего баланс остаётся как есть
         const balance = st.editIndex === null ? 0 : st.accounts[st.editIndex].balance;
+        // открытый крипто-счёт остаётся открытым после переименования
+        const renaming = st.editIndex !== null && st.accounts[st.editIndex].name === st.crAccOpen;
+        const crAccOpen = !renaming ? st.crAccOpen : st.accKind === "Криптокошелёк" ? name : null;
         if (st.online) {
           const body = { name, kind: st.accKind, balance, cur: st.accCur };
           const req = st.editIndex === null
             ? this.api("POST", "accounts", body)
             : this.api("PUT", "accounts/" + st.accounts[st.editIndex].id, body);
-          req.then(() => this.setState({ dialog: null }), () => {});
+          req.then(() => this.setState({ dialog: null, crAccOpen }), () => {});
           return;
         }
         const accounts = st.accounts.slice();
+        const was = st.editIndex === null ? null : st.accounts[st.editIndex].name;
         if (st.editIndex === null) accounts.push({ name, kind: st.accKind, balance, cur: st.accCur });
         else accounts[st.editIndex] = { name, kind: st.accKind, balance, cur: st.accCur };
-        this.setState({ accounts, dialog: null });
+        // без сервера операции хранят название счёта — переименование правит и их
+        const txs = was === null || was === name ? st.txs
+          : st.txs.map(t => (t.a !== was && t.to !== was ? t
+            : { ...t, a: t.a === was ? name : t.a, to: t.to === was ? name : t.to }));
+        this.setState({ accounts, txs, dialog: null, crAccOpen });
       }
     };
   }
