@@ -1611,6 +1611,28 @@
     </div>
     </sc-if>
 
+    <!-- диалог: удаление счёта -->
+    <sc-if value="{{ delAccDialog }}" hint-placeholder-val="{{ false }}">
+    <div class="dlg" style="position:fixed;inset:0;display:grid;place-items:start center;padding:24px;overflow:auto;background:var(--overlay);backdrop-filter:blur(6px)" onClick="{{ close }}">
+      <div class="card" style="width:min(440px,100%);max-height:calc(100vh - 48px);overflow-y:auto;padding:24px;border-radius:22px;box-shadow:0 24px 60px rgba(0,0,0,.22)" onClick="{{ stop }}">
+        <div class="big" style="font-size:21px">{{ delAccTitle }}</div>
+        <div style="font-size:13px;color:var(--ink2);margin-top:8px">{{ delAccText }}</div>
+        <sc-if value="{{ delAccHasTargets }}" hint-placeholder-val="{{ true }}">
+        <div style="margin-top:16px"><span class="lbl">Перенести операции на счёт</span>
+          <select class="inp" value="{{ delAccTo }}" onChange="{{ onDelAccTo }}">
+            <sc-for list="{{ delAccOptions }}" as="o" hint-placeholder-count="3"><option value="{{ o.value }}">{{ o.label }}</option></sc-for>
+          </select>
+        </div>
+        </sc-if>
+        <div style="font-size:12px;color:var(--ink3);margin-top:12px">{{ delAccHint }}</div>
+        <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px">
+          <button class="btn btn-s" onClick="{{ close }}">Отмена</button>
+          <button class="btn btn-p" style="background:var(--neg)" onClick="{{ confirmDelAcc }}">Удалить счёт</button>
+        </div>
+      </div>
+    </div>
+    </sc-if>
+
     <!-- диалог: категория -->
     <sc-if value="{{ catDialog }}" hint-placeholder-val="{{ false }}">
     <div class="dlg" style="position:fixed;inset:0;display:grid;place-items:start center;padding:24px;overflow:auto;background:var(--overlay);backdrop-filter:blur(6px)" onClick="{{ close }}">
@@ -1872,6 +1894,7 @@ class Component extends DCLogic {
     repMode: "detail", repFrom: THIS_MONTH + "-01", repTo: TODAY, repPreset: "month", repView: "bars", repPath: [], repList: null,
     expPreset: "all", expFrom: "", expTo: "", expTypes: { expense: true, income: true, transfer: true }, expMsg: "",
     cats: [], accounts: [], txs: [], crypto: [], rates: {},
+    delAccTo: "",
     crOpen: null, crAccOpen: null, crPortId: null, crPortName: "", crPortPlace: "",
     crAssetId: null, crAssetPort: null, crAssetCoin: "BTC", crAssetAmount: "", crAssetInvested: "",
     online: false, busy: false, demo: false, donutHover: null,
@@ -3175,6 +3198,21 @@ class Component extends DCLogic {
     const crScopePnl = crScopeValue - crScopeInvested;
     const crNum = v => parseFloat(String(v).replace(/[^\d.,-]/g, "").replace(",", ".")) || 0;
 
+    // ---- Удаление счёта: перенести операции на счёт в той же валюте или удалить их ----
+    const delAcc = st.dialog === "delacc" && st.editIndex !== null ? st.accounts[st.editIndex] : null;
+    const delAccCur = delAcc ? delAcc.cur || "RUB" : "RUB";
+    const delTxs = delAcc ? st.txs.filter(t => t.a === delAcc.name || t.to === delAcc.name) : [];
+    const delTargets = delAcc ? st.accounts.filter(x => x !== delAcc && (x.cur || "RUB") === delAccCur) : [];
+    const delTo = delTargets.find(x => x.name === st.delAccTo) || null;
+    // перевод между этими двумя счетами стал бы переводом самому себе — он исчезнет
+    const delSelfTxs = delTo
+      ? delTxs.filter(t => (t.a === delAcc.name && t.to === delTo.name) || (t.a === delTo.name && t.to === delAcc.name))
+      : [];
+    const delToBalance = delTo
+      ? delTo.balance + delAcc.balance
+        - delSelfTxs.reduce((sum, t) => sum + this.txEffect(t, delTo.name) + this.txEffect(t, delAcc.name), 0)
+      : 0;
+
     return {
       isDesktop: platform === "Десктоп", isMobile: platform === "Мобильный",
       showForecast: this.props.showForecast ?? true,
@@ -3783,12 +3821,45 @@ class Component extends DCLogic {
           : " · счёт открывается с нулём, дальше баланс считают операции");
       })(),
       accCanDelete: st.editIndex !== null,
-      delAcc: () => {
-        const a = st.accounts[st.editIndex];
-        const n = st.txs.filter(t => t.a === a.name || t.to === a.name).length;
-        if (!window.confirm("Удалить счёт «" + a.name + "»" + (n ? " вместе с операциями по нему (" + n + ")?" : "?"))) return;
-        if (st.online) { this.api("DELETE", "accounts/" + a.id).then(() => this.setState({ dialog: null }), () => {}); return; }
-        this.setState({ accounts: st.accounts.filter((_, i) => i !== st.editIndex), txs: st.txs.filter(t => t.a !== a.name && t.to !== a.name), dialog: null });
+      delAcc: () => this.setState({ dialog: "delacc", delAccTo: "" }),
+      // ---- диалог удаления счёта ----
+      delAccDialog: !!delAcc,
+      delAccTitle: delAcc ? "Удалить счёт «" + delAcc.name + "»?" : "",
+      delAccText: !delAcc ? ""
+        : (delTxs.length ? "По счёту " + pluralRu(delTxs.length, "операция", "операции", "операций") : "Операций по счёту нет")
+          + ", остаток " + this.money(delAcc.balance, delAcc.cur),
+      delAccHasTargets: delTargets.length > 0,
+      delAccTo: delTo ? delTo.name : "",
+      onDelAccTo: e => this.set("delAccTo", e.target.value),
+      delAccOptions: [{ key: "none", value: "", label: "— удалить вместе со счётом —" }].concat(
+        delTargets.map(x => ({ key: "t" + (x.id || x.name), value: x.name, label: x.name + " · " + this.money(x.balance, x.cur) }))),
+      delAccHint: !delAcc ? ""
+        : delTo
+          ? "Операции переедут на счёт «" + delTo.name + "», его остаток станет " + this.money(delToBalance, delTo.cur) + "."
+            + (delSelfTxs.length ? " " + pluralRu(delSelfTxs.length, "перевод", "перевода", "переводов")
+              + " между этими счетами " + (delSelfTxs.length === 1 ? "исчезнет." : "исчезнут.") : "")
+          : "Операции удалятся вместе со счётом, остатки других счетов пересчитаются без них."
+            + (delTargets.length ? "" : " Переносить их некуда: другого счёта в той же валюте нет."),
+      confirmDelAcc: () => {
+        if (st.online) {
+          this.api("DELETE", "accounts/" + delAcc.id + (delTo ? "?replace=" + delTo.id : ""))
+            .then(() => this.setState({ dialog: null, editIndex: null, delAccTo: "",
+              crAccOpen: st.crAccOpen === delAcc.name ? null : st.crAccOpen }), () => {});
+          return;
+        }
+        const accounts = st.accounts.filter(x => x !== delAcc);
+        const txs = delTo
+          ? st.txs.filter(t => delSelfTxs.indexOf(t) === -1).map(t => (t.a !== delAcc.name && t.to !== delAcc.name ? t
+            : { ...t, a: t.a === delAcc.name ? delTo.name : t.a, to: t.to === delAcc.name ? delTo.name : t.to }))
+          : st.txs.filter(t => delTxs.indexOf(t) === -1);
+        this.setState({
+          txs,
+          accounts: accounts.map(x => (delTo
+            ? (x === delTo ? { ...x, balance: delToBalance } : x)
+            : { ...x, balance: x.balance - delTxs.reduce((sum, t) => sum + this.txEffect(t, x.name), 0) })),
+          dialog: null, editIndex: null, delAccTo: "",
+          crAccOpen: st.crAccOpen === delAcc.name ? null : st.crAccOpen
+        });
       },
       saveAcc: () => {
         const name = st.accName.trim();

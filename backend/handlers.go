@@ -71,7 +71,20 @@ func (a *API) Handler() http.Handler {
 
 	mux.HandleFunc("POST /api/accounts", a.withState(withBody(s.CreateAccount)))
 	mux.HandleFunc("PUT /api/accounts/{id}", a.withState(withIDBody(s.UpdateAccount)))
-	mux.HandleFunc("DELETE /api/accounts/{id}", a.withState(withID(s.DeleteAccount)))
+	// ?replace=<id> переносит операции на другой счёт вместо того, чтобы удалить их
+	mux.HandleFunc("DELETE /api/accounts/{id}", a.withState(func(r *http.Request, uid int64) error {
+		id, err := pathID(r)
+		if err != nil {
+			return err
+		}
+		var replace int64
+		if v := r.URL.Query().Get("replace"); v != "" {
+			if replace, err = strconv.ParseInt(v, 10, 64); err != nil || replace <= 0 {
+				return badRequest("Счёт для переноса операций не найден")
+			}
+		}
+		return s.DeleteAccount(r.Context(), uid, id, replace)
+	}))
 
 	mux.HandleFunc("POST /api/transactions", a.withState(withBody(s.CreateTx)))
 	mux.HandleFunc("PUT /api/transactions/{id}", a.withState(withIDBody(s.UpdateTx)))

@@ -62,7 +62,7 @@ docker compose exec api /api reset-password user@example.com # новый слу
 | GET | `/api/auth/me`, `/api/auth/config` | |
 | GET | `/api/auth/google/start` → Google → `/api/auth/google/callback` | |
 | GET | `/api/state` | |
-| POST, PUT `/{id}`, DELETE `/{id}` | `/api/accounts` | `{name, kind, balance, cur}` |
+| POST, PUT `/{id}`, DELETE `/{id}` | `/api/accounts` | `{name, kind, balance, cur}`; у DELETE — `?replace=<id>`: перенести операции на этот счёт |
 | POST, PUT `/{id}`, DELETE `/{id}` | `/api/transactions` | `{date, title, type: expense\|income\|transfer, category, account, toAccount, amount, received}` |
 | POST, PUT `/{id}`, DELETE `/{id}` | `/api/categories` | `{name, parent, kind: expense\|income}` |
 | POST, PUT `/{id}`, DELETE `/{id}` | `/api/crypto/portfolios` | `{name, place}` |
@@ -121,6 +121,14 @@ docker compose exec api /api reset-password user@example.com # новый слу
 
 Счёт заводится с нулём: в диалоге только название, тип и валюта. Баланс не редактируется — его считают
 операции, а стартовый остаток можно занести строкой `остаток` при импорте CSV или обычным доходом.
+
+При удалении счёта спрашивается, что делать с его операциями:
+
+- **Перенести на другой счёт** — в списке только счета в той же валюте, иначе суммы операций поехали бы.
+  Операции переходят на выбранный счёт, к его остатку прибавляется остаток удаляемого (вместе с начальным,
+  которого нет в операциях). Переводы между этими двумя счетами стали бы переводом самому себе, поэтому исчезают.
+- **Удалить вместе со счётом** — операции удаляются, а остатки счетов на другой стороне переводов
+  пересчитываются без них: полученное по переводу вычитается, отданное возвращается.
 
 ## Криптовалюта
 

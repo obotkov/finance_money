@@ -321,13 +321,103 @@ func (s *Store) UpdateAccount(ctx context.Context, uid, id int64, in AccountInpu
 	return err
 }
 
-// DeleteAccount removes the account with its operations, transfers included.
-// Balances of the other accounts are left as they are.
-func (s *Store) DeleteAccount(ctx context.Context, uid, id int64) error {
-	tag, err := s.db.Exec(ctx, `DELETE FROM accounts WHERE id = $1 AND user_id = $2`, id, uid)
-	if err == nil && tag.RowsAffected() == 0 {
-		return notFound("Счёт не найден")
+// DeleteAccount removes the account. With replace > 0 its operations move to
+// that account — the currency must be the same — and it takes over the deleted
+// balance; transfers between the two would become transfers to themselves, so
+// they go. Without a replacement the operations are deleted with the account.
+// Either way the balances of the other accounts lose what the gone operations
+// had added to them.
+func (s *Store) DeleteAccount(ctx context.Context, uid, id, replace int64) error {
+	return pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) error {
+		var cur string
+		err := tx.QueryRow(ctx, `SELECT currency FROM accounts WHERE id = $1 AND user_id = $2 FOR UPDATE`, id, uid).Scan(&cur)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return notFound("Счёт не найден")
+		}
+		if err != nil {
+			return err
+		}
+		if replace > 0 {
+			if err := moveTxs(ctx, tx, uid, id, replace, cur); err != nil {
+				return err
+			}
+		} else if err := undoTxs(ctx, tx, uid, id); err != nil {
+			return err
+		}
+		tag, err := tx.Exec(ctx, `DELETE FROM accounts WHERE id = $1 AND user_id = $2`, id, uid)
+		if err == nil && tag.RowsAffected() == 0 {
+			return notFound("Счёт не найден")
+		}
+		return err
+	})
+}
+
+// moveTxs hands the operations of one account over to another of the same currency.
+func moveTxs(ctx context.Context, tx pgx.Tx, uid, id, replace int64, cur string) error {
+	if replace == id {
+		return badRequest("Перенести операции можно только на другой счёт")
 	}
+	var repCur string
+	err := tx.QueryRow(ctx, `SELECT currency FROM accounts WHERE id = $1 AND user_id = $2 FOR UPDATE`, replace, uid).Scan(&repCur)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return notFound("Счёт для переноса не найден")
+	}
+	if err != nil {
+		return err
+	}
+	if repCur != cur {
+		return badRequest("Операции можно перенести только на счёт в той же валюте")
+	}
+
+	rows, err := tx.Query(ctx, `
+		SELECT id FROM transactions
+		WHERE user_id = $1 AND ((account_id = $2 AND to_account_id = $3) OR (account_id = $3 AND to_account_id = $2))`,
+		uid, id, replace)
+	if err != nil {
+		return err
+	}
+	selfTransfers, err := pgx.CollectRows(rows, pgx.RowTo[int64])
+	if err != nil {
+		return err
+	}
+	for _, txID := range selfTransfers {
+		if err := removeTx(ctx, tx, uid, txID); err != nil {
+			return err
+		}
+	}
+
+	if _, err := tx.Exec(ctx, `UPDATE transactions SET account_id = $3 WHERE user_id = $1 AND account_id = $2`, uid, id, replace); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(ctx, `UPDATE transactions SET to_account_id = $3 WHERE user_id = $1 AND to_account_id = $2`, uid, id, replace); err != nil {
+		return err
+	}
+	// вместе с операциями переезжает и остаток — в нём есть и начальный, которого нет в операциях
+	var left float64
+	if err := tx.QueryRow(ctx, `SELECT balance FROM accounts WHERE id = $1 AND user_id = $2`, id, uid).Scan(&left); err != nil {
+		return err
+	}
+	return addBalance(ctx, tx, replace, left)
+}
+
+// undoTxs takes the operations of the account being deleted out of the balances
+// of the accounts on the other side of them. The operations themselves go with
+// the account, by the foreign key.
+func undoTxs(ctx context.Context, tx pgx.Tx, uid, id int64) error {
+	if _, err := tx.Exec(ctx, `
+		UPDATE accounts a SET balance = a.balance - x.total
+		FROM (SELECT to_account_id AS id, SUM(received) AS total FROM transactions
+			WHERE user_id = $1 AND account_id = $2 AND to_account_id IS NOT NULL
+			GROUP BY to_account_id) x
+		WHERE a.id = x.id AND a.user_id = $1`, uid, id); err != nil {
+		return err
+	}
+	_, err := tx.Exec(ctx, `
+		UPDATE accounts a SET balance = a.balance + x.total
+		FROM (SELECT account_id AS id, SUM(amount) AS total FROM transactions
+			WHERE user_id = $1 AND to_account_id = $2
+			GROUP BY account_id) x
+		WHERE a.id = x.id AND a.user_id = $1`, uid, id)
 	return err
 }
 
