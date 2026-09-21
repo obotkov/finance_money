@@ -120,6 +120,7 @@
   .crcoin:hover { background: var(--hover-soft); }
   .crcoin[data-on="1"] { background: var(--accent-soft); }
   .crcoin .m-only, .crop-row .m-only { display: none !important; }
+  .cr-total > i { font-style: normal; }
   .catback { flex: none; width: 31px; height: 31px; border: 0; border-radius: 50%; background: var(--fill); color: var(--ink); font-size: 20px; line-height: 1; cursor: pointer; padding: 0 0 2px; }
   /* The header stays on top only where it fits in one row; on a narrow screen it would eat the page */
   /* wide screen: the app fills the window exactly; only the section content scrolls,
@@ -290,6 +291,10 @@
     .crop-row > * > span { font-size: 11.5px !important; line-height: 1.35; }
     .crop-row > * > span:first-child, .crop-row > .crop-price > span:nth-child(3) { font-size: 14px !important; }
     .crop-row > .crop-sum > span:nth-child(3), .crop-row > .crop-qty > span:nth-child(2) { white-space: normal; }
+    /* итого по счёту: каждая цифра своей строкой, по правому краю */
+    .cr-total { margin-left: auto; text-align: right; }
+    .cr-total > span { display: block; white-space: nowrap; line-height: 1.5; }
+    .cr-total > i { display: none; }
     .crop-row .d-only { display: none !important; }
     .crop-row .m-only { display: block !important; }
     .crop-row > .crop-icon.m-only { display: inline-flex !important; }
@@ -1014,7 +1019,7 @@
               </sc-for>
               <div style="display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:4px 12px;margin:4px 4px 0;padding:11px 14px 4px;border-top:1px solid var(--line)">
                 <span style="font-size:13px;color:var(--ink2)">Итого по счёту</span>
-                <span class="num" style="font-size:13px;color:var(--ink3)">вложено {{ crAccSumInvested }} · стоимость <span style="color:var(--ink)">{{ crAccSumValue }}</span> · <span style="color:{{ crAccSumPnlColor }}">{{ crAccSumPnlLine }}</span></span>
+                <span class="num cr-total" style="font-size:13px;color:var(--ink3)"><span>вложено {{ crAccSumInvested }}</span><i> · </i><span>стоимость <span style="color:var(--ink)">{{ crAccSumValue }}</span></span><i> · </i><span style="color:{{ crAccSumPnlColor }}">{{ crAccSumPnlLine }}</span></span>
               </div>
             </div>
             <div class="card" style="padding:6px 4px 10px">
