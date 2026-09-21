@@ -116,6 +116,11 @@
   /* движение средств крипто-счёта: дата, количество, цена сделки, изменение остатка */
   .crop { display: grid; gap: 12px; align-items: center;
     grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) 26px; } /* как у таблицы монет выше */
+  /* шапки таблиц: лёгкая заливка и чуть плотнее текст, чтобы отделялись от строк */
+  .crhead, .crophead, .txhead, .acc-head, .rhead {
+    background: var(--fill) !important; color: var(--ink2) !important; font-weight: 500;
+    border-bottom: none !important; border-radius: 10px !important; margin-bottom: 4px !important; }
+  .rhead { margin-left: -10px; margin-right: -10px; padding-left: 10px !important; padding-right: 10px !important; }
   .sorth { cursor: pointer; user-select: none; white-space: nowrap; }
   .sorth:hover, .sorth[data-on="1"] { color: var(--ink); }
   .sorta { display: inline-block; width: 12px; margin-left: 3px; }
@@ -1199,7 +1204,7 @@
             <!-- по месяцам -->
             <sc-if value="{{ repMonths }}" hint-placeholder-val="{{ false }}">
             <div class="card" style="padding:6px 18px 14px">
-              <div class="num rgrid" style="display:grid;grid-template-columns:minmax(0,1.4fr) repeat(4,minmax(0,1fr));gap:12px;padding:12px 0 10px;font-size:12px;color:var(--ink3);border-bottom:1px solid var(--line)">
+              <div class="num rgrid rhead" style="display:grid;grid-template-columns:minmax(0,1.4fr) repeat(4,minmax(0,1fr));gap:12px;padding:12px 0 10px;font-size:12px;color:var(--ink3);border-bottom:1px solid var(--line)">
                 <span style="font-variant-numeric:normal">Категория</span><span style="text-align:right">{{ reportHead1 }}</span><span style="text-align:right">{{ reportHead2 }}</span><span style="text-align:right">{{ reportHead3 }}</span><span style="text-align:right">Среднее</span>
               </div>
               <sc-for list="{{ reportRows }}" as="r" hint-placeholder-count="9">
