@@ -115,6 +115,12 @@
   /* The header stays on top only where it fits in one row; on a narrow screen it would eat the page */
   /* wide screen: the app fills the window exactly; only the section content scrolls,
      the header and the sidebar stay in place */
+  /* операции: у каждой колонки своя ширина — суммы и счета стоят ровными столбцами */
+  .txgrid {
+    display: grid; gap: 12px; align-items: center;
+    grid-template-columns: 44px minmax(0, 1.1fr) minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 124px) minmax(0, 124px) 22px;
+  }
+  .txrow .m-cell { display: none; }
   @media (min-width: 761px) {
     .page { box-sizing: border-box; height: 100vh; height: 100dvh; min-height: 0 !important; padding: 20px !important; }
     .page-in { height: 100%; }
@@ -228,12 +234,14 @@
       grid-template-columns: auto minmax(0, 1fr) auto 22px !important;
       column-gap: 10px !important; row-gap: 2px !important; padding: 10px !important;
     }
-    .txrow > :nth-child(1) { grid-area: 2 / 1; }             /* date */
-    .txrow > :nth-child(2) { grid-area: 1 / 1 / 2 / 3; }     /* category */
-    .txrow > :nth-child(3) { grid-area: 2 / 2; font-size: 12px !important; } /* comment */
-    .txrow > :nth-child(4) { grid-area: 2 / 3; text-align: right; font-size: 12px !important; max-width: 40vw; } /* account */
-    .txrow > :nth-child(5) { grid-area: 1 / 3; }             /* amount */
-    .txrow > :nth-child(6) { grid-area: 1 / 4 / 3 / 5; }     /* delete */
+    .txrow .d-cell { display: none !important; }
+    .txrow .m-cell { display: block !important; }
+    .txrow > .tx-date { grid-area: 2 / 1; }
+    .txrow > .tx-cat { grid-area: 1 / 1 / 2 / 3; }
+    .txrow > .tx-note { grid-area: 2 / 2; font-size: 12px !important; }
+    .txrow > .tx-acc { grid-area: 2 / 3; text-align: right; font-size: 12px !important; max-width: 40vw; }
+    .txrow > .tx-mamt { grid-area: 1 / 3; }
+    .txrow > .tx-del { grid-area: 1 / 4 / 3 / 5; }
 
     /* crypto: the balance across the top, the other two widgets side by side */
     .cr-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 10px !important; }
@@ -597,17 +605,21 @@
               </div>
             </div>
             <div class="card ops-main" style="padding:6px 4px" hidden="{{ noTxs }}">
-              <div class="txhead" style="display:grid;grid-template-columns:50px minmax(0,1fr) minmax(0,1.7fr) minmax(0,1fr) minmax(0,auto) 26px;gap:12px;padding:10px 14px 8px;margin:0 4px;font-size:12px;color:var(--ink3);border-bottom:1px solid var(--line)">
-                <span>Дата</span><span>Категория</span><span>Комментарий</span><span>Счёт</span><span style="text-align:right">Сумма</span><span></span>
+              <div class="txhead txgrid" style="padding:10px 14px 8px;margin:0 4px;font-size:12px;color:var(--ink3);border-bottom:1px solid var(--line)">
+                <span>Дата</span><span>Категория</span><span>Комментарий</span><span>Счёт откуда</span><span>Счёт куда</span><span style="text-align:right">Сумма откуда</span><span style="text-align:right">Сумма</span><span></span>
               </div>
               <sc-for list="{{ visibleTxs }}" as="t" hint-placeholder-count="10">
-                <div class="rowline txrow" title="Изменить операцию" onClick="{{ t.edit }}" style="cursor:pointer;display:grid;grid-template-columns:50px minmax(0,1fr) minmax(0,1.7fr) minmax(0,1fr) minmax(0,auto) 26px;align-items:center;gap:12px;padding:12px 14px;margin:0 4px;border-radius:12px">
-                  <span class="num" style="font-size:13px;color:var(--ink3)">{{ t.dateLabel }}</span>
-                  <span style="font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="{{ t.catPath }}">{{ t.catPath }}</span>
-                  <span style="font-size:14px;color:var(--ink2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="{{ t.note }}">{{ t.note }}</span>
-                  <span style="font-size:13px;color:var(--ink3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ t.acc }}</span>
-                  <span class="num" style="text-align:right;font-size:15px;font-weight:500;white-space:nowrap;color:{{ t.color }}">{{ t.amountLabel }}</span>
-                  <button class="btn btn-t" style="padding:2px 0;color:var(--ink3);font-size:17px;line-height:1" title="Удалить операцию" onClick="{{ t.del }}">×</button>
+                <div class="rowline txrow txgrid" title="Изменить операцию" onClick="{{ t.edit }}" style="cursor:pointer;align-items:center;padding:12px 14px;margin:0 4px;border-radius:12px">
+                  <span class="num tx-date" style="font-size:13px;color:var(--ink3)">{{ t.dateLabel }}</span>
+                  <span class="tx-cat" style="font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="{{ t.catPath }}">{{ t.catPath }}</span>
+                  <span class="tx-note" style="font-size:14px;color:var(--ink2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="{{ t.note }}">{{ t.note }}</span>
+                  <span class="tx-from d-cell" style="font-size:13px;color:var(--ink3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="{{ t.fromAcc }}">{{ t.fromAcc }}</span>
+                  <span class="tx-to d-cell" style="font-size:13px;color:var(--ink3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="{{ t.toAcc }}">{{ t.toAcc }}</span>
+                  <span class="num tx-famt d-cell" style="text-align:right;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink3)">{{ t.fromAmt }}</span>
+                  <span class="num tx-amt d-cell" style="text-align:right;font-size:15px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:{{ t.color }}">{{ t.toAmt }}</span>
+                  <button class="btn btn-t tx-del" style="padding:2px 0;color:var(--ink3);font-size:17px;line-height:1" title="Удалить операцию" onClick="{{ t.del }}">×</button>
+                  <span class="tx-acc m-cell" style="font-size:13px;color:var(--ink3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ t.acc }}</span>
+                  <span class="num tx-mamt m-cell" style="text-align:right;font-size:15px;font-weight:500;white-space:nowrap;color:{{ t.color }}">{{ t.amountLabel }}</span>
                 </div>
               </sc-for>
             </div>
@@ -3271,6 +3283,17 @@ class Component extends DCLogic {
         cat: t.c,
         catPath: transfer ? "Перевод" : trade ? "Сделка" : catPath(t.c),
         acc: trade ? t.a + " · " + t.gotCur : transfer ? t.a + " → " + t.to : t.a,
+        // таблица на широком экране: откуда ушло и куда пришло, каждой стороне своя сумма
+        fromAcc: trade ? (t.type === "buy" ? t.a : t.gotCur) : transfer || t.v < 0 ? t.a : "",
+        toAcc: trade ? (t.type === "buy" ? t.gotCur : t.a) : transfer ? t.to : t.v > 0 ? t.a : "",
+        fromAmt: trade
+          ? (t.type === "buy" ? this.signed(t.v, this.curOf(t.a)) : "−" + this.coinAmount(Math.abs(t.got || 0), t.gotCur))
+          : transfer && t.gotCur && t.gotCur !== this.curOf(t.a) ? this.fmt(t.v, this.curOf(t.a)) : "",
+        toAmt: trade
+          ? (t.type === "buy" ? "+" + this.coinAmount(Math.abs(t.got || 0), t.gotCur) : this.signed(t.v, this.curOf(t.a)))
+          : transfer
+          ? (t.gotCur && t.gotCur !== this.curOf(t.a) ? this.fmt(t.got, t.gotCur) : this.fmt(t.v, this.curOf(t.a)))
+          : this.signed(t.v, this.curOf(t.a)),
         amountLabel: trade
           ? this.signed(t.v, this.curOf(t.a)) + " · "
             + (t.type === "buy" ? "+" : "−") + this.coinAmount(Math.abs(t.got || 0), t.gotCur)
