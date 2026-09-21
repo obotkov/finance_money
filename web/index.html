@@ -121,7 +121,6 @@
   .crcoin[data-on="1"] { background: var(--accent-soft); }
   .crcoin .m-only, .crop-row .m-only { display: none !important; }
   .cr-total > i { font-style: normal; }
-  .appbar-deal ~ .appbar-actions { margin-left: 0 !important; }
   .catback { flex: none; width: 31px; height: 31px; border: 0; border-radius: 50%; background: var(--fill); color: var(--ink); font-size: 20px; line-height: 1; cursor: pointer; padding: 0 0 2px; }
   /* The header stays on top only where it fits in one row; on a narrow screen it would eat the page */
   /* wide screen: the app fills the window exactly; only the section content scrolls,
@@ -204,7 +203,6 @@
     .appbar-main { flex-wrap: wrap; gap: 10px !important; padding: 14px 16px 12px !important; }
     .appbar-main > :first-child { flex: 1 1 0; }
     .appbar-title { font-size: 21px !important; }
-    .appbar-actions { display: none !important; } /* each screen has its own add button */
     .m-only { display: inline-flex !important; }
     .d-only { display: none !important; }
 
@@ -377,10 +375,6 @@
           <sc-if value="{{ crShowDealBtn }}" hint-placeholder-val="{{ false }}">
           <button class="btn btn-p appbar-deal" style="margin-left:auto;white-space:nowrap;flex:none" onClick="{{ crAddDeal }}">Добавить сделку</button>
           </sc-if>
-          <div class="appbar-actions" style="margin-left:auto;display:flex;gap:10px;flex:none">
-            <button class="btn btn-s" style="white-space:nowrap" onClick="{{ openAcc }}">Добавить счёт</button>
-            <button class="btn btn-p" style="white-space:nowrap" onClick="{{ openOp }}">Новая операция</button>
-          </div>
         </div>
       </div>
 
