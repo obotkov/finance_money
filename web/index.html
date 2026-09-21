@@ -621,7 +621,9 @@
                       <span class="coin" data-len="{{ a.iconLen }}" style="{{ a.iconStyle }}">{{ a.icon }}</span>
                       <div style="flex:1;min-width:0">
                         <div style="font-size:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ a.name }}</div>
-                        <div style="font-size:12px;color:var(--ink3)">{{ a.rubLabel }}</div>
+                        <div class="num" style="font-size:12px;color:var(--ink3);display:flex;flex-wrap:wrap;gap:0 6px">
+                          <span style="white-space:nowrap">{{ a.rubLabel }}</span><span style="white-space:nowrap">{{ a.investedLabel }}</span>
+                        </div>
                       </div>
                       <div class="num big" style="font-size:clamp(16px,1.6vw,20px);white-space:nowrap;color:{{ a.color }}">{{ a.balanceLabel }}</div>
                       <button class="btn btn-s acc-edit" style="flex:none" onClick="{{ a.edit }}">Изменить</button>
@@ -638,7 +640,9 @@
                   <span class="coin" data-len="{{ a.iconLen }}" style="{{ a.iconStyle }}">{{ a.icon }}</span>
                   <div style="flex:1;min-width:0">
                     <div style="font-size:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ a.name }}</div>
-                    <div style="font-size:12px;color:var(--ink3)">{{ a.kind }}</div>
+                    <div style="font-size:12px;color:var(--ink3);display:flex;flex-wrap:wrap;gap:0 6px">
+                      <span style="white-space:nowrap">{{ a.kind }}</span><span class="num" style="white-space:nowrap">{{ a.investedLabel }}</span>
+                    </div>
                   </div>
                   <div style="text-align:right">
                     <div class="num big" style="font-size:clamp(16px,1.6vw,20px);white-space:nowrap;color:{{ a.color }}">{{ a.balanceLabel }}</div>
@@ -850,27 +854,33 @@
               <div class="crhead" style="display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) 26px;gap:12px;padding:10px 14px 8px;margin:0 4px;font-size:12px;color:var(--ink3);border-bottom:1px solid var(--line)">
                 <span>Монета</span><span style="text-align:right">Количество</span><span style="text-align:right">Цена</span><span style="text-align:right">Стоимость</span><span></span>
               </div>
+              <sc-for list="{{ crAccRows }}" as="a" hint-placeholder-count="2">
               <div class="crarow" style="display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) 26px;align-items:center;gap:12px;padding:12px 14px;margin:0 4px">
                 <span style="min-width:0;display:flex;align-items:center;gap:10px">
-                  <span class="coin" data-len="{{ crAccIconLen }}" style="{{ crAccIconStyle }}">{{ crAccIcon }}</span>
+                  <span class="coin" data-len="{{ a.iconLen }}" style="{{ a.iconStyle }}">{{ a.icon }}</span>
                   <span style="min-width:0">
-                    <span style="display:block;font-size:15px">{{ crAccCoin }}</span>
-                    <span style="display:block;font-size:12px;color:var(--ink3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ crAccCoinName }}</span>
+                    <span style="display:block;font-size:15px">{{ a.coin }}</span>
+                    <span style="display:block;font-size:12px;color:var(--ink3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ a.name }}</span>
                   </span>
                 </span>
                 <span class="num" style="text-align:right;white-space:nowrap">
-                  <span style="display:block;font-size:15px">{{ crAccAmountLabel }}</span>
-                  <span style="display:block;font-size:12px;color:var(--ink3)">{{ crAccInvestedLabel }}</span>
+                  <span style="display:block;font-size:15px">{{ a.amountLabel }}</span>
+                  <span style="display:block;font-size:12px;color:var(--ink3)">{{ a.spentLabel }}</span>
                 </span>
                 <span class="num" style="text-align:right;white-space:nowrap">
-                  <span style="display:block;font-size:14px;color:var(--ink2)">{{ crAccPriceLabel }}</span>
-                  <span style="display:block;font-size:12px;color:var(--ink3)">{{ crAccBuyLabel }}</span>
+                  <span style="display:block;font-size:14px;color:var(--ink2)">{{ a.priceLabel }}</span>
+                  <span style="display:block;font-size:12px;color:var(--ink3)">{{ a.buyLabel }}</span>
                 </span>
                 <span class="num" style="text-align:right;white-space:nowrap">
-                  <span style="display:block;font-size:16px;font-weight:500">{{ crAccValueLabel }}</span>
-                  <span style="display:block;font-size:12px;color:{{ crAccPnlColor }}">{{ crAccPnlLine }}</span>
+                  <span style="display:block;font-size:16px;font-weight:500">{{ a.valueLabel }}</span>
+                  <span style="display:block;font-size:12px;color:{{ a.pnlColor }}">{{ a.pnlLine }}</span>
                 </span>
                 <span></span>
+              </div>
+              </sc-for>
+              <div style="display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:4px 12px;margin:4px 4px 0;padding:11px 14px 4px;border-top:1px solid var(--line)">
+                <span style="font-size:13px;color:var(--ink2)">Итого по счёту</span>
+                <span class="num" style="font-size:13px;color:var(--ink3)">вложено {{ crAccSumInvested }} · стоимость <span style="color:var(--ink)">{{ crAccSumValue }}</span> · <span style="color:{{ crAccSumPnlColor }}">{{ crAccSumPnlLine }}</span></span>
               </div>
             </div>
             <div class="card" style="padding:6px 4px 10px">
@@ -1612,14 +1622,9 @@
             <span style="font-size:12px;color:var(--ink3)">{{ dealPriceNote }}</span>
             <button class="btn btn-t" style="padding:0;font-size:12px" onClick="{{ dealUseMarket }}">{{ dealMarketBtn }}</button>
           </div>
-          <div style="margin-top:14px"><span class="lbl">{{ dealSideLabel }}</span>
-            <select class="inp" value="{{ dealTarget }}" onChange="{{ onDealTarget }}">
-              <sc-for list="{{ dealTargetOptions }}" as="o" hint-placeholder-count="2"><option value="{{ o.value }}">{{ o.label }}</option></sc-for>
-            </select>
-          </div>
           </sc-if>
           <sc-if value="{{ dealNoCoins }}" hint-placeholder-val="{{ false }}">
-          <div style="font-size:13px;color:var(--ink2);margin-top:16px">Продавать пока нечего: на крипто-счетах нет монет. Купите монету — она ляжет на отдельный счёт, и его можно будет продать.</div>
+          <div style="font-size:13px;color:var(--ink2);margin-top:16px">Продавать пока нечего: на этом счёте нет монет. Купите монету — она ляжет на этот же счёт, и её можно будет продать.</div>
           </sc-if>
         </sc-if>
 
@@ -1973,7 +1978,7 @@ const DEMO = {
       { name: "Накопительный счёт", kind: "Вклад", balance: 640000, cur: "RUB" },
       { name: "Брокерский счёт", kind: "Инвестиции", balance: 312400, cur: "RUB" },
       { name: "Валютный вклад", kind: "Вклад", balance: 2400, cur: "USD" },
-      { name: "Криптокошелёк", kind: "Криптокошелёк", balance: 0.14, cur: "BTC" },
+      { name: "Криптокошелёк", kind: "Криптокошелёк", balance: 530, cur: "USDT" },
       { name: "Кредитная карта", kind: "Кредит", balance: -18200, cur: "RUB" }
     ],
     crypto: [
@@ -2001,8 +2006,9 @@ const DEMO = {
       { d: "2026-09-08", t: "Футбольная секция, сентябрь", c: "Футбол", a: "Тинькофф Black", v: -4500 },
       { d: "2026-09-07", t: "Аптека", c: "Здоровье", a: "Тинькофф Black", v: -1840 },
       { d: "2026-09-06", t: "Аренда льда, хоккей", c: "Хоккей", a: "Наличные", v: -2800 },
+      { d: "2026-09-06", t: "Покупка 0,008 BTC", c: "Сделка", a: "Криптокошелёк", v: -470, got: 0.008, gotCur: "BTC", type: "buy" },
       { d: "2026-09-05", t: "Перевод на накопительный", c: "Перевод", a: "Тинькофф Black", to: "Накопительный счёт", v: 40000, type: "transfer" },
-      { d: "2026-09-05", t: "Покупка биткоина", c: "Перевод", a: "Тинькофф Black", to: "Криптокошелёк", v: 15000, got: 0.14, gotCur: "BTC", type: "transfer" },
+      { d: "2026-09-05", t: "Пополнение", c: "Перевод", a: "Тинькофф Black", to: "Криптокошелёк", v: 92000, got: 1000, gotCur: "USDT", type: "transfer" },
       { d: "2026-09-04", t: "Доставка ужина", c: "Кафе и доставка", a: "Тинькофф Black", v: -1490 },
       { d: "2026-09-03", t: "Подписки: музыка, облако", c: "Подписки", a: "Кредитная карта", v: -2190 },
       { d: "2026-09-02", t: "Вкусвилл", c: "Продукты", a: "Тинькофф Black", v: -3120 }
@@ -2024,11 +2030,11 @@ class Component extends DCLogic {
     dataText: "", dataMsg: "", dataAdminMsg: "",
     theme: initialTheme, cents: initialCents,
     repMode: "detail", repFrom: THIS_MONTH + "-01", repTo: TODAY, repPreset: "month", repView: "bars", repPath: [], repList: null,
-    expPreset: "all", expFrom: "", expTo: "", expTypes: { expense: true, income: true, transfer: true }, expMsg: "",
+    expPreset: "all", expFrom: "", expTo: "", expTypes: { expense: true, income: true, transfer: true, trade: true }, expMsg: "",
     cats: [], accounts: [], txs: [], crypto: [], rates: {},
     delAccTo: "",
     dealKind: "buy", dealCoin: "BTC", dealQty: "", dealPrice: "", dealPriceAuto: true,
-    dealDate: TODAY, dealTarget: null, dealOther: "", dealOut: "", dealIn: "", dealInTouched: false,
+    dealDate: TODAY, dealOther: "", dealOut: "", dealIn: "", dealInTouched: false,
     crOpen: null, crAccOpen: null, crPortId: null, crPortName: "", crPortPlace: "",
     crAssetId: null, crAssetPort: null, crAssetCoin: "BTC", crAssetAmount: "", crAssetInvested: "",
     online: false, busy: false, demo: false, donutHover: null,
@@ -2090,6 +2096,10 @@ class Component extends DCLogic {
   // at accounts and categories that exist.
   // Opens the operation dialog filled with an existing operation.
   editOp(t) {
+    if (this.isTrade(t)) {
+      window.alert("Сделку не редактируют: удалите её и запишите заново на странице крипто-счёта.");
+      return;
+    }
     const transfer = t.type === "transfer";
     const [y, m] = t.d.split("-").map(Number);
     this.setState({
@@ -2121,6 +2131,55 @@ class Component extends DCLogic {
     if (t.type !== "transfer") return t.a === acc ? t.v : 0;
     return (t.a === acc ? -t.v : 0) + (t.to === acc ? (t.got != null ? t.got : t.v) : 0);
   }
+
+  // Сделка по крипто-счёту: монета покупается за валюту счёта и остаётся на нём
+  // же. v — что сделка сделала с остатком (минус на покупке, плюс на продаже),
+  // got и gotCur — количество монеты и её код.
+  isTrade(t) { return t.type === "buy" || t.type === "sell"; }
+  // Операция, которая идёт в доходы и расходы: не перевод и не сделка.
+  isFlow(t) { return t.type !== "transfer" && !this.isTrade(t); }
+
+  // Монеты, купленные на крипто-счёте: количество и сколько на них потрачено
+  // в валюте счёта — продажа возвращает потраченное обратно, поэтому у монеты,
+  // проданной дороже покупки, потрачено уходит в минус, и это её прибыль.
+  holdings(acc) {
+    if (!acc || acc.kind !== "Криптокошелёк") return [];
+    const by = {};
+    this.state.txs.forEach(t => {
+      if (!this.isTrade(t) || t.a !== acc.name || !t.gotCur) return;
+      const h = by[t.gotCur] || (by[t.gotCur] = { coin: t.gotCur, amount: 0, spent: 0 });
+      h.amount += (t.type === "buy" ? 1 : -1) * (t.got || 0);
+      h.spent -= t.v;
+    });
+    return Object.keys(by).map(k => by[k]).filter(h => Math.abs(h.amount) > 1e-12);
+  }
+
+  // Сколько стоит счёт в своей валюте: остаток плюс купленные на нём монеты.
+  // Для обычного счёта это просто остаток.
+  accWorth(acc) {
+    const hs = this.holdings(acc);
+    if (!hs.length) return acc.balance;
+    const rate = CUR[acc.cur || "RUB"] ? CUR[acc.cur || "RUB"].rate : 1;
+    return acc.balance + hs.reduce((sum, h) => sum + this.toRub(h.amount, h.coin) / rate, 0);
+  }
+  accRub(acc) { return this.toRub(this.accWorth(acc), acc.cur); }
+
+  // Что операция внесла на крипто-счёт или вывела с него, в USDT. Сделка внутри
+  // счёта не в счёт: она меняет форму денег, а не их количество, поэтому после
+  // покупки монеты вложенное остаётся прежним. У стейблкоина внесённое — сама
+  // сумма перевода, у остальных — вторая его сторона, то есть цена покупки.
+  crFlow(t, acc) {
+    const usdtRub = this.coinRub("USDT");
+    if (this.isTrade(t) || !(usdtRub > 0)) return 0;
+    const v = this.txEffect(t, acc.name);
+    if (v === 0) return 0;
+    const toUsdt = (n, cur) => this.toRub(n, cur) / usdtRub;
+    if (acc.cur === "USDT" || acc.cur === "USDC" || t.type !== "transfer") return toUsdt(v, acc.cur);
+    const out = t.a === acc.name;
+    const amount = out ? (t.got != null ? t.got : t.v) : t.v;
+    return toUsdt(out ? -amount : amount, this.curOf(out ? t.to : t.a));
+  }
+  accInvested(acc) { return this.state.txs.reduce((sum, t) => sum + this.crFlow(t, acc), 0); }
 
   applyServer(data, extra) {
     const rates = data.rates || {};
@@ -2334,13 +2393,28 @@ class Component extends DCLogic {
     const rows = txs.map(t => {
       first[t.a] = t.d;
       if (t.to) first[t.to] = t.d;
-      const transfer = t.type === "transfer", income = !transfer && t.v > 0;
+      const transfer = t.type === "transfer", trade = this.isTrade(t);
+      const income = !transfer && !trade && t.v > 0;
       const got = t.got != null ? t.got : t.v;
       const after = bal[t.a];
       if (transfer) {
         if (t.a in bal) bal[t.a] += t.v;
         if (t.to in bal) bal[t.to] -= got;
       } else if (t.a in bal) bal[t.a] -= t.v;
+      // У сделки одна сторона — счёт с суммой, другая — монета с количеством:
+      // покупка списывает сумму слева и приводит монету справа, продажа наоборот.
+      if (trade) {
+        const buy = t.type === "buy";
+        return {
+          d: t.d, kind: "trade",
+          cells: [
+            t.tm ? t.d + " " + t.tm : t.d,
+            num(buy ? Math.abs(t.v) : got), buy ? t.a : t.gotCur,
+            num(buy ? got : Math.abs(t.v)), buy ? t.gotCur : t.a,
+            num(after), "", t.t, buy ? "покупка" : "продажа"
+          ]
+        };
+      }
       return {
         d: t.d, kind: transfer ? "transfer" : (income ? "income" : "expense"),
         cells: [
@@ -2432,7 +2506,7 @@ class Component extends DCLogic {
       : ["var(--c1)", "var(--c2)", "var(--c3)", "var(--c4)", "var(--c5)"];
     const OTHER = "var(--c-other)", SLOTS = PALETTE.length;
     const go = (path, list) => () => this.setState({ repPath: path, repList: list || null });
-    const flow = st.txs.filter(t => t.type !== "transfer" && (!st.repFrom || t.d >= st.repFrom) && (!st.repTo || t.d <= st.repTo));
+    const flow = st.txs.filter(t => this.isFlow(t) && (!st.repFrom || t.d >= st.repFrom) && (!st.repTo || t.d <= st.repTo));
     const kindOf = t => (t.v > 0 ? "income" : "expense");
     const sum = list => list.reduce((s, t) => s + Math.abs(inRub(t)), 0);
     const opsWord = n => pluralRu(n, "операция", "операции", "операций");
@@ -2634,7 +2708,7 @@ class Component extends DCLogic {
     const coarser = (want, got) => want === got ? "" : " Для такого длинного периода показано по " + (got === "week" ? "неделям" : "месяцам") + ".";
     const grans = (cur, key, hoverKey) => [["day", "День"], ["week", "Неделя"], ["month", "Месяц"]].map(([g, label]) => ({
       key: g, label, on: cur === g ? "1" : "0", pick: () => this.setState({ [key]: g, [hoverKey]: null }) }));
-    const flow = st.txs.filter(t => t.type !== "transfer" && t.d >= from && t.d <= to);
+    const flow = st.txs.filter(t => this.isFlow(t) && t.d >= from && t.d <= to);
     const locate = bs => d => { // index of the bucket holding date d
       let lo = 0, hi = bs.length - 1, r = -1;
       while (lo <= hi) { const mid = (lo + hi) >> 1; if (bs[mid].from <= d) { r = mid; lo = mid + 1; } else hi = mid - 1; }
@@ -2811,7 +2885,7 @@ class Component extends DCLogic {
   summaryVals() {
     const st = this.state;
     const inRub = t => this.toRub(t.v, this.curOf(t.a));
-    const rub = a => this.toRub(a.balance, a.cur);
+    const rub = a => this.accRub(a); // у крипто-счёта сюда входят и монеты на нём
     const plural = (n, a, b, c) => { const m = n % 100, k = n % 10; return m > 10 && m < 20 ? c : k === 1 ? a : k > 1 && k < 5 ? b : c; };
     const monthAt = k => { const d = new Date(TODAY_Y, TODAY_M + k, 1); return d.getFullYear() + "-" + pad2(d.getMonth() + 1); };
     const daysIn = ym => new Date(Number(ym.slice(0, 4)), Number(ym.slice(5, 7)), 0).getDate();
@@ -2821,7 +2895,7 @@ class Component extends DCLogic {
     const PREV = monthAt(-1);
     const daysNow = daysIn(THIS_MONTH), daysLeft = daysNow - TODAY_D;
     const prevCut = PREV + "-" + pad2(Math.min(TODAY_D, daysIn(PREV)));
-    const flows = st.txs.filter(t => t.type !== "transfer" && t.d <= TODAY);
+    const flows = st.txs.filter(t => this.isFlow(t) && t.d <= TODAY);
     const now = flows.filter(t => t.d.startsWith(THIS_MONTH));
     const before = flows.filter(t => t.d.startsWith(PREV) && t.d <= prevCut); // last month up to the same day
     const total = (list, sign) => list.filter(t => sign * t.v > 0).reduce((s, t) => s + Math.abs(inRub(t)), 0);
@@ -2842,7 +2916,7 @@ class Component extends DCLogic {
     const lastThree = [monthAt(-3), monthAt(-2), monthAt(-1)];
     const groups = {};
     st.txs.forEach(t => {
-      if (t.type === "transfer" || t.v >= 0) return;
+      if (!this.isFlow(t) || t.v >= 0) return;
       const ym = t.d.slice(0, 7);
       if (lastThree.indexOf(ym) === -1 && ym !== THIS_MONTH) return;
       const g = groups[t.c + "|" + t.t] || (groups[t.c + "|" + t.t] = { title: t.t, past: [], paidNow: false });
@@ -2907,7 +2981,7 @@ class Component extends DCLogic {
     const halfYear = monthAt(-6) + "-01";
     let unusual = null;
     now.filter(t => t.v < 0).forEach(t => {
-      const past = st.txs.filter(x => x.type !== "transfer" && x.v < 0 && x.c === t.c && x.d >= halfYear && x.d < THIS_MONTH + "-01")
+      const past = st.txs.filter(x => this.isFlow(x) && x.v < 0 && x.c === t.c && x.d >= halfYear && x.d < THIS_MONTH + "-01")
         .map(x => -inRub(x)).sort((a, b) => a - b);
       if (past.length < 3) return;
       const median = past[Math.floor(past.length / 2)], amount = -inRub(t), ratio = amount / median;
@@ -3044,19 +3118,27 @@ class Component extends DCLogic {
       tabVals["go" + (id === "ops" ? "Ops2" : k)] = () => this.goScreen(id);
     });
 
-    const accounts = st.accounts.map((a, i) => Object.assign(curBadge(a.cur || "RUB"), {
+    // У крипто-счёта большая цифра — стоимость вместе с купленными на нём
+    // монетами, а во второй строке ещё и вложенное, чтобы прибыль была видна.
+    const accounts = st.accounts.map((a, i) => {
+      const crypto = a.kind === "Криптокошелёк";
+      const worth = this.accWorth(a);
+      const invested = crypto ? this.accInvested(a) : 0;
+      return Object.assign(curBadge(a.cur || "RUB"), {
       key: a.name + i, name: a.name,
       kind: a.cur === "RUB" ? a.kind : a.kind + " · " + a.cur,
-      balanceLabel: this.money(a.balance, a.cur),
-      rubLabel: a.cur === "RUB" ? "" : "≈ " + this.money(this.toRub(a.balance, a.cur)),
-      color: a.balance < 0 ? "var(--neg)" : "var(--ink)",
+      balanceLabel: this.money(worth, a.cur),
+      rubLabel: a.cur === "RUB" ? "" : "≈ " + this.money(this.accRub(a)),
+      investedLabel: crypto && Math.abs(invested) > 0.005 ? "вложено " + this.usdt(invested) : "",
+      color: worth < 0 ? "var(--neg)" : "var(--ink)",
       edit: () => this.setState({ dialog: "acc", editIndex: i, accName: a.name, accKind: a.kind, accCur: a.cur || "RUB" })
-    }));
-    const rub = a => this.toRub(a.balance, a.cur);
+      });
+    });
+    const rub = a => this.accRub(a); // у крипто-счёта сюда входят и монеты на нём
     const total = st.accounts.reduce((s, a) => s + rub(a), 0);
     const free = st.accounts.filter(a => a.kind === "Карта" || a.kind === "Наличные").reduce((s, a) => s + rub(a), 0);
     const inRub = t => this.toRub(t.v, this.curOf(t.a));
-    const flow = st.txs.filter(t => t.type !== "transfer" && t.d.startsWith(THIS_MONTH));
+    const flow = st.txs.filter(t => this.isFlow(t) && t.d.startsWith(THIS_MONTH));
     const income = flow.filter(t => t.v > 0).reduce((s, t) => s + inRub(t), 0);
     const expense = flow.filter(t => t.v < 0).reduce((s, t) => s - inRub(t), 0);
 
@@ -3073,35 +3155,42 @@ class Component extends DCLogic {
       }
       return parts.join(" › ");
     };
-    const shapeTx = (t, i) => ({
-      key: t.d + i + t.t, dateLabel: this.dayLabel(t.d), title: t.t,
-      // the comment column: empty when the title is just the default — the category's name
-      note: t.t === t.c || (t.type === "transfer" && t.t === "Перевод") ? "" : t.t,
-      cat: t.c,
-      catPath: t.type === "transfer" ? "Перевод" : catPath(t.c),
-      acc: t.type === "transfer" ? t.a + " → " + t.to : t.a,
-      amountLabel: t.type === "transfer"
-        ? (t.gotCur && t.gotCur !== this.curOf(t.a)
-            ? this.fmt(t.v, this.curOf(t.a)) + " → " + this.fmt(t.got, t.gotCur)
-            : this.fmt(t.v, this.curOf(t.a)))
-        : this.signed(t.v, this.curOf(t.a)),
-      color: t.type === "transfer" ? "var(--ink3)" : (t.v > 0 ? "var(--pos)" : "var(--neg)"),
-      edit: () => this.editOp(t),
-      del: e => { e.stopPropagation(); this.deleteOp(t); }
-    });
+    const shapeTx = (t, i) => {
+      // сделка — не доход и не расход: она меняет остаток счёта и количество монеты
+      const trade = this.isTrade(t), transfer = t.type === "transfer";
+      return {
+        key: t.d + i + t.t, dateLabel: this.dayLabel(t.d), title: t.t,
+        // the comment column: empty when the title is just the default — the category's name
+        note: t.t === t.c || (transfer && t.t === "Перевод") ? "" : t.t,
+        cat: t.c,
+        catPath: transfer ? "Перевод" : trade ? "Сделка" : catPath(t.c),
+        acc: trade ? t.a + " · " + t.gotCur : transfer ? t.a + " → " + t.to : t.a,
+        amountLabel: trade
+          ? this.signed(t.v, this.curOf(t.a)) + " · "
+            + (t.type === "buy" ? "+" : "−") + this.coinAmount(Math.abs(t.got || 0), t.gotCur)
+          : transfer
+          ? (t.gotCur && t.gotCur !== this.curOf(t.a)
+              ? this.fmt(t.v, this.curOf(t.a)) + " → " + this.fmt(t.got, t.gotCur)
+              : this.fmt(t.v, this.curOf(t.a)))
+          : this.signed(t.v, this.curOf(t.a)),
+        color: transfer || trade ? "var(--ink3)" : (t.v > 0 ? "var(--pos)" : "var(--neg)"),
+        edit: () => this.editOp(t),
+        del: e => { e.stopPropagation(); this.deleteOp(t); }
+      };
+    };
     const q = st.query.trim().toLowerCase();
     const monthPrefix = st.opsY + "-" + String(st.opsM + 1).padStart(2, "0");
     const inPeriod = t => st.opsDate ? t.d === st.opsDate : t.d.startsWith(monthPrefix);
     const periodTxs = st.txs.filter(inPeriod);
     const visible = periodTxs.filter(t =>
       (st.filter === "all"
-        || (st.filter === "transfer" ? t.type === "transfer"
-          : t.type !== "transfer" && (st.filter === "income" ? t.v > 0 : t.v < 0))) &&
+        || (st.filter === "transfer" ? !this.isFlow(t)
+          : this.isFlow(t) && (st.filter === "income" ? t.v > 0 : t.v < 0))) &&
       (!q || (t.t + " " + t.c).toLowerCase().includes(q))
     );
     const marks = {};
     st.txs.forEach(t => { marks[t.d] = true; });
-    const periodFlow = periodTxs.filter(t => t.type !== "transfer");
+    const periodFlow = periodTxs.filter(t => this.isFlow(t));
     const periodIn = periodFlow.filter(t => t.v > 0).reduce((s, t) => s + inRub(t), 0);
     const periodEx = periodFlow.filter(t => t.v < 0).reduce((s, t) => s - inRub(t), 0);
 
@@ -3150,7 +3239,7 @@ class Component extends DCLogic {
     const limits = BUDGET_LIMITS;
     const spentBy = {};
     st.txs.forEach(t => {
-      if (t.type === "transfer" || t.v >= 0 || !t.d.startsWith(THIS_MONTH)) return;
+      if (!this.isFlow(t) || t.v >= 0 || !t.d.startsWith(THIS_MONTH)) return;
       spentBy[t.c] = (spentBy[t.c] || 0) - inRub(t);
     });
     const budgets = limits.map(([cat, lim]) => {
@@ -3177,7 +3266,7 @@ class Component extends DCLogic {
     };
     const anaSpent = {};
     st.txs.forEach(t => {
-      if (t.type === "transfer" || t.v >= 0) return;
+      if (!this.isFlow(t) || t.v >= 0) return;
       if (t.d < st.anaFrom || t.d > st.anaTo) return;
       anaSpent[t.c] = (anaSpent[t.c] || 0) - inRub(t);
     });
@@ -3198,7 +3287,7 @@ class Component extends DCLogic {
 
     let anaIncome = 0, anaExpense = 0;
     st.txs.forEach(t => {
-      if (t.type === "transfer" || t.d < st.anaFrom || t.d > st.anaTo) return;
+      if (!this.isFlow(t) || t.d < st.anaFrom || t.d > st.anaTo) return;
       const v = inRub(t);
       if (v > 0) anaIncome += v; else anaExpense -= v;
     });
@@ -3308,25 +3397,21 @@ class Component extends DCLogic {
     };
     const crAssetCount = st.crypto.reduce((n, p) => n + p.assets.length, 0);
     // Счета с типом «Криптокошелёк» — те же деньги, просто заведены в разделе «Счета».
-    // Вложенное у них считается по операциям: сколько стоило то, что на счёт завели,
-    // минус выведенное. У стейблкоина монеты и есть сумма (перевод 84 000 ₽ → 1 000 USDT
-    // даёт ровно 1 000 USDT), у остальных берётся вторая сторона перевода — цена покупки,
-    // а не сегодняшний курс монеты. Остаток, пришедший импортом, операцией не является
-    // и во вложенное не попадает.
+    // Стоимость такого счёта — остаток плюс монеты, купленные на нём сделками.
+    // Вложенное считается только по деньгам, пришедшим со стороны: сколько стоило
+    // то, что на счёт завели, минус выведенное. Сделка внутри счёта вложенное не
+    // двигает — она меняет форму денег, а не их количество, поэтому после покупки
+    // прибыль остаётся прежней. У стейблкоина сумма перевода и есть внесённое
+    // (84 000 ₽ → 1 000 USDT даёт ровно 1 000 USDT), у остальных берётся вторая
+    // сторона перевода — цена покупки, а не сегодняшний курс монеты. Остаток,
+    // пришедший импортом, операцией не является и во вложенное не попадает.
     const crUsdtRub = this.coinRub("USDT");
     const crAccounts = st.accounts.filter(a => a.kind === "Криптокошелёк");
     const crToUsdt = (n, cur) => (crUsdtRub > 0 ? this.toRub(n, cur) / crUsdtRub : 0);
-    const crAccValue = a => crToUsdt(a.balance, a.cur);
-    const crStable = cur => cur === "USDT" || cur === "USDC";
-    const crFlowUsdt = (t, a) => {
-      const v = this.txEffect(t, a.name);
-      if (v === 0 || crStable(a.cur) || t.type !== "transfer") return crToUsdt(v, a.cur);
-      const out = t.a === a.name;
-      const amount = out ? (t.got != null ? t.got : t.v) : t.v;
-      return crToUsdt(out ? -amount : amount, this.curOf(out ? t.to : t.a));
-    };
+    const crAccValue = a => crToUsdt(this.accWorth(a), a.cur);
+    const crFlowUsdt = (t, a) => this.crFlow(t, a);
     const crAccOps = a => st.txs.filter(t => this.txEffect(t, a.name) !== 0);
-    const crAccInvested = a => st.txs.reduce((sum, t) => sum + crFlowUsdt(t, a), 0);
+    const crAccInvested = a => this.accInvested(a);
     const crAccIn = a => st.txs.reduce((sum, t) => sum + Math.max(this.txEffect(t, a.name), 0), 0);
     const crAccOut = a => st.txs.reduce((sum, t) => sum + Math.max(-this.txEffect(t, a.name), 0), 0);
     const crDate = d => d.split("-").reverse().join(".");
@@ -3344,32 +3429,26 @@ class Component extends DCLogic {
     const crNum = v => parseFloat(String(v).replace(/[^\d.,-]/g, "").replace(",", ".")) || 0;
 
     // ---- Сделка по крипто-счёту ----
-    // Покупка — перевод с этого счёта на счёт в купленной монете (новый заводится
-    // сам), продажа — обратный перевод, ввод и вывод — обычный перевод с другим
-    // счётом. Всё это операции, поэтому остатки, «внесено» и прибыль считаются
-    // дальше сами собой.
+    // Покупка и продажа остаются внутри счёта: с него уходит (или на него
+    // приходит) сумма в его валюте, а количество монеты ложится на сам счёт —
+    // отдельный счёт под монету не заводится. Ввод и вывод — обычный перевод
+    // с другим счётом, только он и двигает «Вложено».
     const dealAcc = st.dialog === "crdeal" ? crAccounts.find(a => a.name === st.crAccOpen) || null : null;
     const dealCur = dealAcc ? dealAcc.cur || "USDT" : "USDT";
     const dealBuy = st.dealKind === "buy", dealSell = st.dealKind === "sell";
     const dealTrade = dealBuy || dealSell;
     const dealIn = st.dealKind === "in";
-    const dealCoinAll = COINS.map(([code]) => code).filter(c => c !== dealCur);
-    // продавать можно только то, что лежит на крипто-счетах
-    const dealHeld = st.accounts.filter(a => a.kind === "Криптокошелёк" && a !== dealAcc && a.balance > 0);
-    const dealCoins = dealSell ? dealHeld.map(a => a.cur).filter((c, i, all) => all.indexOf(c) === i) : dealCoinAll;
+    // продавать можно только то, что куплено на этом же счёте
+    const dealHeld = (dealAcc ? this.holdings(dealAcc) : []).filter(h => h.amount > 0);
+    const dealCoins = dealSell ? dealHeld.map(h => h.coin)
+      : COINS.map(([code]) => code).filter(c => c !== dealCur);
     const dealCoin = dealCoins.indexOf(st.dealCoin) !== -1 ? st.dealCoin : dealCoins[0] || "";
     const dealMarket = dealCoin && this.coinRub(dealCur) > 0 ? this.coinRub(dealCoin) / this.coinRub(dealCur) : 0;
     const dealPrice = st.dealPriceAuto ? dealMarket : this.num(st.dealPrice);
     const dealQty = this.num(st.dealQty);
     const dealSum = dealQty * dealPrice;
-    // счёт с этой монетой: уже заведённый или новый, названный по этому счёту
-    const dealCoinAccs = st.accounts.filter(a => a.kind === "Криптокошелёк" && a !== dealAcc && a.cur === dealCoin);
-    const dealNewName = dealAcc ? dealAcc.name + " · " + dealCoin : "";
-    const dealSide = st.dealTarget === null
-      ? dealCoinAccs.find(a => a.name === dealNewName) || dealCoinAccs[0] || null
-      : dealCoinAccs.find(a => a.name === st.dealTarget) || null;
-    const dealSideName = dealSide ? dealSide.name : dealNewName;
-    const dealSideBalance = dealSide ? dealSide.balance : 0;
+    const dealHas = dealHeld.find(h => h.coin === dealCoin) || null;
+    const dealCoinBalance = dealHas ? dealHas.amount : 0;
     // ввод и вывод: вторая сторона — любой другой счёт
     const dealOthers = st.accounts.filter(a => a !== dealAcc);
     const dealOther = dealOthers.find(a => a.name === st.dealOther) || dealOthers[0] || null;
@@ -3388,8 +3467,8 @@ class Component extends DCLogic {
       color: after < 0 ? "var(--neg)" : after > before ? "var(--pos)" : "var(--ink)"
     });
     const dealAccRow = () => dealRow("Остаток «" + dealAcc.name + "»", dealCur, dealAcc.balance, dealAccAfter);
-    const dealCoinRow = () => dealRow(dealCoin + " на «" + dealSideName + "»", dealCoin,
-      dealSideBalance, dealSideBalance + (dealBuy ? dealQty : -dealQty));
+    const dealCoinRow = () => dealRow(dealCoin + " на «" + dealAcc.name + "»", dealCoin,
+      dealCoinBalance, dealCoinBalance + (dealBuy ? dealQty : -dealQty));
     const dealPreview = !dealAcc ? []
       : dealBuy ? [dealAccRow(), dealCoinRow()]
       : dealSell ? [dealCoinRow(), dealAccRow()]
@@ -3555,7 +3634,7 @@ class Component extends DCLogic {
         keys.forEach(k => { incomeM[k] = 0; totalM[k] = 0; });
         st.txs.forEach(t => {
           const k = t.d.slice(0, 7);
-          if (t.type === "transfer" || keys.indexOf(k) === -1) return;
+          if (!this.isFlow(t) || keys.indexOf(k) === -1) return;
           const v = inRub(t);
           if (v > 0) { incomeM[k] += v; return; }
           const r = rootOf(t.c);
@@ -3628,7 +3707,7 @@ class Component extends DCLogic {
           expFrom: st.expFrom, expTo: st.expTo,
           onExpFrom: e => this.setState({ expFrom: e.target.value, expPreset: "custom", expMsg: "" }),
           onExpTo: e => this.setState({ expTo: e.target.value, expPreset: "custom", expMsg: "" }),
-          expKinds: [["expense", "Расходы"], ["income", "Доходы"], ["transfer", "Переводы"]].map(([k, label]) => ({
+          expKinds: [["expense", "Расходы"], ["income", "Доходы"], ["transfer", "Переводы"], ["trade", "Сделки"]].map(([k, label]) => ({
             key: k, label, on: st.expTypes[k] ? "1" : "0",
             // at least one kind stays selected
             toggle: () => this.setState(s => {
@@ -3804,7 +3883,7 @@ class Component extends DCLogic {
             .filter(Boolean).map(t => " · " + t).join("")),
       crInvested: this.usdt(crScopeInvested),
       crInvestedNote: crOpenPort ? "вложено в этот портфель"
-        : crOpenAcc ? "поступления минус списания"
+        : crOpenAcc ? "переводы с других счетов"
         : !st.crypto.length ? "заведено на крипто-счета"
         : crAccounts.length ? "в портфелях и на счетах" : "вложено во все портфели",
       crPnl: this.usdt(crScopePnl, true),
@@ -3862,23 +3941,41 @@ class Component extends DCLogic {
           open: () => this.setState({ crAccOpen: a.name })
         });
       }),
-      // ---- внутри крипто-счёта: его монета и движение средств ----
-      crAccIcon: crOpenAcc ? curBadge(crOpenAcc.cur).icon : "",
-      crAccIconStyle: crOpenAcc ? curBadge(crOpenAcc.cur).iconStyle : "",
-      crAccIconLen: crOpenAcc ? curBadge(crOpenAcc.cur).iconLen : "1",
-      crAccCoin: crOpenAcc ? crOpenAcc.cur : "",
-      crAccCoinName: crOpenAcc ? (COIN[crOpenAcc.cur] ? COIN[crOpenAcc.cur].name : CUR[crOpenAcc.cur] ? CUR[crOpenAcc.cur].label : crOpenAcc.cur) : "",
-      crAccAmountLabel: crOpenAcc ? this.coinAmount(crOpenAcc.balance, crOpenAcc.cur) : "",
-      crAccInvestedLabel: crOpenAcc ? "внесено " + this.usdt(crAccInvested(crOpenAcc)) : "",
-      crAccPriceLabel: crOpenAcc ? this.usdt(crToUsdt(1, crOpenAcc.cur)) : "",
-      crAccBuyLabel: crOpenAcc && !crStable(crOpenAcc.cur) && crOpenAcc.balance > 0 && crAccInvested(crOpenAcc) > 0
-        ? "покупка " + this.usdt(crAccInvested(crOpenAcc) / crOpenAcc.balance) : "",
-      crAccValueLabel: crOpenAcc ? this.usdt(crAccValue(crOpenAcc)) : "",
-      crAccPnlLine: !crOpenAcc || Math.abs(crAccValue(crOpenAcc) - crAccInvested(crOpenAcc)) < 0.005 ? ""
+      // ---- внутри крипто-счёта: остаток, купленные монеты и движение средств ----
+      // Первая строка — свободный остаток счёта, дальше монеты, купленные на нём.
+      // Вместе они и есть стоимость счёта, поэтому итог сходится с виджетом сверху.
+      crAccRows: !crOpenAcc ? [] : [Object.assign(curBadge(crOpenAcc.cur), {
+        key: "base", coin: crOpenAcc.cur,
+        name: COIN[crOpenAcc.cur] ? COIN[crOpenAcc.cur].name
+          : CUR[crOpenAcc.cur] ? CUR[crOpenAcc.cur].label : crOpenAcc.cur,
+        amountLabel: this.coinAmount(crOpenAcc.balance, crOpenAcc.cur),
+        spentLabel: "свободный остаток",
+        priceLabel: this.usdt(crToUsdt(1, crOpenAcc.cur)), buyLabel: "",
+        valueLabel: this.usdt(crToUsdt(crOpenAcc.balance, crOpenAcc.cur)),
+        pnlLine: "", pnlColor: "var(--ink3)"
+      })].concat(this.holdings(crOpenAcc).map(h => {
+        const value = crToUsdt(h.amount, h.coin);
+        const spent = crToUsdt(h.spent, crOpenAcc.cur);
+        const pnl = value - spent;
+        return Object.assign(curBadge(h.coin), {
+          key: h.coin, coin: h.coin, name: COIN[h.coin] ? COIN[h.coin].name : h.coin,
+          amountLabel: this.coinAmount(h.amount, h.coin),
+          spentLabel: spent > 0 ? "куплено на " + this.usdt(spent) : "продано дороже покупки",
+          priceLabel: this.usdt(crToUsdt(1, h.coin)),
+          buyLabel: spent > 0 && h.amount > 0 ? "покупка " + this.usdt(spent / h.amount) : "",
+          valueLabel: this.usdt(value),
+          pnlLine: Math.abs(pnl) < 0.005 ? "" : this.usdt(pnl, true)
+            + (spent > 0 ? " · " + crPctLabel(pnl, spent) : ""),
+          pnlColor: crColor(pnl)
+        });
+      })),
+      crAccSumInvested: crOpenAcc ? this.usdt(crAccInvested(crOpenAcc)) : "",
+      crAccSumValue: crOpenAcc ? this.usdt(crAccValue(crOpenAcc)) : "",
+      crAccSumPnlColor: crColor(crOpenAcc ? crAccValue(crOpenAcc) - crAccInvested(crOpenAcc) : 0),
+      crAccSumPnlLine: !crOpenAcc ? ""
         : this.usdt(crAccValue(crOpenAcc) - crAccInvested(crOpenAcc), true)
           + (crAccInvested(crOpenAcc) > 0
             ? " · " + crPctLabel(crAccValue(crOpenAcc) - crAccInvested(crOpenAcc), crAccInvested(crOpenAcc)) : ""),
-      crAccPnlColor: crColor(crOpenAcc ? crAccValue(crOpenAcc) - crAccInvested(crOpenAcc) : 0),
       crAccFlowLabel: !crOpenAcc ? "" : [
         crAccIn(crOpenAcc) > 0 ? "+" + this.fmt(crAccIn(crOpenAcc), crOpenAcc.cur) : "",
         crAccOut(crOpenAcc) > 0 ? "−" + this.fmt(crAccOut(crOpenAcc), crOpenAcc.cur) : ""
@@ -3888,52 +3985,51 @@ class Component extends DCLogic {
       crAccOps: (crOpenAcc ? crAccOps(crOpenAcc) : []).slice()
         .sort((x, y) => (x.d + (x.tm || "") < y.d + (y.tm || "") ? 1 : -1))
         .map((t, i) => {
-          const v = this.txEffect(t, crOpenAcc.name);
-          const other = t.type === "transfer" ? (t.a === crOpenAcc.name ? "на " + t.to : "с " + t.a) : t.c;
+          const v = this.txEffect(t, crOpenAcc.name), trade = this.isTrade(t);
+          const other = trade ? (t.type === "buy" ? "куплено " : "продано ") + this.coinAmount(t.got || 0, t.gotCur)
+            : t.type === "transfer" ? (t.a === crOpenAcc.name ? "на " + t.to : "с " + t.a) : t.c;
           return {
             key: "o" + (t.id || i), title: t.t,
             meta: crDate(t.d) + " · " + other,
             amountLabel: (v > 0 ? "+" : "−") + this.fmt(Math.abs(v), crOpenAcc.cur),
-            usdtLabel: this.usdt(crFlowUsdt(t, crOpenAcc), true),
+            // сделка вложенное не двигает, поэтому во второй строке у неё прочерк
+            usdtLabel: trade ? "вложенное не меняется" : this.usdt(crFlowUsdt(t, crOpenAcc), true),
             color: v > 0 ? "var(--pos)" : "var(--neg)"
           };
         }),
       crAddDeal: () => this.setState({ dialog: "crdeal", dealKind: "buy", dealQty: "", dealPrice: "",
-        dealPriceAuto: true, dealDate: TODAY, dealTarget: null, dealOut: "", dealIn: "", dealInTouched: false }),
+        dealPriceAuto: true, dealDate: TODAY, dealOut: "", dealIn: "", dealInTouched: false }),
       // ---- диалог сделки ----
       dealDialog: !!dealAcc,
       dealAccName: dealAcc ? dealAcc.name : "",
       dealBuyOn: dealBuy ? "1" : "0", dealSellOn: dealSell ? "1" : "0",
       dealInOn: dealIn ? "1" : "0", dealOutOn: st.dealKind === "out" ? "1" : "0",
-      setDealBuy: () => this.setState({ dealKind: "buy", dealTarget: null }),
-      setDealSell: () => this.setState({ dealKind: "sell", dealTarget: null }),
+      setDealBuy: () => this.set("dealKind", "buy"),
+      setDealSell: () => this.set("dealKind", "sell"),
       setDealIn: () => this.set("dealKind", "in"),
       setDealOut: () => this.set("dealKind", "out"),
       dealIsTrade: dealTrade, dealIsMove: !dealTrade,
       dealHasCoins: dealTrade && !!dealCoin, dealNoCoins: dealTrade && !dealCoin,
       dealReady: !dealTrade || !!dealCoin,
-      dealCoin, onDealCoin: e => this.setState({ dealCoin: e.target.value, dealTarget: null }),
+      dealCoin, onDealCoin: e => this.set("dealCoin", e.target.value),
       dealCoinOptions: dealCoins.map(c => ({ key: c, value: c, label: c + (COIN[c] ? " · " + COIN[c].name : "") })),
       dealHasChips: dealHeld.length > 0,
-      dealChips: dealHeld.filter(a => a.cur !== dealCur).slice(0, 6).map(a => Object.assign(curBadge(a.cur), {
-        key: "c" + a.cur + a.name, label: a.cur, on: a.cur === dealCoin ? "1" : "0",
-        pick: () => this.setState({ dealCoin: a.cur, dealTarget: null })
+      dealChips: dealHeld.slice(0, 6).map(h => Object.assign(curBadge(h.coin), {
+        key: "c" + h.coin, label: this.coinAmount(h.amount, h.coin),
+        on: h.coin === dealCoin ? "1" : "0",
+        pick: () => this.set("dealCoin", h.coin)
       })),
       dealCurSym: CUR[dealCur] ? CUR[dealCur].sym : dealCur,
       dealQty: st.dealQty, onDealQty: e => this.setNumber("dealQty", e),
       dealPriceValue: st.dealPriceAuto ? groupDigits(plainNum(Number(dealMarket.toFixed(dealMarket < 1 ? 6 : 2)))) : st.dealPrice,
       onDealPrice: e => this.setNumber("dealPrice", e, false, { dealPriceAuto: false }),
       dealPriceNote: dealSum > 0
-        ? "сумма сделки " + this.money(dealSum, dealCur) + (dealBuy ? " · на счёте " + this.money(dealAcc ? dealAcc.balance : 0, dealCur) : "")
+        ? "сумма сделки " + this.money(dealSum, dealCur)
+          + (dealBuy ? " · на счёте " + this.money(dealAcc ? dealAcc.balance : 0, dealCur)
+             : " · на счёте " + this.coinAmount(dealCoinBalance, dealCoin))
         : "цена берётся из курсов, её можно поменять",
       dealMarketBtn: st.dealPriceAuto ? "по курсу" : "вернуть курс",
       dealUseMarket: () => this.setState({ dealPriceAuto: true, dealPrice: "" }),
-      dealSideLabel: dealBuy ? "Монета ляжет на счёт" : "Монета спишется со счёта",
-      dealTarget: dealSide ? dealSide.name : "",
-      onDealTarget: e => this.set("dealTarget", e.target.value),
-      dealTargetOptions: dealCoinAccs.map(a => ({ key: "t" + a.name, value: a.name,
-        label: a.name + " · " + this.money(a.balance, a.cur) })).concat(
-        dealBuy ? [{ key: "tnew", value: "", label: "Новый счёт «" + dealNewName + "»" }] : []),
       dealMoveAccLabel: dealIn ? "Деньги придут со счёта" : "Деньги уйдут на счёт",
       dealOther: dealOther ? dealOther.name : "",
       onDealOther: e => this.setState({ dealOther: e.target.value, dealInTouched: false }),
@@ -3946,26 +4042,28 @@ class Component extends DCLogic {
       onDealIn: e => this.setNumber("dealIn", e, false, { dealInTouched: true }),
       dealDate: st.dealDate, onDealDate: e => this.set("dealDate", e.target.value || TODAY),
       dealPreview,
-      dealHint: dealBuy ? "Сделка запишется переводом: с этого счёта уйдёт сумма, на счёт монеты придёт количество."
-        : dealSell ? "Сделка запишется переводом: монета спишется, на этот счёт придёт сумма."
+      dealHint: dealBuy ? "Монета ляжет на этот же счёт: остаток уменьшится на сумму сделки, «Вложено» не изменится."
+        : dealSell ? "Монета спишется с этого счёта, а сумма вернётся на его остаток. «Вложено» не изменится."
         : dealIn ? "Пополнение запишется переводом между счетами — оно попадёт во «Вложено»."
         : "Вывод запишется переводом между счетами — он уменьшит «Вложено».",
       dealSaveLabel: dealBuy ? "Купить" : dealSell ? "Продать" : dealIn ? "Записать ввод" : "Записать вывод",
       saveDeal: () => {
         if (!dealAcc) return;
         const date = st.dealDate || TODAY;
-        let body = null, toCur = "", newAcc = null;
+        let body = null, toCur = "";
         if (dealTrade) {
           if (!dealCoin) return;
           if (!(dealQty > 0)) { window.alert("Укажите количество монеты."); return; }
           if (!(dealPrice > 0)) { window.alert("Укажите цену за монету."); return; }
-          if (dealSell && !dealSide) { window.alert("Нет счёта с этой монетой."); return; }
-          if (!dealSide) newAcc = { name: dealSideName, kind: "Криптокошелёк", balance: 0, cur: dealCoin };
+          if (dealSell && dealQty > dealCoinBalance + 1e-9) {
+            window.alert("На счёте только " + this.coinAmount(dealCoinBalance, dealCoin) + ".");
+            return;
+          }
           const what = this.coinAmount(dealQty, dealCoin);
-          body = dealBuy
-            ? { date, title: "Покупка " + what, type: "transfer", account: dealAcc.name, toAccount: dealSideName, amount: dealSum, received: dealQty }
-            : { date, title: "Продажа " + what, type: "transfer", account: dealSideName, toAccount: dealAcc.name, amount: dealQty, received: dealSum };
-          toCur = dealBuy ? dealCoin : dealCur;
+          body = { date, title: (dealBuy ? "Покупка " : "Продажа ") + what,
+            type: dealBuy ? "buy" : "sell", account: dealAcc.name, coin: dealCoin,
+            amount: dealSum, received: dealQty };
+          toCur = dealCoin;
         } else {
           if (!dealOther) { window.alert("Выберите второй счёт."); return; }
           if (!(dealOutAmount > 0) || !(dealInAmount > 0)) { window.alert("Укажите сумму."); return; }
@@ -3975,18 +4073,20 @@ class Component extends DCLogic {
           toCur = dealInCur;
         }
         if (st.online) {
-          // api() пропускает один запрос за раз, поэтому счёт заводится с паузой
-          const pause = () => new Promise(r => setTimeout(r, 0));
-          (newAcc ? this.api("POST", "accounts", newAcc).then(pause) : Promise.resolve())
-            .then(() => this.api("POST", "transactions", body))
-            .then(() => this.setState({ dialog: null }), () => {});
+          this.api("POST", "transactions", body).then(() => this.setState({ dialog: null }), () => {});
           return;
         }
-        const accounts = (newAcc ? st.accounts.concat([{ ...newAcc }]) : st.accounts).map(a =>
-          a.name === body.account ? { ...a, balance: a.balance - body.amount }
+        // демо-режим: сделка меняет остаток счёта, перевод — оба счёта
+        const delta = dealTrade ? (dealBuy ? -dealSum : dealSum) : 0;
+        const accounts = st.accounts.map(a =>
+          dealTrade ? (a.name === body.account ? { ...a, balance: a.balance + delta } : a)
+          : a.name === body.account ? { ...a, balance: a.balance - body.amount }
           : a.name === body.toAccount ? { ...a, balance: a.balance + body.received } : a);
-        const tx = { d: date, t: body.title, c: "Перевод", a: body.account, to: body.toAccount,
-          v: body.amount, got: body.received, gotCur: toCur, type: "transfer" };
+        const tx = dealTrade
+          ? { d: date, t: body.title, c: "Сделка", a: body.account, v: delta,
+              got: body.received, gotCur: body.coin, type: body.type }
+          : { d: date, t: body.title, c: "Перевод", a: body.account, to: body.toAccount,
+              v: body.amount, got: body.received, gotCur: toCur, type: "transfer" };
         this.setState({ accounts, txs: [tx].concat(st.txs).sort((a, b) => (a.d < b.d ? 1 : -1)), dialog: null });
       },
       crPortDialog: st.dialog === "crport",

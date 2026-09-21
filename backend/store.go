@@ -19,11 +19,17 @@ var migrations embed.FS
 // transferCategory is what the page shows in the category column of a transfer.
 const transferCategory = "Перевод"
 
+// tradeCategory стоит в колонке категории у покупки и продажи монеты.
+const tradeCategory = "Сделка"
+
+// cryptoKind — тип счёта, на котором можно держать монеты и записывать сделки.
+const cryptoKind = "Криптокошелёк"
+
 // maxCategoryDepth limits nesting to four levels (depth 0..3), as the page does.
 const maxCategoryDepth = 3
 
-// Валюта счёта: рубли, доллары, евро и любая монета из coinIDs — счёт в монете
-// держит купленное, а сделка по нему записывается переводом.
+// Валюта счёта: рубли, доллары, евро и любая монета из coinIDs. Купленные
+// монеты лежат на самом крипто-счёте сделками, отдельного счёта им не нужно.
 var currencies = accountCurrencies()
 
 func accountCurrencies() map[string]bool {
@@ -241,7 +247,7 @@ func (s *Store) State(ctx context.Context, uid int64) (*State, error) {
 		            WHEN right(t.time::text, 3) = ':00' THEN left(t.time::text, 5)
 		            ELSE t.time::text END,
 		       t.title, t.type, t.category_name,
-		       a.name, COALESCE(b.name, ''), COALESCE(b.currency, ''), t.amount, t.received
+		       a.name, COALESCE(b.name, ''), COALESCE(b.currency, ''), t.amount, t.received, t.coin
 		FROM transactions t
 		JOIN accounts a ON a.id = t.account_id
 		LEFT JOIN accounts b ON b.id = t.to_account_id
@@ -250,12 +256,20 @@ func (s *Store) State(ctx context.Context, uid int64) (*State, error) {
 	st.Txs, err = pgx.CollectRows(rows, func(r pgx.CollectableRow) (Tx, error) {
 		var t Tx
 		var received *float64
-		err := r.Scan(&t.ID, &t.Date, &t.Time, &t.Title, &t.Type, &t.Cat, &t.Acc, &t.To, &t.GotCur, &t.V, &received)
+		var coin string
+		err := r.Scan(&t.ID, &t.Date, &t.Time, &t.Title, &t.Type, &t.Cat, &t.Acc, &t.To, &t.GotCur, &t.V, &received, &coin)
 		switch t.Type {
 		case "expense":
 			t.V = -t.V
 		case "transfer":
 			t.Cat, t.Got = transferCategory, received
+		case "buy", "sell":
+			// v — что сделка сделала с остатком счёта, got/gotCur — сколько
+			// монеты пришло (покупка) или ушло (продажа)
+			t.Cat, t.Got, t.GotCur = tradeCategory, received, coin
+			if t.Type == "buy" {
+				t.V = -t.V
+			}
 		}
 		return t, err
 	})
@@ -443,6 +457,7 @@ type TxInput struct {
 	ToAccount string   `json:"toAccount"`
 	Amount    float64  `json:"amount"`
 	Received  *float64 `json:"received"`
+	Coin      string   `json:"coin"` // покупка и продажа: какая монета
 }
 
 func (in *TxInput) validate() error {
@@ -470,6 +485,20 @@ func (in *TxInput) validate() error {
 		}
 		if in.Title == "" {
 			in.Title = transferCategory
+		}
+	case "buy", "sell":
+		in.Coin = strings.ToUpper(strings.TrimSpace(in.Coin))
+		if coinIDs[in.Coin] == "" {
+			return badRequest("Неизвестная монета")
+		}
+		if in.Received == nil || !(*in.Received > 0) {
+			return badRequest("Укажите количество монеты")
+		}
+		if in.ToAccount != "" {
+			return badRequest("Сделка записывается на один счёт")
+		}
+		if in.Title == "" {
+			in.Title = tradeCategory
 		}
 	case "expense", "income":
 		if in.Category == "" {
@@ -537,6 +566,27 @@ func insertTx(ctx context.Context, tx pgx.Tx, uid int64, in TxInput, id *int64) 
 		return addBalance(ctx, tx, to.id, got)
 	}
 
+	if in.Type == "buy" || in.Type == "sell" {
+		if from.kind != cryptoKind {
+			return badRequest("Сделку можно записать только на крипто-счёт")
+		}
+		if in.Coin == from.cur {
+			return badRequest("Монета сделки совпадает с валютой счёта")
+		}
+		if _, err := tx.Exec(ctx, `
+			INSERT INTO transactions (id, user_id, date, title, type, account_id, amount, received, coin, time)
+			VALUES (COALESCE($10::bigint, nextval(pg_get_serial_sequence('transactions', 'id'))), $1, $2, $3, $4, $5, $6, $7, $8, NULLIF($9, '')::time)`,
+			uid, in.Date, in.Title, in.Type, from.id, in.Amount, *in.Received, in.Coin, in.Time, id); err != nil {
+			return err
+		}
+		// покупка уводит сумму со счёта, продажа приводит
+		delta := in.Amount
+		if in.Type == "buy" {
+			delta = -delta
+		}
+		return addBalance(ctx, tx, from.id, delta)
+	}
+
 	var catID *int64
 	var cid int64
 	switch err := tx.QueryRow(ctx, `SELECT id FROM categories WHERE user_id = $1 AND name = $2`, uid, in.Category).Scan(&cid); {
@@ -585,21 +635,22 @@ func removeTx(ctx context.Context, tx pgx.Tx, uid, id int64) error {
 			return err
 		}
 		return addBalance(ctx, tx, *to, -*received)
-	case "income":
+	case "income", "sell":
 		return addBalance(ctx, tx, from, -amount)
-	default:
+	default: // расход и покупка
 		return addBalance(ctx, tx, from, amount)
 	}
 }
 
 type accountRef struct {
-	id  int64
-	cur string
+	id   int64
+	cur  string
+	kind string
 }
 
 func lockAccount(ctx context.Context, tx pgx.Tx, uid int64, name string) (accountRef, error) {
 	var a accountRef
-	err := tx.QueryRow(ctx, `SELECT id, currency FROM accounts WHERE user_id = $1 AND name = $2 FOR UPDATE`, uid, name).Scan(&a.id, &a.cur)
+	err := tx.QueryRow(ctx, `SELECT id, currency, kind FROM accounts WHERE user_id = $1 AND name = $2 FOR UPDATE`, uid, name).Scan(&a.id, &a.cur, &a.kind)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return a, badRequest("Нет счёта «" + name + "»")
 	}

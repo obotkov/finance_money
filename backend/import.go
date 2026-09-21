@@ -21,9 +21,14 @@ import (
 //
 // An expense fills the "откуда" side, income the "куда" side, a transfer both
 // (its "куда" amount is in the target account's currency). Категория is a path,
-// "Спорт:Футбол". Тип is расход, доход, перевод or остаток; when empty it
-// follows from the filled sides. The delimiter is ";" or a tab (a paste from a
-// spreadsheet).
+// "Спорт:Футбол". Тип is расход, доход, перевод, покупка, продажа or остаток;
+// when empty it follows from the filled sides. The delimiter is ";" or a tab
+// (a paste from a spreadsheet).
+//
+// Покупка и продажа — сделка внутри крипто-счёта. У покупки слева счёт и
+// потраченная сумма, справа код монеты и её количество; у продажи наоборот.
+// Счёт должен уже существовать и быть крипто-счётом: его тип и валюта в файл
+// не попадают, поэтому из пустого профиля сделка не встанет.
 //
 // Остаток is an account's opening balance: the account in «Счёт (куда)», the
 // signed amount in «Баланс». It adds to the balance without an operation, so
@@ -187,6 +192,18 @@ func parseOperation(date string, field func(int) string) (importLine, error) {
 			l.in.Received = &toAmt
 		}
 		return l, nil
+	case "buy":
+		if fromAcc == "" || fromAmt == 0 || toAcc == "" || toAmt == 0 {
+			return l, errors.New("у покупки заполните счёт и сумму слева, монету и количество справа")
+		}
+		l.in.Account, l.in.Amount, l.in.Coin, l.in.Received = fromAcc, fromAmt, toAcc, &toAmt
+		return l, nil
+	case "sell":
+		if toAcc == "" || toAmt == 0 || fromAcc == "" || fromAmt == 0 {
+			return l, errors.New("у продажи заполните монету и количество слева, счёт и сумму справа")
+		}
+		l.in.Account, l.in.Amount, l.in.Coin, l.in.Received = toAcc, toAmt, fromAcc, &fromAmt
+		return l, nil
 	}
 
 	l.catPath = categoryPath(field(colCategory))
@@ -209,6 +226,10 @@ func importType(s, fromAcc, toAcc string) (string, error) {
 		return "income", nil
 	case "перевод", "transfer":
 		return "transfer", nil
+	case "покупка", "buy":
+		return "buy", nil
+	case "продажа", "sell":
+		return "sell", nil
 	case "остаток", "opening":
 		return "opening", nil
 	case "":
@@ -222,7 +243,7 @@ func importType(s, fromAcc, toAcc string) (string, error) {
 		}
 		return "", errors.New("не указаны ни тип, ни счета")
 	}
-	return "", fmt.Errorf("тип «%s»: ожидается расход, доход или перевод", s)
+	return "", fmt.Errorf("тип «%s»: ожидается расход, доход, перевод, покупка или продажа", s)
 }
 
 // parseAmount reads an amount as a positive number — the direction comes from
@@ -329,7 +350,9 @@ func importOne(ctx context.Context, tx pgx.Tx, uid int64, l importLine) error {
 		return err
 	}
 	for _, name := range []string{in.Account, in.ToAccount} {
-		if name == "" {
+		// у сделки справа не счёт, а монета, да и крипто-счёт из файла
+		// не восстановить — его тип и валюта в CSV не попадают
+		if name == "" || in.Type == "buy" || in.Type == "sell" {
 			continue
 		}
 		if _, err := tx.Exec(ctx, `
@@ -338,7 +361,7 @@ func importOne(ctx context.Context, tx pgx.Tx, uid int64, l importLine) error {
 			return err
 		}
 	}
-	if in.Type != "transfer" {
+	if in.Type == "expense" || in.Type == "income" {
 		kind := "expense"
 		if in.Type == "income" {
 			kind = "income"
