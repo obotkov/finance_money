@@ -2176,7 +2176,7 @@ class Component extends DCLogic {
     expPreset: "all", expFrom: "", expTo: "", expTypes: { expense: true, income: true, transfer: true, trade: true }, expMsg: "",
     cats: [], accounts: [], txs: [], crypto: [], rates: {},
     delAccTo: "",
-    dealKind: "buy", dealEdit: null, dealAccName: null, crCoin: null, crSort: null, crSortDir: -1, dealCoin: "BTC", dealQty: "", dealPrice: "", dealPriceAuto: true,
+    dealKind: "buy", dealEdit: null, dealAccName: null, crCoin: null, crSort: "value", crSortDir: -1, dealCoin: "BTC", dealQty: "", dealPrice: "", dealPriceAuto: true,
     dealDate: TODAY, dealOther: "", dealOut: "", dealIn: "", dealInTouched: false,
     crOpen: null, crAccOpen: null, crPortId: null, crPortName: "", crPortPlace: "",
     crAssetId: null, crAssetPort: null, crAssetCoin: "BTC", crAssetAmount: "", crAssetInvested: "",
@@ -4211,9 +4211,10 @@ class Component extends DCLogic {
         .map(([id, label, align]) => ({
           key: id, label, align, on: st.crSort === id ? "1" : "0",
           arrow: st.crSort === id ? (st.crSortDir > 0 ? "↑" : "↓") : "",
-          // первый щелчок — по убыванию (у монеты — по алфавиту), второй — наоборот, третий — как было
+          // по умолчанию — по стоимости, от большей к меньшей; первый щелчок по колонке — по убыванию
+          // (у монеты — по алфавиту), второй — наоборот, третий — снова по стоимости
           pick: () => this.setState(s => s.crSort !== id ? { crSort: id, crSortDir: id === "coin" ? 1 : -1 }
-            : s.crSortDir === (id === "coin" ? 1 : -1) ? { crSortDir: -s.crSortDir } : { crSort: null })
+            : s.crSortDir === (id === "coin" ? 1 : -1) ? { crSortDir: -s.crSortDir } : { crSort: "value", crSortDir: -1 })
         })),
       crCoinOn: !!crCoinSel,
       crCoinOnLabel: crCoinSel ? crCoinSel + "  ✕" : "",
