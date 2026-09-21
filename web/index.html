@@ -1783,7 +1783,7 @@
           <span class="big" style="font-size:21px">{{ dealTitle }}</span>
           <span style="font-size:13px;color:var(--ink3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ dealAccName }}</span>
         </div>
-        <div class="seg wrap-sm" style="margin-top:14px;display:flex">
+        <div class="seg wrap-sm" style="margin-top:14px;display:flex;width:fit-content;max-width:100%">
           <span class="segopt" data-on="{{ dealBuyOn }}" onClick="{{ setDealBuy }}">Покупка</span>
           <span class="segopt" data-on="{{ dealSellOn }}" onClick="{{ setDealSell }}">Продажа</span>
           <sc-if value="{{ dealNew }}" hint-placeholder-val="{{ true }}">
