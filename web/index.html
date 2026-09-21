@@ -69,6 +69,10 @@
   .btn-s:hover { background: var(--btn-s-hover); }
   .btn-t { background: transparent; color: var(--accent); padding: 8px 10px; }
   .btn-t:hover { background: var(--accent-soft); }
+  .icobtn { width: 34px; height: 34px; padding: 0; display: inline-flex; align-items: center; justify-content: center; flex: none; }
+  .icobtn svg { width: 17px; height: 17px; }
+  .icobtn-del { background: transparent; color: var(--neg); }
+  .icobtn-del:hover { background: var(--btn-s); }
   .navitem { display: block; padding: 7px 12px; border-radius: 9px; font-size: 14px; font-weight: 500; color: var(--ink); }
   .navitem:hover { background: var(--hover); color: var(--ink); }
   .navitem[data-on="1"] { background: var(--raised); color: var(--accent); box-shadow: var(--raised-sh); }
@@ -352,9 +356,10 @@
     .acc-foot > :nth-child(3) { grid-area: 2 / 2; }
     .acc-foot > :last-child { display: none; }
     .rgrid { gap: 6px !important; font-size: 12px !important; }
-    .catrow { flex-wrap: wrap; }
-    .catrow > :first-child { flex-basis: 100%; }
     .wrap-sm { flex-wrap: wrap; }
+    .catrow { gap: 4px !important; padding: 10px 8px 10px 12px !important; }
+    .catadd { font-size: 20px !important; font-weight: 400 !important; width: 34px; height: 34px; padding: 0 !important; }
+    .catadd-t { display: none; }
 
     .dlg { padding: 10px !important; }
     .dlg > .card { padding: 18px !important; border-radius: 18px !important; max-height: calc(100vh - 20px) !important; }
@@ -1380,7 +1385,7 @@
 
           <!-- Категории -->
           <sc-if value="{{ isCategories }}" hint-placeholder-val="{{ false }}">
-          <div class="screen" style="padding:22px 28px 32px;max-width:860px;display:flex;flex-direction:column;gap:14px">
+          <div class="screen" style="padding:22px 28px 32px;display:flex;flex-direction:column;gap:14px">
             <div class="seg" style="align-self:flex-start">
               <span class="segopt" data-on="{{ catTabExp }}" onClick="{{ showExpenseCats }}">Расходы</span>
               <span class="segopt" data-on="{{ catTabInc }}" onClick="{{ showIncomeCats }}">Доходы</span>
@@ -1392,15 +1397,15 @@
                     <div style="font-size:{{ c.size }};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ c.name }}</div>
                     <div class="num" style="font-size:12px;color:var(--ink3)">{{ c.meta }}</div>
                   </div>
-                  <button class="btn btn-t" style="flex:none;display:{{ c.addDisplay }}" onClick="{{ c.addChild }}">+ подкатегория</button>
-                  <button class="btn btn-s" style="flex:none" onClick="{{ c.edit }}">Изменить</button>
-                  <button class="btn btn-t" style="flex:none;color:var(--neg)" onClick="{{ c.del }}">Удалить</button>
+                  <button class="btn btn-t catadd" style="flex:none;display:{{ c.addDisplay }}" title="Добавить подкатегорию" aria-label="Добавить подкатегорию" onClick="{{ c.addChild }}">+<span class="catadd-t"> подкатегория</span></button>
+                  <button class="btn btn-s icobtn" title="Изменить" aria-label="Изменить" onClick="{{ c.edit }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16z"></path><path d="m13.5 6.5 4 4"></path></svg></button>
+                  <button class="btn icobtn icobtn-del" title="Удалить" aria-label="Удалить" onClick="{{ c.del }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"></path><path d="M9 7V4.5h6V7"></path><path d="M6 7l1 13h10l1-13"></path><path d="M10 11v5.5M14 11v5.5"></path></svg></button>
                 </div>
               </sc-for>
             </div>
             <div class="wrap-sm" style="display:flex;align-items:center;gap:12px">
               <button class="btn btn-p" onClick="{{ openNewTabCat }}">{{ addCatLabel }}</button>
-              <span style="font-size:13px;color:var(--ink3)">«Изменить» позволяет перенести категорию к другому родителю внутри своего типа</span>
+              <span style="font-size:13px;color:var(--ink3)">Карандаш позволяет перенести категорию к другому родителю внутри своего типа</span>
             </div>
           </div>
           </sc-if>
