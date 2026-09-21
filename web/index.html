@@ -1574,7 +1574,7 @@
           </div>
         </div>
         </sc-if>
-        <div style="margin-top:14px"><span class="lbl">Назначение</span><input class="inp" value="{{ note }}" onChange="{{ onNote }}" placeholder="например, продукты на неделю"></div>
+        <div style="margin-top:14px"><span class="lbl">Комментарий</span><textarea class="inp" rows="2" style="resize:vertical;min-height:52px;line-height:1.4;font-family:inherit" value="{{ note }}" onChange="{{ onNote }}" placeholder="например, продукты на неделю — Enter переносит строку"></textarea></div>
         <sc-if value="{{ showCats }}" hint-placeholder-val="{{ true }}">
         <div style="margin-top:14px"><span class="lbl">Категория{{ catPicked }}</span>
           <!-- one level at a time: a category with subcategories (marked ›) opens
