@@ -72,7 +72,7 @@ docker compose exec api /api reset-password user@example.com # новый слу
 | GET | `/api/state` | |
 | POST, PUT `/{id}`, DELETE `/{id}` | `/api/accounts` | `{name, kind, balance, cur}`; у DELETE — `?replace=<id>`: перенести операции на этот счёт |
 | POST, PUT `/{id}`, DELETE `/{id}` | `/api/transactions` | `{date, title, type: expense\|income\|transfer\|buy\|sell, category, account, toAccount, amount, received, coin}` |
-| POST, PUT `/{id}`, DELETE `/{id}` | `/api/categories` | `{name, parent, kind: expense\|income}` |
+| POST, PUT `/{id}`, DELETE `/{id}` | `/api/categories` | `{name, parent, kind: expense\|income, icon}` — `icon` один эмодзи из 100 на выбор или пустая строка |
 | POST, PUT `/{id}`, DELETE `/{id}` | `/api/crypto/portfolios` | `{name, place}` |
 | POST, PUT `/{id}`, DELETE `/{id}` | `/api/crypto/assets` | `{portfolio, coin, amount, invested}` — `portfolio` только при создании |
 | POST | `/api/import` | `{text}` — CSV в формате экспорта |

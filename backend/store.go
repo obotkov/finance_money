@@ -41,21 +41,21 @@ func accountCurrencies() map[string]bool {
 }
 
 // defaultCategories are copied to every new user.
-var defaultCategories = []struct{ name, kind string }{
-	{"Продукты", "expense"},
-	{"Кафе и доставка", "expense"},
-	{"Транспорт", "expense"},
-	{"Жильё и связь", "expense"},
-	{"Здоровье", "expense"},
-	{"Подписки", "expense"},
-	{"Спорт", "expense"},
-	{"Одежда", "expense"},
-	{"Развлечения", "expense"},
-	{"Накопления", "expense"},
-	{"Зарплата", "income"},
-	{"Подработка", "income"},
-	{"Проценты по вкладу", "income"},
-	{"Возврат", "income"},
+var defaultCategories = []struct{ name, kind, icon string }{
+	{"Продукты", "expense", "🛒"},
+	{"Кафе и доставка", "expense", "🍕"},
+	{"Транспорт", "expense", "🚗"},
+	{"Жильё и связь", "expense", "🏠"},
+	{"Здоровье", "expense", "💊"},
+	{"Подписки", "expense", "📺"},
+	{"Спорт", "expense", "🏋️"},
+	{"Одежда", "expense", "👕"},
+	{"Развлечения", "expense", "🎬"},
+	{"Накопления", "expense", "🐷"},
+	{"Зарплата", "income", "💰"},
+	{"Подработка", "income", "💼"},
+	{"Проценты по вкладу", "income", "📈"},
+	{"Возврат", "income", "↩️"},
 }
 
 type Account struct {
@@ -73,6 +73,7 @@ type Category struct {
 	Name   string `json:"name"`
 	Parent *int64 `json:"parent"`
 	Kind   string `json:"kind"`
+	Icon   string `json:"icon"`
 }
 
 // Tx is an operation in the shape the page works with: v is signed for income
@@ -231,10 +232,10 @@ func (s *Store) State(ctx context.Context, uid int64) (*State, error) {
 		return nil, err
 	}
 
-	rows, _ = s.db.Query(ctx, `SELECT id, name, parent_id, kind FROM categories WHERE user_id = $1 ORDER BY id`, uid)
+	rows, _ = s.db.Query(ctx, `SELECT id, name, parent_id, kind, icon FROM categories WHERE user_id = $1 ORDER BY id`, uid)
 	st.Cats, err = pgx.CollectRows(rows, func(r pgx.CollectableRow) (Category, error) {
 		var c Category
-		err := r.Scan(&c.ID, &c.Name, &c.Parent, &c.Kind)
+		err := r.Scan(&c.ID, &c.Name, &c.Parent, &c.Kind, &c.Icon)
 		return c, err
 	})
 	if err != nil {
@@ -695,6 +696,7 @@ type CategoryInput struct {
 	Name   string `json:"name"`
 	Parent *int64 `json:"parent"`
 	Kind   string `json:"kind"`
+	Icon   string `json:"icon"`
 }
 
 func (in *CategoryInput) validate() error {
@@ -707,6 +709,11 @@ func (in *CategoryInput) validate() error {
 	}
 	if in.Kind != "expense" && in.Kind != "income" {
 		return badRequest("Категория бывает только расходной или доходной")
+	}
+	// an emoji, joined ones included, fits well within this
+	in.Icon = strings.TrimSpace(in.Icon)
+	if len(in.Icon) > 32 {
+		return badRequest("Иконка — это один эмодзи")
 	}
 	return nil
 }
@@ -899,11 +906,12 @@ func (s *Store) Reset(ctx context.Context, uid int64) error {
 func seedCategories(ctx context.Context, tx pgx.Tx, uid int64) error {
 	names := make([]string, len(defaultCategories))
 	kinds := make([]string, len(defaultCategories))
+	icons := make([]string, len(defaultCategories))
 	for i, c := range defaultCategories {
-		names[i], kinds[i] = c.name, c.kind
+		names[i], kinds[i], icons[i] = c.name, c.kind, c.icon
 	}
-	_, err := tx.Exec(ctx, `INSERT INTO categories (user_id, name, kind) SELECT $1, unnest($2::text[]), unnest($3::text[])`,
-		uid, names, kinds)
+	_, err := tx.Exec(ctx, `INSERT INTO categories (user_id, name, kind, icon) SELECT $1, unnest($2::text[]), unnest($3::text[]), unnest($4::text[])`,
+		uid, names, kinds, icons)
 	return err
 }
 
@@ -915,8 +923,8 @@ func (s *Store) CreateCategory(ctx context.Context, uid int64, in CategoryInput)
 		if err := checkParent(ctx, tx, uid, 0, in); err != nil {
 			return err
 		}
-		_, err := tx.Exec(ctx, `INSERT INTO categories (user_id, name, parent_id, kind) VALUES ($1, $2, $3, $4)`,
-			uid, in.Name, in.Parent, in.Kind)
+		_, err := tx.Exec(ctx, `INSERT INTO categories (user_id, name, parent_id, kind, icon) VALUES ($1, $2, $3, $4, $5)`,
+			uid, in.Name, in.Parent, in.Kind, in.Icon)
 		return err
 	})
 }
@@ -931,8 +939,8 @@ func (s *Store) UpdateCategory(ctx context.Context, uid, id int64, in CategoryIn
 		if err := checkParent(ctx, tx, uid, id, in); err != nil {
 			return err
 		}
-		tag, err := tx.Exec(ctx, `UPDATE categories SET name = $3, parent_id = $4, kind = $5 WHERE id = $1 AND user_id = $2`,
-			id, uid, in.Name, in.Parent, in.Kind)
+		tag, err := tx.Exec(ctx, `UPDATE categories SET name = $3, parent_id = $4, kind = $5, icon = $6 WHERE id = $1 AND user_id = $2`,
+			id, uid, in.Name, in.Parent, in.Kind, in.Icon)
 		if err != nil {
 			return err
 		}

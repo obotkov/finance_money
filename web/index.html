@@ -69,6 +69,16 @@
   .btn-s:hover { background: var(--btn-s-hover); }
   .btn-t { background: transparent; color: var(--accent); padding: 8px 10px; }
   .btn-t:hover { background: var(--accent-soft); }
+  .catic { width: 36px; height: 36px; border-radius: 10px; background: var(--fill); display: inline-flex; align-items: center; justify-content: center; flex: none; font-size: 15px; font-weight: 600; color: var(--ink2); }
+  .catic[data-emoji="1"] { font-size: 20px; font-weight: 400; }
+  .catic-lg { width: 44px; height: 44px; border-radius: 12px; }
+  .catic-lg[data-emoji="1"] { font-size: 24px; }
+  .icogrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(38px, 1fr)); gap: 4px; max-height: 196px; overflow-y: auto; padding: 6px; background: var(--fill); border-radius: 14px; }
+  .icopick { height: 38px; border: 0; border-radius: 10px; background: transparent; font-size: 21px; line-height: 1; cursor: pointer; padding: 0; }
+  .icopick:hover { background: var(--card); }
+  .icopick[data-on="1"] { background: var(--card); box-shadow: 0 0 0 2px var(--accent); }
+  .icopick[data-none="1"]::before { content: ""; display: block; width: 18px; height: 18px; margin: auto; border-radius: 50%; border: 1.8px solid var(--ink3); background: linear-gradient(135deg, transparent 45%, var(--ink3) 45%, var(--ink3) 55%, transparent 55%); }
+  .chip-ic { margin-right: 6px; }
   .icobtn { width: 34px; height: 34px; padding: 0; display: inline-flex; align-items: center; justify-content: center; flex: none; }
   .icobtn svg { width: 17px; height: 17px; }
   .icobtn-del { background: transparent; color: var(--neg); }
@@ -1393,9 +1403,12 @@
             <div class="card" style="padding:6px 4px 10px">
               <sc-for list="{{ tabCats }}" as="c" hint-placeholder-count="11">
                 <div class="rowline catrow" style="display:flex;align-items:center;gap:8px;padding:11px 14px;margin:0 4px;border-radius:12px">
-                  <div style="flex:1;min-width:0;padding-left:{{ c.indent }}">
-                    <div style="font-size:{{ c.size }};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ c.name }}</div>
-                    <div class="num" style="font-size:12px;color:var(--ink3)">{{ c.meta }}</div>
+                  <div style="flex:1;min-width:0;padding-left:{{ c.indent }};display:flex;align-items:center;gap:12px">
+                    <span class="catic" data-emoji="{{ c.iconEmoji }}">{{ c.icon }}</span>
+                    <div style="min-width:0">
+                      <div style="font-size:{{ c.size }};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ c.name }}</div>
+                      <div class="num" style="font-size:12px;color:var(--ink3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ c.meta }}</div>
+                    </div>
                   </div>
                   <button class="btn btn-t catadd" style="flex:none;display:{{ c.addDisplay }}" title="Добавить подкатегорию" aria-label="Добавить подкатегорию" onClick="{{ c.addChild }}">+<span class="catadd-t"> подкатегория</span></button>
                   <button class="btn btn-s icobtn" title="Изменить" aria-label="Изменить" onClick="{{ c.edit }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16z"></path><path d="m13.5 6.5 4 4"></path></svg></button>
@@ -1695,7 +1708,7 @@
               <button class="catback" onClick="{{ catBack }}" aria-label="Назад">‹</button>
             </sc-if>
             <sc-for list="{{ catChips }}" as="c" hint-placeholder-count="6">
-              <span class="chip" data-on="{{ c.on }}" data-self="{{ c.self }}" onClick="{{ c.pick }}">{{ c.name }}<sc-if value="{{ c.opens }}" hint-placeholder-val="{{ false }}"><span class="chip-more">›</span></sc-if></span>
+              <span class="chip" data-on="{{ c.on }}" data-self="{{ c.self }}" onClick="{{ c.pick }}"><sc-if value="{{ c.icon }}" hint-placeholder-val="{{ false }}"><span class="chip-ic">{{ c.icon }}</span></sc-if>{{ c.name }}<sc-if value="{{ c.opens }}" hint-placeholder-val="{{ false }}"><span class="chip-more">›</span></sc-if></span>
             </sc-for>
           </div>
         </div>
@@ -1964,7 +1977,19 @@
     <div class="dlg" style="position:fixed;inset:0;display:grid;place-items:center;padding:24px;overflow:auto;background:var(--overlay);backdrop-filter:blur(6px)" onClick="{{ close }}">
       <div class="card" style="width:min(440px,100%);max-height:calc(100vh - 48px);overflow-y:auto;padding:24px;border-radius:22px;box-shadow:0 24px 60px rgba(0,0,0,.22)" onClick="{{ stop }}">
         <div class="big" style="font-size:21px">{{ catDialogTitle }}</div>
-        <div style="margin-top:16px"><span class="lbl">Название</span><input class="inp" value="{{ catName }}" onChange="{{ onCatName }}" placeholder="Например, Футбол"></div>
+        <div style="margin-top:16px"><span class="lbl">Название</span>
+          <div style="display:flex;align-items:center;gap:10px">
+            <span class="catic catic-lg" data-emoji="{{ catIconPreviewEmoji }}">{{ catIconPreview }}</span>
+            <input class="inp" style="flex:1;min-width:0" value="{{ catName }}" onChange="{{ onCatName }}" placeholder="Например, Футбол">
+          </div>
+        </div>
+        <div style="margin-top:14px"><span class="lbl">Иконка</span>
+          <div class="icogrid">
+            <sc-for list="{{ catIconOptions }}" as="o" hint-placeholder-count="100">
+              <button type="button" class="icopick" data-on="{{ o.on }}" data-none="{{ o.none }}" title="{{ o.tip }}" onClick="{{ o.pick }}">{{ o.icon }}</button>
+            </sc-for>
+          </div>
+        </div>
         <div style="margin-top:14px"><span class="lbl">Родительская категория</span>
           <select class="inp" value="{{ catParent }}" onChange="{{ onCatParent }}">
             <sc-for list="{{ catParentOptions }}" as="o" hint-placeholder-count="6"><option value="{{ o.value }}">{{ o.label }}</option></sc-for>
@@ -2163,26 +2188,29 @@ const HIST_TXS = HIST_MONTHS.reduce((acc, mo) => {
 // makes fetch refuse relative addresses.
 const API = location.origin + "/api/";
 
+// Icons a category can take: emoji, so they render everywhere without assets
+const CAT_ICONS = ["🛒", "🍎", "🥖", "🥩", "🧀", "🍕", "🍔", "🍣", "🍜", "🥗", "🍰", "☕", "🍷", "🍺", "🚗", "🚕", "🚌", "🚇", "🚆", "✈️", "⛽", "🅿️", "🚲", "🛴", "🔧", "🚢", "🏠", "💡", "💧", "🔥", "📶", "📱", "🛋️", "🧹", "🔨", "🪴", "🔑", "🧺", "💊", "🏥", "🦷", "👓", "🩺", "💆", "💇", "🧴", "👕", "👗", "👟", "👜", "💍", "🕶️", "🎁", "🛍️", "🎬", "🎮", "🎵", "🎭", "📚", "🎨", "🎤", "📷", "🎲", "📺", "🏖️", "⛺", "⚽", "🏒", "🏀", "🎾", "🏊", "🏋️", "🚴", "⛷️", "🧘", "🥊", "👶", "🧸", "🎓", "✏️", "🐶", "🐱", "💰", "💵", "💳", "🏦", "📈", "💼", "💻", "🧾", "🪙", "🐷", "💸", "🤝", "↩️", "🎉", "⭐", "❤️", "🙏", "📦"];
+
 // Demo data: shown only when the page runs without the backend (in the design canvas)
 const DEMO = {
     cats: [
-      { id: 1, name: "Продукты", parent: null, kind: "expense" },
-      { id: 2, name: "Кафе и доставка", parent: null, kind: "expense" },
-      { id: 3, name: "Транспорт", parent: null, kind: "expense" },
-      { id: 4, name: "Жильё и связь", parent: null, kind: "expense" },
-      { id: 5, name: "Здоровье", parent: null, kind: "expense" },
-      { id: 6, name: "Подписки", parent: null, kind: "expense" },
-      { id: 7, name: "Спорт", parent: null, kind: "expense" },
-      { id: 8, name: "Футбол", parent: 7, kind: "expense" },
-      { id: 9, name: "Хоккей", parent: 7, kind: "expense" },
-      { id: 10, name: "Баскетбол", parent: 7, kind: "expense" },
-      { id: 11, name: "Одежда", parent: null, kind: "expense" },
-      { id: 14, name: "Накопления", parent: null, kind: "expense" },
-      { id: 12, name: "Зарплата", parent: null, kind: "income" },
-      { id: 13, name: "Подработка", parent: null, kind: "income" },
-      { id: 15, name: "Вёрстка сайтов", parent: 13, kind: "income" },
-      { id: 16, name: "Фотосъёмка", parent: 13, kind: "income" },
-      { id: 17, name: "Проценты по вкладу", parent: null, kind: "income" }
+      { id: 1, name: "Продукты", parent: null, kind: "expense", icon: "🛒" },
+      { id: 2, name: "Кафе и доставка", parent: null, kind: "expense", icon: "🍕" },
+      { id: 3, name: "Транспорт", parent: null, kind: "expense", icon: "🚗" },
+      { id: 4, name: "Жильё и связь", parent: null, kind: "expense", icon: "🏠" },
+      { id: 5, name: "Здоровье", parent: null, kind: "expense", icon: "💊" },
+      { id: 6, name: "Подписки", parent: null, kind: "expense", icon: "📺" },
+      { id: 7, name: "Спорт", parent: null, kind: "expense", icon: "🏋️" },
+      { id: 8, name: "Футбол", parent: 7, kind: "expense", icon: "⚽" },
+      { id: 9, name: "Хоккей", parent: 7, kind: "expense", icon: "🏒" },
+      { id: 10, name: "Баскетбол", parent: 7, kind: "expense", icon: "🏀" },
+      { id: 11, name: "Одежда", parent: null, kind: "expense", icon: "👕" },
+      { id: 14, name: "Накопления", parent: null, kind: "expense", icon: "🐷" },
+      { id: 12, name: "Зарплата", parent: null, kind: "income", icon: "💰" },
+      { id: 13, name: "Подработка", parent: null, kind: "income", icon: "💼" },
+      { id: 15, name: "Вёрстка сайтов", parent: 13, kind: "income", icon: "💻" },
+      { id: 16, name: "Фотосъёмка", parent: 13, kind: "income", icon: "📷" },
+      { id: 17, name: "Проценты по вкладу", parent: null, kind: "income", icon: "📈" }
     ],
     accounts: [
       { name: "Тинькофф Black", kind: "Карта", balance: 84300, cur: "RUB" },
@@ -2236,7 +2264,7 @@ class Component extends DCLogic {
     type: "expense", amount: "", note: "", cat: "", catNav: null, editTx: null, acc: "",
     date: TODAY, calY: TODAY_Y, calM: TODAY_M,
     accName: "", accKind: "Карта", accCur: "RUB", accTo: "", receive: "", receiveTouched: false,
-    catId: null, catName: "", catParent: "", catKind: "expense", catTab: "expense",
+    catId: null, catName: "", catParent: "", catKind: "expense", catIcon: "", catTab: "expense",
     anaPreset: "month", anaFrom: THIS_MONTH + "-01", anaTo: TODAY,
     anaGran: "day", anaHover: null, anaCats: null, anaCatGran: "week", anaCatHover: null,
     dataText: "", dataMsg: "", dataAdminMsg: "",
@@ -3559,19 +3587,25 @@ class Component extends DCLogic {
       return kidsOf(c.id).reduce((s, k) => s + sumTree(k), own);
     };
     const countTree = c => kidsOf(c.id).reduce((s, k) => s + countTree(k), counts[c.name] || 0);
+    // the icon tile: the category's emoji, or its first letter when it has none
+    const catBadge = c => ({
+      icon: c.icon || (c.name ? c.name[0].toUpperCase() : "?"),
+      iconEmoji: c.icon ? "1" : "0"
+    });
     const shapeCat = (c, depth) => {
       const n = countTree(c), amount = sumTree(c);
       void 0;
       return {
         key: "c" + c.id, name: c.name,
+        ...catBadge(c),
         indent: depth * 22 + "px",
         size: depth === 0 ? "16px" : (depth === 1 ? "15px" : "14px"),
         kindLabel: c.kind === "income" ? "доход" : "",
         kindColor: "var(--pos)",
         meta: (n ? this.money(amount) + " · " + n + " операц." : "нет операций") + (kidsOf(c.id).length ? " · вложенных: " + kidsOf(c.id).length : ""),
         addDisplay: depth < 3 ? "inline-flex" : "none",
-        addChild: () => this.setState({ dialog: "cat", catId: null, catName: "", catParent: String(c.id), catKind: c.kind }),
-        edit: () => this.setState({ dialog: "cat", catId: c.id, catName: c.name, catParent: c.parent === null ? "" : String(c.parent), catKind: c.kind }),
+        addChild: () => this.setState({ dialog: "cat", catId: null, catName: "", catParent: String(c.id), catKind: c.kind, catIcon: "" }),
+        edit: () => this.setState({ dialog: "cat", catId: c.id, catName: c.name, catParent: c.parent === null ? "" : String(c.parent), catKind: c.kind, catIcon: c.icon || "" }),
         del: () => {
           if (!window.confirm("Удалить категорию «" + c.name + "»? Вложенные поднимутся на уровень выше, операции сохранят название.")) return;
           if (st.online) { this.api("DELETE", "categories/" + c.id).catch(() => {}); return; }
@@ -3603,7 +3637,7 @@ class Component extends DCLogic {
     const navCat = st.catNav == null ? null : byId(st.catNav);
     const catChip = (c, self) => {
       const opens = !self && hasKids(c);
-      return { key: "c" + c.id, name: c.name, self: self ? "1" : "0", opens,
+      return { key: "c" + c.id, name: c.name, icon: c.icon || "", self: self ? "1" : "0", opens,
         // "2": the pick sits somewhere inside this category
         on: st.cat === c.name ? "1" : pickedLine.has(c.id) ? "2" : "0",
         pick: () => this.setState(opens ? { catNav: c.id } : { cat: c.name }) };
@@ -4082,7 +4116,7 @@ class Component extends DCLogic {
       days: this.calendarCells(),
       catDialog: st.dialog === "cat",
       catDialogTitle: st.catId === null ? "Новая категория" : "Категория",
-      openNewCat: () => this.setState({ dialog: "cat", catId: null, catName: "", catParent: "", catKind: "expense" }),
+      openNewCat: () => this.setState({ dialog: "cat", catId: null, catName: "", catParent: "", catKind: "expense", catIcon: "" }),
       catName: st.catName, onCatName: e => this.set("catName", e.target.value),
       catParent: st.catParent, onCatParent: e => this.set("catParent", e.target.value),
       catParentOptions,
@@ -4095,7 +4129,11 @@ class Component extends DCLogic {
       showIncomeCats: () => this.set("catTab", "income"),
       tabCats: st.catTab === "income" ? incomeCats : expenseCats,
       addCatLabel: st.catTab === "income" ? "Новая категория дохода" : "Новая категория расхода",
-      openNewTabCat: () => this.setState({ dialog: "cat", catId: null, catName: "", catParent: "", catKind: st.catTab }),
+      openNewTabCat: () => this.setState({ dialog: "cat", catId: null, catName: "", catParent: "", catKind: st.catTab, catIcon: "" }),
+      catIconOptions: [{ key: "none", icon: "", none: "1", tip: "Без иконки" }].concat(CAT_ICONS.map(i => ({ key: i, icon: i, none: "0", tip: "" })))
+        .map(o => Object.assign(o, { on: st.catIcon === o.icon ? "1" : "0", pick: () => this.set("catIcon", o.icon) })),
+      catIconPreview: st.catIcon || (st.catName.trim() ? st.catName.trim()[0].toUpperCase() : "?"),
+      catIconPreviewEmoji: st.catIcon ? "1" : "0",
       catKindExp: st.catKind === "expense" ? "1" : "0", catKindInc: st.catKind === "income" ? "1" : "0",
       setCatKindExpense: () => this.setState({ catKind: "expense", catParent: "" }),
       setCatKindIncome: () => this.setState({ catKind: "income", catParent: "" }),
@@ -4104,19 +4142,19 @@ class Component extends DCLogic {
         if (!name) { this.setState({ dialog: null }); return; }
         const parent = st.catParent === "" ? null : Number(st.catParent);
         if (st.online) {
-          const body = { name, parent, kind: st.catKind };
+          const body = { name, parent, kind: st.catKind, icon: st.catIcon };
           const req = st.catId === null ? this.api("POST", "categories", body) : this.api("PUT", "categories/" + st.catId, body);
           req.then(() => this.setState({ dialog: null }), () => {});
           return;
         }
         if (st.catId === null) {
           const id = Math.max(0, ...st.cats.map(c => c.id)) + 1;
-          this.setState({ cats: st.cats.concat([{ id, name, parent, kind: st.catKind }]), dialog: null });
+          this.setState({ cats: st.cats.concat([{ id, name, parent, kind: st.catKind, icon: st.catIcon }]), dialog: null });
         } else {
           const sub = [st.catId].concat(descendantIds(st.catId));
           this.setState({
             cats: st.cats.map(c => c.id === st.catId
-              ? { ...c, name, parent, kind: st.catKind }
+              ? { ...c, name, parent, kind: st.catKind, icon: st.catIcon }
               : (sub.indexOf(c.id) !== -1 ? { ...c, kind: st.catKind } : c)),
             dialog: null
           });
