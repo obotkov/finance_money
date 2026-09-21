@@ -119,6 +119,7 @@
   .sorta { display: inline-block; width: 12px; margin-left: 3px; }
   .crcoin:hover { background: var(--hover-soft); }
   .crcoin[data-on="1"] { background: var(--accent-soft); }
+  .crcoin .m-only { display: none !important; }
   .catback { flex: none; width: 31px; height: 31px; border: 0; border-radius: 50%; background: var(--fill); color: var(--ink); font-size: 20px; line-height: 1; cursor: pointer; padding: 0 0 2px; }
   /* The header stays on top only where it fits in one row; on a narrow screen it would eat the page */
   /* wide screen: the app fills the window exactly; only the section content scrolls,
@@ -294,11 +295,19 @@
     .crarow > :nth-child(3) { grid-area: 2 / 2; }            /* цена */
     .crarow > :nth-child(4) { grid-area: 1 / 2; }            /* стоимость */
     .crarow > :nth-child(5) { grid-area: 1 / 3 / 3 / 4; }    /* удалить */
-    /* монеты внутри счёта: две ровные колонки, количество под названием, цена под стоимостью */
-    .crcoin { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important; row-gap: 6px !important; padding: 11px 12px !important; }
-    .crcoin > :nth-child(2) { text-align: left !important; padding-left: 32px; align-self: start; }
-    .crcoin > :nth-child(3) { align-self: start; }
+    /* монеты внутри счёта: иконка · количество · цена и средняя покупки · стоимость и прибыль */
+    .crcoin { grid-template-columns: 22px minmax(0, 1.1fr) minmax(0, .85fr) minmax(0, 1.1fr) !important;
+      column-gap: 10px !important; align-items: start !important; padding: 11px 10px !important; }
+    .crcoin > * { grid-area: auto !important; }
+    .crcoin > :nth-child(1) { padding-top: 1px; }
+    .crcoin > :nth-child(2) { text-align: left !important; }
     .crcoin > :nth-child(5) { display: none; }
+    .crcoin > :not(:first-child) > span { font-size: 11.5px !important; line-height: 1.35; overflow: hidden; text-overflow: ellipsis; }
+    .crcoin > :not(:first-child) > span:first-child { font-size: 14px !important; font-weight: 500; }
+    .crcoin > :nth-child(2) > span:nth-child(2) { white-space: normal; }
+    .crcoin > :nth-child(3) > span:nth-child(2) { font-size: 14px !important; font-weight: 400; color: var(--ink2) !important; }
+    .crcoin .d-only { display: none !important; }
+    .crcoin .m-only { display: block !important; }
     .cr-head { flex-wrap: wrap; }
     .cr-head > :last-child { flex: 1 1 100%; }
 
@@ -972,7 +981,7 @@
               <div class="crarow crcoin" data-on="{{ a.on }}" title="{{ a.hint }}" onClick="{{ a.pick }}" style="cursor:pointer;display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) 26px;align-items:center;gap:12px;padding:12px 14px;margin:0 4px;border-radius:12px">
                 <span style="min-width:0;display:flex;align-items:center;gap:10px">
                   <span class="coin" data-len="{{ a.iconLen }}" style="{{ a.iconStyle }}">{{ a.icon }}</span>
-                  <span style="min-width:0">
+                  <span class="d-only" style="min-width:0">
                     <span style="display:block;font-size:15px">{{ a.coin }}</span>
                     <span style="display:block;font-size:12px;color:var(--ink3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ a.name }}</span>
                   </span>
@@ -982,12 +991,16 @@
                   <span style="display:block;font-size:12px;color:var(--ink3)">{{ a.spentLabel }}</span>
                 </span>
                 <span class="num" style="text-align:right;white-space:nowrap">
-                  <span style="display:block;font-size:14px;color:var(--ink2)">{{ a.priceLabel }}</span>
-                  <span style="display:block;font-size:12px;color:var(--ink3)">{{ a.buyLabel }}</span>
+                  <span class="d-only" style="display:block;font-size:14px;color:var(--ink2)">{{ a.priceLabel }}</span>
+                  <span class="m-only" style="display:block;font-size:14px;color:var(--ink2)">{{ a.priceShort }}</span>
+                  <span class="d-only" style="display:block;font-size:12px;color:var(--ink3)">{{ a.buyLabel }}</span>
+                  <span class="m-only" style="display:block;font-size:12px;color:var(--ink3)">{{ a.avgLabel }}</span>
                 </span>
                 <span class="num" style="text-align:right;white-space:nowrap">
                   <span style="display:block;font-size:16px;font-weight:500">{{ a.valueLabel }}</span>
-                  <span style="display:block;font-size:12px;color:{{ a.pnlColor }}">{{ a.pnlLine }}</span>
+                  <span class="d-only" style="display:block;font-size:12px;color:{{ a.pnlColor }}">{{ a.pnlLine }}</span>
+                  <span class="m-only" style="display:block;font-size:12px;color:{{ a.pnlColor }}">{{ a.pnlAbs }}</span>
+                  <span class="m-only" style="display:block;font-size:12px;color:{{ a.pnlColor }}">{{ a.pnlPct }}</span>
                 </span>
                 <span></span>
               </div>
@@ -4192,7 +4205,7 @@ class Component extends DCLogic {
           : CUR[crOpenAcc.cur] ? CUR[crOpenAcc.cur].label : crOpenAcc.cur,
         amountLabel: this.coinAmount(crOpenAcc.balance, crOpenAcc.cur),
         spentLabel: "свободный остаток",
-        priceLabel: this.usdt(crToUsdt(1, crOpenAcc.cur)), buyLabel: "",
+        priceLabel: this.usdt(crToUsdt(1, crOpenAcc.cur)), buyLabel: "", avgLabel: "", priceShort: this.usdt(crToUsdt(1, crOpenAcc.cur)).replace(/ USDT$/, ""), pnlAbs: "", pnlPct: "",
         valueLabel: this.usdt(crToUsdt(crOpenAcc.balance, crOpenAcc.cur)),
         pnlLine: "", pnlColor: "var(--ink3)"
       })].concat(this.holdings(crOpenAcc).map(h => {
@@ -4206,6 +4219,10 @@ class Component extends DCLogic {
           spentLabel: spent > 0 ? "куплено на " + this.usdt(spent) : "продано дороже покупки",
           priceLabel: this.usdt(crToUsdt(1, h.coin)),
           buyLabel: spent > 0 && h.amount > 0 ? "покупка " + this.usdt(spent / h.amount) : "",
+          priceShort: this.usdt(crToUsdt(1, h.coin)).replace(/ USDT$/, ""),
+          avgLabel: spent > 0 && h.amount > 0 ? "avg " + this.usdt(spent / h.amount).replace(/ USDT$/, "") : "",
+          pnlAbs: Math.abs(pnl) < 0.005 ? "" : this.usdt(pnl, true),
+          pnlPct: Math.abs(pnl) < 0.005 || !(spent > 0) ? "" : crPctLabel(pnl, spent),
           valueLabel: this.usdt(value),
           pnlLine: Math.abs(pnl) < 0.005 ? "" : this.usdt(pnl, true)
             + (spent > 0 ? " · " + crPctLabel(pnl, spent) : ""),
