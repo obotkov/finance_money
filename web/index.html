@@ -111,6 +111,11 @@
   .coin[data-len="3"] { font-size: 8.5px; }
   .coin[data-len="4"] { font-size: 7px; letter-spacing: -.2px; }
   .chip > .coin { margin: -2px 7px -2px -6px; }
+  .sorth { cursor: pointer; user-select: none; white-space: nowrap; }
+  .sorth:hover, .sorth[data-on="1"] { color: var(--ink); }
+  .sorta { display: inline-block; width: 12px; margin-left: 3px; }
+  .crcoin:hover { background: var(--hover-soft); }
+  .crcoin[data-on="1"] { background: var(--accent-soft); }
   .catback { flex: none; width: 31px; height: 31px; border: 0; border-radius: 50%; background: var(--fill); color: var(--ink); font-size: 20px; line-height: 1; cursor: pointer; padding: 0 0 2px; }
   /* The header stays on top only where it fits in one row; on a narrow screen it would eat the page */
   /* wide screen: the app fills the window exactly; only the section content scrolls,
@@ -791,7 +796,7 @@
             <!-- внутри портфеля: назад к списку, название и его кнопки -->
             <sc-if value="{{ crInside }}" hint-placeholder-val="{{ false }}">
             <div class="cr-head" style="display:flex;align-items:center;gap:12px">
-              <button class="btn btn-t" style="padding-left:0" onClick="{{ crBack }}">{{ crBackLabel }}</button>
+              <button class="catback" style="width:36px;height:36px;font-size:22px" onClick="{{ crBack }}" title="{{ crBackLabel }}" aria-label="{{ crBackLabel }}">‹</button>
               <div style="min-width:0">
                 <div class="big" style="font-size:18px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ crPortTitle }}</div>
                 <div style="font-size:12px;color:var(--ink3)">{{ crPortPlaceLabel }}</div>
@@ -944,10 +949,12 @@
             <sc-if value="{{ crInsideAcc }}" hint-placeholder-val="{{ false }}">
             <div class="card" style="padding:6px 4px">
               <div class="crhead" style="display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) 26px;gap:12px;padding:10px 14px 8px;margin:0 4px;font-size:12px;color:var(--ink3);border-bottom:1px solid var(--line)">
-                <span>Монета</span><span style="text-align:right">Количество</span><span style="text-align:right">Цена</span><span style="text-align:right">Стоимость</span><span></span>
+                <sc-for list="{{ crSortCols }}" as="h" hint-placeholder-count="4">
+                  <span class="sorth" data-on="{{ h.on }}" style="text-align:{{ h.align }}" onClick="{{ h.pick }}" title="Сортировать">{{ h.label }}<span class="sorta">{{ h.arrow }}</span></span>
+                </sc-for><span></span>
               </div>
               <sc-for list="{{ crAccRows }}" as="a" hint-placeholder-count="2">
-              <div class="crarow" style="display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) 26px;align-items:center;gap:12px;padding:12px 14px;margin:0 4px">
+              <div class="crarow crcoin" data-on="{{ a.on }}" title="{{ a.hint }}" onClick="{{ a.pick }}" style="cursor:pointer;display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) 26px;align-items:center;gap:12px;padding:12px 14px;margin:0 4px;border-radius:12px">
                 <span style="min-width:0;display:flex;align-items:center;gap:10px">
                   <span class="coin" data-len="{{ a.iconLen }}" style="{{ a.iconStyle }}">{{ a.icon }}</span>
                   <span style="min-width:0">
@@ -977,11 +984,13 @@
             </div>
             <div class="card" style="padding:6px 4px 10px">
               <div style="display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:4px 12px;padding:12px 18px 8px">
-                <span style="font-size:13px;color:var(--ink2)">Движение средств <span style="color:var(--ink3)">— поступления и списания по счёту</span></span>
+                <span style="font-size:13px;color:var(--ink2);display:flex;align-items:center;gap:8px;flex-wrap:wrap">Движение средств <span style="color:var(--ink3)">{{ crOpsSub }}</span>
+                  <sc-if value="{{ crCoinOn }}" hint-placeholder-val="{{ false }}"><span class="chip" data-on="1" onClick="{{ crCoinClear }}" title="Показать все операции">{{ crCoinOnLabel }}</span></sc-if>
+                </span>
                 <span class="num" style="font-size:13px;color:var(--ink3);white-space:nowrap">{{ crAccFlowLabel }}</span>
               </div>
               <sc-for list="{{ crAccOps }}" as="o" hint-placeholder-count="4">
-                <div class="rowline" style="display:flex;align-items:center;gap:12px;padding:11px 14px;margin:0 4px;border-radius:12px">
+                <div class="rowline" title="Изменить операцию" onClick="{{ o.edit }}" style="cursor:pointer;display:flex;align-items:center;gap:12px;padding:11px 14px;margin:0 4px;border-radius:12px">
                   <div style="flex:1;min-width:0">
                     <div style="font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ o.title }}</div>
                     <div class="num" style="font-size:12px;color:var(--ink3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ o.meta }}</div>
@@ -990,10 +999,11 @@
                     <span style="display:block;font-size:15px;font-weight:500;color:{{ o.color }}">{{ o.amountLabel }}</span>
                     <span style="display:block;font-size:12px;color:var(--ink3)">{{ o.usdtLabel }}</span>
                   </span>
+                  <button class="btn btn-t" style="padding:2px 0;color:var(--ink3);font-size:17px;line-height:1" title="Удалить операцию" onClick="{{ o.del }}">×</button>
                 </div>
               </sc-for>
               <sc-if value="{{ crAccNoOps }}" hint-placeholder-val="{{ false }}">
-              <div style="padding:6px 18px 12px;font-size:13px;color:var(--ink2)">Поступлений и списаний на этом счёте пока нет — переведите деньги с карты, и сумма перевода станет вложенной.</div>
+              <div style="padding:6px 18px 12px;font-size:13px;color:var(--ink2)" hidden="{{ crCoinOn }}">Поступлений и списаний на этом счёте пока нет — переведите деньги с карты, и сумма перевода станет вложенной.</div>
               </sc-if>
             </div>
             </sc-if>
@@ -1681,14 +1691,16 @@
     <div class="dlg" style="position:fixed;inset:0;display:grid;place-items:start center;padding:24px;overflow:auto;background:var(--overlay);backdrop-filter:blur(6px)" onClick="{{ close }}">
       <div class="card" style="width:min(460px,100%);max-height:calc(100vh - 48px);overflow-y:auto;padding:24px;border-radius:22px;box-shadow:0 24px 60px rgba(0,0,0,.22)" onClick="{{ stop }}">
         <div style="display:flex;align-items:baseline;gap:10px;min-width:0">
-          <span class="big" style="font-size:21px">Новая сделка</span>
+          <span class="big" style="font-size:21px">{{ dealTitle }}</span>
           <span style="font-size:13px;color:var(--ink3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ dealAccName }}</span>
         </div>
         <div class="seg wrap-sm" style="margin-top:14px;display:flex">
           <span class="segopt" data-on="{{ dealBuyOn }}" onClick="{{ setDealBuy }}">Покупка</span>
           <span class="segopt" data-on="{{ dealSellOn }}" onClick="{{ setDealSell }}">Продажа</span>
+          <sc-if value="{{ dealNew }}" hint-placeholder-val="{{ true }}">
           <span class="segopt" data-on="{{ dealInOn }}" onClick="{{ setDealIn }}">Ввод</span>
           <span class="segopt" data-on="{{ dealOutOn }}" onClick="{{ setDealOut }}">Вывод</span>
+          </sc-if>
         </div>
 
         <!-- покупка и продажа монеты за валюту счёта -->
@@ -1734,7 +1746,23 @@
         </sc-if>
 
         <sc-if value="{{ dealReady }}" hint-placeholder-val="{{ true }}">
-        <div style="margin-top:14px"><span class="lbl">Дата</span><input class="inp" type="date" value="{{ dealDate }}" onChange="{{ onDealDate }}"></div>
+        <div style="margin-top:14px"><span class="lbl">Дата — {{ dealDateLabel }}</span>
+          <div style="background:var(--fill);border-radius:16px;padding:12px">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+              <button class="btn btn-t" onClick="{{ prevMonth }}">‹</button>
+              <span class="big" style="font-size:15px">{{ monthLabel }}</span>
+              <button class="btn btn-t" onClick="{{ nextMonth }}">›</button>
+            </div>
+            <div class="num" style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;font-size:11px;color:var(--ink3);text-align:center;margin-bottom:4px">
+              <span>пн</span><span>вт</span><span>ср</span><span>чт</span><span>пт</span><span>сб</span><span>вс</span>
+            </div>
+            <div class="num" style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px">
+              <sc-for list="{{ dealDays }}" as="d" hint-placeholder-count="35">
+                <span class="day" data-on="{{ d.on }}" onClick="{{ d.pick }}" style="text-align:center;font-size:13px;padding:7px 0;border-radius:980px;cursor:{{ d.cursor }}">{{ d.label }}</span>
+              </sc-for>
+            </div>
+          </div>
+        </div>
         <div style="background:var(--fill);border-radius:14px;padding:12px 14px;margin-top:14px;display:flex;flex-direction:column;gap:7px">
           <sc-for list="{{ dealPreview }}" as="p" hint-placeholder-count="2">
             <div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px">
@@ -1746,6 +1774,9 @@
         <div style="font-size:12px;color:var(--ink3);margin-top:10px">{{ dealHint }}</div>
         </sc-if>
         <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:18px">
+          <sc-if value="{{ dealEditing }}" hint-placeholder-val="{{ false }}">
+            <button class="btn btn-t" style="margin-right:auto;color:var(--neg)" onClick="{{ delDeal }}">Удалить</button>
+          </sc-if>
           <button class="btn btn-s" onClick="{{ close }}">Отмена</button>
           <sc-if value="{{ dealReady }}" hint-placeholder-val="{{ true }}">
             <button class="btn btn-p" onClick="{{ saveDeal }}">{{ dealSaveLabel }}</button>
@@ -2125,7 +2156,7 @@ class Component extends DCLogic {
     expPreset: "all", expFrom: "", expTo: "", expTypes: { expense: true, income: true, transfer: true, trade: true }, expMsg: "",
     cats: [], accounts: [], txs: [], crypto: [], rates: {},
     delAccTo: "",
-    dealKind: "buy", dealCoin: "BTC", dealQty: "", dealPrice: "", dealPriceAuto: true,
+    dealKind: "buy", dealEdit: null, dealAccName: null, crCoin: null, crSort: null, crSortDir: -1, dealCoin: "BTC", dealQty: "", dealPrice: "", dealPriceAuto: true,
     dealDate: TODAY, dealOther: "", dealOut: "", dealIn: "", dealInTouched: false,
     crOpen: null, crAccOpen: null, crPortId: null, crPortName: "", crPortPlace: "",
     crAssetId: null, crAssetPort: null, crAssetCoin: "BTC", crAssetAmount: "", crAssetInvested: "",
@@ -2188,10 +2219,7 @@ class Component extends DCLogic {
   // at accounts and categories that exist.
   // Opens the operation dialog filled with an existing operation.
   editOp(t) {
-    if (this.isTrade(t)) {
-      window.alert("Сделку не редактируют: удалите её и запишите заново на странице крипто-счёта.");
-      return;
-    }
+    if (this.isTrade(t)) { this.editDeal(t); return; }
     const transfer = t.type === "transfer";
     const [y, m] = t.d.split("-").map(Number);
     this.setState({
@@ -2205,6 +2233,18 @@ class Component extends DCLogic {
       receive: transfer && t.got != null ? groupDigits(t.got) : "",
       receiveTouched: transfer && t.got != null,
       date: t.d, calY: y, calM: m - 1
+    });
+  }
+
+  // Сделка открывается в своём диалоге: монета, количество, цена за монету и дата.
+  editDeal(t) {
+    const [y, m] = t.d.split("-").map(Number);
+    const qty = Math.abs(t.got || 0);
+    this.setState({
+      dialog: "crdeal", dealEdit: t, dealAccName: t.a, dealKind: t.type, dealCoin: t.gotCur,
+      dealQty: groupDigits(plainNum(qty)),
+      dealPrice: qty > 0 ? groupDigits(plainNum(Number((Math.abs(t.v) / qty).toFixed(Math.abs(t.v) / qty < 1 ? 8 : 6)))) : "",
+      dealPriceAuto: false, dealDate: t.d, calY: y, calM: m - 1
     });
   }
 
@@ -2234,11 +2274,11 @@ class Component extends DCLogic {
   // Монеты, купленные на крипто-счёте: количество и сколько на них потрачено
   // в валюте счёта — продажа возвращает потраченное обратно, поэтому у монеты,
   // проданной дороже покупки, потрачено уходит в минус, и это её прибыль.
-  holdings(acc) {
+  holdings(acc, skip) {
     if (!acc || acc.kind !== "Криптокошелёк") return [];
     const by = {};
     this.state.txs.forEach(t => {
-      if (!this.isTrade(t) || t.a !== acc.name || !t.gotCur) return;
+      if (t === skip || !this.isTrade(t) || t.a !== acc.name || !t.gotCur) return;
       const h = by[t.gotCur] || (by[t.gotCur] = { coin: t.gotCur, amount: 0, spent: 0 });
       h.amount += (t.type === "buy" ? 1 : -1) * (t.got || 0);
       h.spent -= t.v;
@@ -2961,7 +3001,7 @@ class Component extends DCLogic {
     return cells;
   }
 
-  calendarCells() {
+  calendarCells(field = "date") {
     const y = this.state.calY, m = this.state.calM;
     const lead = (new Date(y, m, 1).getDay() + 6) % 7;
     const len = new Date(y, m + 1, 0).getDate();
@@ -2969,13 +3009,13 @@ class Component extends DCLogic {
     for (let i = 0; i < lead; i++) cells.push({ key: "b" + i, label: "", blank: true });
     for (let d = 1; d <= len; d++) {
       const iso = y + "-" + String(m + 1).padStart(2, "0") + "-" + String(d).padStart(2, "0");
-      cells.push({ key: iso, label: String(d), iso, sel: iso === this.state.date });
+      cells.push({ key: iso, label: String(d), iso, sel: iso === this.state[field] });
     }
     return cells.map(c => ({
       key: c.key, label: c.label,
       cursor: c.blank ? "default" : "pointer",
       on: c.sel ? "1" : "0",
-      pick: c.blank ? null : () => this.setState({ date: c.iso })
+      pick: c.blank ? null : () => this.setState({ [field]: c.iso })
     }));
   }
 
@@ -3546,6 +3586,19 @@ class Component extends DCLogic {
     const crDate = d => d.split("-").reverse().join(".");
     const crAccTotal = crAccounts.reduce((sum, a) => sum + crAccValue(a), 0);
     const crOpenAcc = crAccounts.find(a => a.name === st.crAccOpen) || null;
+    // монета, в которую провалились внутри счёта: движение средств показывает только её сделки
+    const crCoinSel = crOpenAcc && st.crCoin && st.crCoin !== crOpenAcc.cur ? st.crCoin : null;
+    // строки монет: сортировка по выбранной колонке, щелчок по монете — её сделки
+    const crSortRows = rows => {
+      const key = { qty: "sortQty", price: "sortPrice", value: "sortValue" }[st.crSort];
+      const sorted = !st.crSort ? rows : rows.slice().sort((x, y) => st.crSortDir
+        * (st.crSort === "coin" ? x.coin.localeCompare(y.coin) : x[key] - y[key]));
+      return sorted.map(r => Object.assign(r, {
+        on: r.coin === crCoinSel ? "1" : "0",
+        hint: r.key === "base" ? "Все операции счёта" : "Сделки с " + r.coin,
+        pick: () => this.set("crCoin", r.key === "base" || r.coin === crCoinSel ? null : r.coin)
+      }));
+    };
 
     // Виджеты считают либо всё, либо то, во что провалились: портфель или счёт.
     const crPortScope = crOpenPort ? [crOpenPort] : crOpenAcc ? [] : st.crypto;
@@ -3562,13 +3615,16 @@ class Component extends DCLogic {
     // приходит) сумма в его валюте, а количество монеты ложится на сам счёт —
     // отдельный счёт под монету не заводится. Ввод и вывод — обычный перевод
     // с другим счётом, только он и двигает «Вложено».
-    const dealAcc = st.dialog === "crdeal" ? crAccounts.find(a => a.name === st.crAccOpen) || null : null;
+    const dealAccFound = st.dialog === "crdeal" ? crAccounts.find(a => a.name === (st.dealAccName || st.crAccOpen)) || null : null;
+    // при правке сделки счёт считается так, будто её ещё нет: остаток без неё и монеты без неё
+    const dealEdit = dealAccFound && st.dealEdit ? st.dealEdit : null;
+    const dealAcc = dealAccFound && dealEdit ? { ...dealAccFound, balance: dealAccFound.balance - dealEdit.v } : dealAccFound;
     const dealCur = dealAcc ? dealAcc.cur || "USDT" : "USDT";
     const dealBuy = st.dealKind === "buy", dealSell = st.dealKind === "sell";
     const dealTrade = dealBuy || dealSell;
     const dealIn = st.dealKind === "in";
     // продавать можно только то, что куплено на этом же счёте
-    const dealHeld = (dealAcc ? this.holdings(dealAcc) : []).filter(h => h.amount > 0);
+    const dealHeld = (dealAcc ? this.holdings(dealAcc, dealEdit) : []).filter(h => h.amount > 0);
     const dealCoins = dealSell ? dealHeld.map(h => h.coin)
       : COINS.map(([code]) => code).filter(c => c !== dealCur);
     const dealCoin = dealCoins.indexOf(st.dealCoin) !== -1 ? st.dealCoin : dealCoins[0] || "";
@@ -4024,8 +4080,8 @@ class Component extends DCLogic {
       crEmpty: !crOpenPort && !crOpenAcc && st.crypto.length === 0,
       crHasAssets: !!crOpenPort && crOpenPort.assets.length > 0,
       crNoAssets: !!crOpenPort && crOpenPort.assets.length === 0,
-      crBack: () => this.setState({ crOpen: null, crAccOpen: null }),
-      crBackLabel: crOpenAcc ? "‹ весь раздел" : "‹ все портфели",
+      crBack: () => this.setState({ crOpen: null, crAccOpen: null, crCoin: null }),
+      crBackLabel: crOpenAcc ? "Весь раздел" : "Все портфели",
       crPortTitle: crOpenPort ? crOpenPort.name : crOpenAcc ? crOpenAcc.name : "",
       crPortPlaceLabel: crOpenPort
         ? (crOpenPort.place || "крипто-портфель") + " · " + pluralRu(crOpenPort.assets.length, "монета", "монеты", "монет")
@@ -4096,14 +4152,15 @@ class Component extends DCLogic {
           investedLabel: this.usdt(invested),
           valueLabel: this.usdt(value),
           pnlLabel: Math.abs(pnl) < 0.005 ? "" : this.usdt(pnl, true), pnlColor: crColor(pnl),
-          open: () => this.setState({ crAccOpen: a.name })
+          open: () => this.setState({ crAccOpen: a.name, crCoin: null })
         });
       }),
       // ---- внутри крипто-счёта: остаток, купленные монеты и движение средств ----
       // Первая строка — свободный остаток счёта, дальше монеты, купленные на нём.
       // Вместе они и есть стоимость счёта, поэтому итог сходится с виджетом сверху.
-      crAccRows: !crOpenAcc ? [] : [Object.assign(curBadge(crOpenAcc.cur), {
-        key: "base", coin: crOpenAcc.cur,
+      crAccRows: crSortRows(!crOpenAcc ? [] : [Object.assign(curBadge(crOpenAcc.cur), {
+        key: "base", coin: crOpenAcc.cur, sortQty: crOpenAcc.balance, sortPrice: crToUsdt(1, crOpenAcc.cur),
+        sortValue: crToUsdt(crOpenAcc.balance, crOpenAcc.cur),
         name: COIN[crOpenAcc.cur] ? COIN[crOpenAcc.cur].name
           : CUR[crOpenAcc.cur] ? CUR[crOpenAcc.cur].label : crOpenAcc.cur,
         amountLabel: this.coinAmount(crOpenAcc.balance, crOpenAcc.cur),
@@ -4117,6 +4174,7 @@ class Component extends DCLogic {
         const pnl = value - spent;
         return Object.assign(curBadge(h.coin), {
           key: h.coin, coin: h.coin, name: COIN[h.coin] ? COIN[h.coin].name : h.coin,
+          sortQty: h.amount, sortPrice: crToUsdt(1, h.coin), sortValue: value,
           amountLabel: this.coinAmount(h.amount, h.coin),
           spentLabel: spent > 0 ? "куплено на " + this.usdt(spent) : "продано дороже покупки",
           priceLabel: this.usdt(crToUsdt(1, h.coin)),
@@ -4126,7 +4184,19 @@ class Component extends DCLogic {
             + (spent > 0 ? " · " + crPctLabel(pnl, spent) : ""),
           pnlColor: crColor(pnl)
         });
-      })),
+      }))),
+      crSortCols: [["coin", "Монета", "left"], ["qty", "Количество", "right"], ["price", "Цена", "right"], ["value", "Стоимость", "right"]]
+        .map(([id, label, align]) => ({
+          key: id, label, align, on: st.crSort === id ? "1" : "0",
+          arrow: st.crSort === id ? (st.crSortDir > 0 ? "↑" : "↓") : "",
+          // первый щелчок — по убыванию (у монеты — по алфавиту), второй — наоборот, третий — как было
+          pick: () => this.setState(s => s.crSort !== id ? { crSort: id, crSortDir: id === "coin" ? 1 : -1 }
+            : s.crSortDir === (id === "coin" ? 1 : -1) ? { crSortDir: -s.crSortDir } : { crSort: null })
+        })),
+      crCoinOn: !!crCoinSel,
+      crCoinOnLabel: crCoinSel ? crCoinSel + "  ✕" : "",
+      crCoinClear: () => this.set("crCoin", null),
+      crOpsSub: crCoinSel ? "— только сделки с монетой" : "— поступления и списания по счёту",
       crAccSumInvested: crOpenAcc ? this.usdt(crAccInvested(crOpenAcc)) : "",
       crAccSumValue: crOpenAcc ? this.usdt(crAccValue(crOpenAcc)) : "",
       crAccSumPnlColor: crColor(crOpenAcc ? crAccValue(crOpenAcc) - crAccInvested(crOpenAcc) : 0),
@@ -4140,7 +4210,7 @@ class Component extends DCLogic {
       ].filter(Boolean).join(" · "),
       crAccHasOps: !!crOpenAcc && crAccOps(crOpenAcc).length > 0,
       crAccNoOps: !!crOpenAcc && crAccOps(crOpenAcc).length === 0,
-      crAccOps: (crOpenAcc ? crAccOps(crOpenAcc) : []).slice()
+      crAccOps: (crOpenAcc ? crAccOps(crOpenAcc) : []).filter(t => !crCoinSel || (this.isTrade(t) && t.gotCur === crCoinSel))
         .sort((x, y) => (x.d + (x.tm || "") < y.d + (y.tm || "") ? 1 : -1))
         .map((t, i) => {
           const v = this.txEffect(t, crOpenAcc.name), trade = this.isTrade(t);
@@ -4152,11 +4222,19 @@ class Component extends DCLogic {
             amountLabel: (v > 0 ? "+" : "−") + this.fmt(Math.abs(v), crOpenAcc.cur),
             // сделка вложенное не двигает, поэтому во второй строке у неё прочерк
             usdtLabel: trade ? "вложенное не меняется" : this.usdt(crFlowUsdt(t, crOpenAcc), true),
-            color: v > 0 ? "var(--pos)" : "var(--neg)"
+            color: v > 0 ? "var(--pos)" : "var(--neg)",
+            edit: () => this.editOp(t),
+            del: e => { e.stopPropagation(); this.deleteOp(t); }
           };
         }),
-      crAddDeal: () => this.setState({ dialog: "crdeal", dealKind: "buy", dealQty: "", dealPrice: "",
-        dealPriceAuto: true, dealDate: TODAY, dealOut: "", dealIn: "", dealInTouched: false }),
+      crAddDeal: () => this.setState({ dialog: "crdeal", dealEdit: null, dealAccName: null, dealKind: "buy", dealQty: "", dealPrice: "",
+        dealPriceAuto: true, dealDate: TODAY, calY: TODAY_Y, calM: TODAY_M, dealOut: "", dealIn: "", dealInTouched: false,
+        ...(crCoinSel ? { dealCoin: crCoinSel } : {}) }),
+      dealTitle: dealEdit ? "Сделка" : "Новая сделка",
+      dealNew: !dealEdit, dealEditing: !!dealEdit,
+      dealDays: st.dialog === "crdeal" ? this.calendarCells("dealDate") : [],
+      dealDateLabel: (d => Number(d[2]) + " " + months[Number(d[1]) - 1] + " " + d[0])((st.dealDate || TODAY).split("-")),
+      delDeal: () => { if (dealEdit) this.deleteOp(dealEdit); },
       // ---- диалог сделки ----
       dealDialog: !!dealAcc,
       dealAccName: dealAcc ? dealAcc.name : "",
@@ -4204,7 +4282,7 @@ class Component extends DCLogic {
         : dealSell ? "Монета спишется с этого счёта, а сумма вернётся на его остаток. «Вложено» не изменится."
         : dealIn ? "Пополнение запишется переводом между счетами — оно попадёт во «Вложено»."
         : "Вывод запишется переводом между счетами — он уменьшит «Вложено».",
-      dealSaveLabel: dealBuy ? "Купить" : dealSell ? "Продать" : dealIn ? "Записать ввод" : "Записать вывод",
+      dealSaveLabel: dealEdit ? "Сохранить" : dealBuy ? "Купить" : dealSell ? "Продать" : dealIn ? "Записать ввод" : "Записать вывод",
       saveDeal: () => {
         if (!dealAcc) return;
         const date = st.dealDate || TODAY;
@@ -4231,12 +4309,17 @@ class Component extends DCLogic {
           toCur = dealInCur;
         }
         if (st.online) {
-          this.api("POST", "transactions", body).then(() => this.setState({ dialog: null }), () => {});
+          // правка сохраняет время операции
+          if (dealEdit) body.time = dealEdit.d === date ? dealEdit.tm || "" : "";
+          this.api(dealEdit ? "PUT" : "POST", dealEdit ? "transactions/" + dealEdit.id : "transactions", body)
+            .then(() => this.setState({ dialog: null, dealEdit: null }), () => {});
           return;
         }
-        // демо-режим: сделка меняет остаток счёта, перевод — оба счёта
+        // демо-режим: сделка меняет остаток счёта, перевод — оба счёта; при правке старая сделка сперва откатывается
         const delta = dealTrade ? (dealBuy ? -dealSum : dealSum) : 0;
-        const accounts = st.accounts.map(a =>
+        const base = dealEdit ? st.accounts.map(a => a.name === dealEdit.a ? { ...a, balance: a.balance - dealEdit.v } : a) : st.accounts;
+        const txsBase = dealEdit ? st.txs.filter(t => t !== dealEdit) : st.txs;
+        const accounts = base.map(a =>
           dealTrade ? (a.name === body.account ? { ...a, balance: a.balance + delta } : a)
           : a.name === body.account ? { ...a, balance: a.balance - body.amount }
           : a.name === body.toAccount ? { ...a, balance: a.balance + body.received } : a);
@@ -4245,7 +4328,7 @@ class Component extends DCLogic {
               got: body.received, gotCur: body.coin, type: body.type }
           : { d: date, t: body.title, c: "Перевод", a: body.account, to: body.toAccount,
               v: body.amount, got: body.received, gotCur: toCur, type: "transfer" };
-        this.setState({ accounts, txs: [tx].concat(st.txs).sort((a, b) => (a.d < b.d ? 1 : -1)), dialog: null });
+        this.setState({ accounts, txs: [tx].concat(txsBase).sort((a, b) => (a.d < b.d ? 1 : -1)), dialog: null, dealEdit: null });
       },
       crPortDialog: st.dialog === "crport",
       crPortDialogTitle: st.crPortId === null ? "Новый портфель" : "Портфель",
