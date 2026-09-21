@@ -126,7 +126,8 @@
   .sorta { display: inline-block; width: 12px; margin-left: 3px; }
   .crcoin:hover { background: var(--hover-soft); }
   .crcoin[data-on="1"] { background: var(--accent-soft); }
-  .crcoin .m-only, .crop-row .m-only { display: none !important; }
+  .crcoin .m-only, .crop-row .m-only, .cr-accfoot .m-only { display: none !important; }
+  .cr-seclabel { font-size: 13px; color: var(--ink2); padding: 0 4px; }
   .cr-total > i { font-style: normal; }
   .catback { flex: none; width: 31px; height: 31px; border: 0; border-radius: 50%; background: var(--fill); color: var(--ink); font-size: 20px; line-height: 1; cursor: pointer; padding: 0 0 2px; }
   /* The header stays on top only where it fits in one row; on a narrow screen it would eat the page */
@@ -325,6 +326,8 @@
     .crcoin > :not(:first-child) > span:first-child { font-size: 14px !important; font-weight: 500; }
     .crcoin > :nth-child(2) > span:nth-child(2) { white-space: normal; }
     .crcoin > :nth-child(3) > span:nth-child(2) { font-size: 14px !important; font-weight: 400; color: var(--ink2) !important; }
+    .cr-accfoot .m-only { display: inline !important; }
+    .cr-accfoot { padding: 12px 10px 4px !important; }
     .crcoin .d-only { display: none !important; }
     .crcoin .m-only { display: block !important; }
     .cr-head { flex-wrap: wrap; }
@@ -881,9 +884,51 @@
               </div>
             </div>
 
+            <!-- счета с типом «Криптокошелёк» из раздела «Счета» -->
+            <sc-if value="{{ crHasAccounts }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;flex-direction:column;gap:10px">
+            <div class="cr-seclabel">Крипто-счета <span style="color:var(--ink3)">— из раздела «Счета»</span></div>
+            <div class="card" style="padding:6px 4px 10px">
+              <div class="crhead" style="display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) 16px;gap:12px;padding:10px 14px 8px;margin:0 4px;font-size:12px;color:var(--ink3);border-bottom:1px solid var(--line)">
+                <span>Счёт</span><span style="text-align:right">Баланс</span><span style="text-align:right">Внесено</span><span style="text-align:right">Стоимость</span><span></span>
+              </div>
+              <sc-for list="{{ crAccounts }}" as="a" hint-placeholder-count="2">
+                <div class="rowline craccrow" title="Открыть счёт" onClick="{{ a.open }}" style="cursor:pointer;display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) 16px;align-items:center;gap:12px;padding:12px 14px;margin:0 4px;border-radius:12px">
+                  <span style="min-width:0;display:flex;align-items:center;gap:10px">
+                    <span class="coin" data-len="{{ a.iconLen }}" style="{{ a.iconStyle }}">{{ a.icon }}</span>
+                    <span style="min-width:0">
+                      <span style="display:block;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ a.name }}</span>
+                      <span style="display:block;font-size:12px;color:var(--ink3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ a.cur }}</span>
+                    </span>
+                  </span>
+                  <span class="num" style="text-align:right;font-size:15px;white-space:nowrap">{{ a.amountLabel }}</span>
+                  <span class="num" style="text-align:right;font-size:14px;color:var(--ink3);white-space:nowrap">{{ a.investedLabel }}</span>
+                  <span class="num" style="text-align:right;white-space:nowrap">
+                    <span style="display:block;font-size:16px;font-weight:500">{{ a.valueLabel }}</span>
+                    <span style="display:block;font-size:12px;color:{{ a.pnlColor }}">{{ a.pnlLabel }}</span>
+                  </span>
+                  <span style="color:var(--ink3);font-size:17px;text-align:right">›</span>
+                </div>
+              </sc-for>
+              <!-- итого, как на странице «Счета» -->
+              <div class="craccrow cr-accfoot" style="display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) 16px;align-items:center;gap:12px;padding:12px 14px 4px;margin:4px 4px 0;font-size:13px;color:var(--ink3);border-top:1px solid var(--line)">
+                <span>Итого</span>
+                <span class="num" style="text-align:right"><span class="m-only">вложено {{ crAccSumInvestedAll }}</span></span>
+                <span class="num" style="text-align:right;white-space:nowrap">{{ crAccSumInvestedAll }}</span>
+                <span class="num" style="text-align:right;white-space:nowrap">
+                  <span style="display:block;color:var(--ink);font-weight:500">{{ crAccTotalLabel }}</span>
+                  <span style="display:block;font-size:12px;color:{{ crAccSumPnlAllColor }}">{{ crAccSumPnlAll }}</span>
+                </span>
+                <span></span>
+              </div>
+            </div>
+            </div>
+            </sc-if>
+
             <!-- список портфелей -->
             <sc-if value="{{ crList }}" hint-placeholder-val="{{ true }}">
-            <div style="display:flex;flex-direction:column;gap:16px">
+            <div style="display:flex;flex-direction:column;gap:10px">
+              <div class="cr-seclabel">Портфели <span style="color:var(--ink3)">— добавлены вручную</span></div>
               <div class="card" style="padding:6px 4px">
                 <div class="crhead" style="display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1.1fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) 16px;gap:12px;padding:10px 14px 8px;margin:0 4px;font-size:12px;color:var(--ink3);border-bottom:1px solid var(--line)">
                   <span>Портфель</span><span>Монеты</span><span style="text-align:right">Вложено</span><span style="text-align:right">Баланс</span><span style="text-align:right">Прибыль</span><span></span>
@@ -905,8 +950,12 @@
                   </div>
                 </sc-for>
               </div>
-              <button class="btn btn-p" style="align-self:flex-start" onClick="{{ crAddPort }}">Добавить портфель</button>
             </div>
+            </sc-if>
+
+            <!-- после всех таблиц — добавить портфель -->
+            <sc-if value="{{ crList }}" hint-placeholder-val="{{ true }}">
+            <button class="btn btn-p" style="align-self:flex-start" onClick="{{ crAddPort }}">Добавить портфель</button>
             </sc-if>
 
             <!-- пустой раздел -->
@@ -915,37 +964,6 @@
               <div class="big" style="font-size:17px">Портфелей пока нет</div>
               <p style="margin:0;font-size:13px;color:var(--ink2);max-width:560px">Добавьте кошелёк или биржу и внесите монеты: сколько их и сколько денег в них вложено. Баланс посчитается по текущим курсам, а прибыль — как разница с вложенным.</p>
               <button class="btn btn-p" onClick="{{ crAddPort }}">Добавить портфель</button>
-            </div>
-            </sc-if>
-
-            <!-- счета с типом «Криптокошелёк» из раздела «Счета» -->
-            <sc-if value="{{ crHasAccounts }}" hint-placeholder-val="{{ false }}">
-            <div class="card" style="padding:6px 4px 10px">
-              <div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding:12px 18px 8px">
-                <span style="font-size:13px;color:var(--ink2)">Крипто-счета <span style="color:var(--ink3)">— из раздела «Счета»</span></span>
-                <span class="num" style="font-size:13px;font-weight:500;color:var(--ink2);white-space:nowrap">{{ crAccTotalLabel }}</span>
-              </div>
-              <div class="crhead" style="display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) 16px;gap:12px;padding:2px 14px 8px;margin:0 4px;font-size:12px;color:var(--ink3);border-bottom:1px solid var(--line)">
-                <span>Счёт</span><span style="text-align:right">Баланс</span><span style="text-align:right">Внесено</span><span style="text-align:right">Стоимость</span><span></span>
-              </div>
-              <sc-for list="{{ crAccounts }}" as="a" hint-placeholder-count="2">
-                <div class="rowline craccrow" title="Открыть счёт" onClick="{{ a.open }}" style="cursor:pointer;display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) 16px;align-items:center;gap:12px;padding:12px 14px;margin:0 4px;border-radius:12px">
-                  <span style="min-width:0;display:flex;align-items:center;gap:10px">
-                    <span class="coin" data-len="{{ a.iconLen }}" style="{{ a.iconStyle }}">{{ a.icon }}</span>
-                    <span style="min-width:0">
-                      <span style="display:block;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ a.name }}</span>
-                      <span style="display:block;font-size:12px;color:var(--ink3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ a.cur }}</span>
-                    </span>
-                  </span>
-                  <span class="num" style="text-align:right;font-size:15px;white-space:nowrap">{{ a.amountLabel }}</span>
-                  <span class="num" style="text-align:right;font-size:14px;color:var(--ink3);white-space:nowrap">{{ a.investedLabel }}</span>
-                  <span class="num" style="text-align:right;white-space:nowrap">
-                    <span style="display:block;font-size:16px;font-weight:500">{{ a.valueLabel }}</span>
-                    <span style="display:block;font-size:12px;color:{{ a.pnlColor }}">{{ a.pnlLabel }}</span>
-                  </span>
-                  <span style="color:var(--ink3);font-size:17px;text-align:right">›</span>
-                </div>
-              </sc-for>
             </div>
             </sc-if>
 
@@ -4210,6 +4228,9 @@ class Component extends DCLogic {
         : "",
       crHasAccounts: !crOpenPort && !crOpenAcc && crAccounts.length > 0,
       crAccTotalLabel: this.usdt(crAccTotal),
+      crAccSumInvestedAll: this.usdt(crAccounts.reduce((sum, a) => sum + crAccInvested(a), 0)),
+      crAccSumPnlAll: (d => Math.abs(d) < 0.005 ? "" : this.usdt(d, true))(crAccTotal - crAccounts.reduce((sum, a) => sum + crAccInvested(a), 0)),
+      crAccSumPnlAllColor: crColor(crAccTotal - crAccounts.reduce((sum, a) => sum + crAccInvested(a), 0)),
       crAccounts: crAccounts.map(a => {
         const invested = crAccInvested(a), value = crAccValue(a), pnl = value - invested;
         return Object.assign(curBadge(a.cur), {
