@@ -75,6 +75,8 @@
   .card { background: var(--card); border-radius: 18px; box-shadow: var(--sh); }
   .rowline + .rowline { border-top: 1px solid var(--line); }
   .rowline:hover { background: var(--hover-soft); }
+  /* строки таблиц — прямые, без скруглений: иначе разделитель загибается по углам */
+  .rowline, .crcoin { border-radius: 0 !important; }
   .inp { width: 100%; background: var(--fill); border: 1px solid transparent; border-radius: 11px; padding: 9px 12px; font-size: 15px; }
   .inp:focus { background: var(--card); border-color: var(--accent); outline: none; }
   /* summary */
