@@ -143,6 +143,17 @@
   .sheet { z-index: 40; }
 
   .accrow { cursor: pointer; }
+  /* Счета: две карточки одной высоты сверху, под ними таблица на всю ширину */
+  .acc-top { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: stretch; }
+  .acctr { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.1fr) 104px;
+    align-items: center; gap: 14px; padding: 12px 16px; margin: 0 4px; border-radius: 14px; }
+  .acctr > .acc-cell, .acc-head > :nth-child(n+2), .acc-foot > :nth-child(n+2) { text-align: right; }
+  .acctr > .acc-edit { justify-self: end; }
+  .acc-head { padding: 10px 16px 8px; font-size: 12px; color: var(--ink3); border-bottom: 1px solid var(--line); border-radius: 0; }
+  .acc-foot { padding: 12px 16px 6px; margin-top: 4px; font-size: 13px; color: var(--ink3); border-top: 1px solid var(--line); border-radius: 0; }
+  .acc-name { display: flex; align-items: center; gap: 12px; min-width: 0; }
+  .acc-cap { display: none; }
+  .acc-group { display: flex; justify-content: space-between; gap: 12px; padding: 14px 138px 6px 20px; /* итог группы — под колонкой баланса */ font-size: 12px; font-weight: 500; color: var(--ink3); }
   /* dialogs sit above the header (z 20) and the mobile tab strip (z 15); sign-in is 50 */
   .dlg { z-index: 40; }
 
@@ -152,7 +163,7 @@
     .sum-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
     .sum-three { grid-template-columns: minmax(0, 1fr) !important; }
     .cr-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; gap: 10px !important; }
-    .acc-shares { order: -1; } /* in one column the donut comes before the list of accounts */
+    .acc-top { grid-template-columns: minmax(0, 1fr) !important; }
   }
   /* a tap on a date field opens the picker anyway, so a touch screen gives the icon's room to the date */
   @media (max-width: 760px) and (pointer: coarse) {
@@ -264,6 +275,23 @@
     .cr-head > :last-child { flex: 1 1 100%; }
 
     .acc-edit { display: none !important; } /* the whole row opens the account dialog */
+    .acc-head { display: none !important; }
+    .acc-group { padding: 14px 16px 4px !important; }
+    /* обычный счёт — название и баланс в одну строку; у крипто-счёта под названием три цифры с подписями */
+    .acctr { grid-template-columns: minmax(0, 1fr) auto !important; gap: 8px 12px !important; padding: 12px 12px !important; }
+    .acctr[data-crypto="1"] { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+    .acctr[data-crypto="1"] > .acc-name { grid-column: 1 / -1; }
+    .acctr[data-crypto="1"] > .acc-cell { text-align: left !important; }
+    .acc-cell[data-empty="1"] { display: none !important; }
+    .acctr[data-crypto="1"] .acc-cap { display: block; font-size: 11px; color: var(--ink3); }
+    .acctr[data-crypto="1"] .acc-bal .big { font-size: 16px !important; white-space: nowrap; }
+    /* итог: «Итого» и капитал в первой строке, P&L и вложенное под ними */
+    .acc-foot { grid-template-columns: minmax(0, 1fr) auto !important; gap: 4px 12px !important; }
+    .acc-foot > :nth-child(1) { grid-area: 1 / 1; }
+    .acc-foot > :nth-child(4) { grid-area: 1 / 2; }
+    .acc-foot > :nth-child(2) { grid-area: 2 / 1; text-align: left !important; }
+    .acc-foot > :nth-child(3) { grid-area: 2 / 2; }
+    .acc-foot > :last-child { display: none; }
     .rgrid { gap: 6px !important; font-size: 12px !important; }
     .catrow { flex-wrap: wrap; }
     .catrow > :first-child { flex-basis: 100%; }
@@ -591,74 +619,11 @@
 
           <!-- Счета -->
           <sc-if value="{{ isAccounts }}" hint-placeholder-val="{{ false }}">
-          <div class="screen cols" style="padding:22px 28px 32px;display:grid;grid-template-columns:minmax(0,1.45fr) minmax(0,1fr);gap:16px;align-items:start">
-            <div style="display:flex;flex-direction:column;gap:12px">
-            <div class="card" style="padding:16px 20px">
-              <div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
-                <span style="font-size:13px;color:var(--ink2)">Чистый капитал</span>
-                <span class="num big" style="font-size:clamp(19px,2vw,24px);white-space:nowrap">{{ totalLabel }}</span>
-              </div>
-            </div>
-            <sc-if value="{{ hasAccounts }}" hint-placeholder-val="{{ true }}">
-            <div style="display:flex;flex-direction:column;gap:12px">
-            <div style="display:flex;align-items:center;gap:10px">
-              <span style="font-size:13px;color:var(--ink2)">Группировать</span>
-              <div class="seg">
-                <span class="segopt" data-on="{{ gNone }}" onClick="{{ groupByNone }}">Все вместе</span>
-                <span class="segopt" data-on="{{ gKind }}" onClick="{{ groupByKind }}">По типу</span>
-              </div>
-            </div>
-            <sc-if value="{{ grouped }}" hint-placeholder-val="{{ true }}">
-            <div style="display:flex;flex-direction:column;gap:12px">
-              <sc-for list="{{ accountGroups }}" as="g" hint-placeholder-count="3">
-                <div class="card" style="padding:6px 4px 10px">
-                  <div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding:10px 18px 8px">
-                    <span style="font-size:12px;font-weight:500;color:var(--ink3)">{{ g.kind }}</span>
-                    <span class="num" style="font-size:13px;font-weight:500;color:var(--ink2);white-space:nowrap">{{ g.totalLabel }}</span>
-                  </div>
-                  <sc-for list="{{ g.items }}" as="a" hint-placeholder-count="2">
-                    <div class="rowline accrow" style="display:flex;align-items:center;gap:12px;padding:14px 16px;margin:0 4px;border-radius:14px" onClick="{{ a.edit }}">
-                      <span class="coin" data-len="{{ a.iconLen }}" style="{{ a.iconStyle }}">{{ a.icon }}</span>
-                      <div style="flex:1;min-width:0">
-                        <div style="font-size:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ a.name }}</div>
-                        <div class="num" style="font-size:12px;color:var(--ink3);display:flex;flex-wrap:wrap;gap:0 6px">
-                          <span style="white-space:nowrap">{{ a.rubLabel }}</span><span style="white-space:nowrap">{{ a.investedLabel }}</span>
-                        </div>
-                      </div>
-                      <div class="num big" style="font-size:clamp(16px,1.6vw,20px);white-space:nowrap;color:{{ a.color }}">{{ a.balanceLabel }}</div>
-                      <button class="btn btn-s acc-edit" style="flex:none" onClick="{{ a.edit }}">Изменить</button>
-                    </div>
-                  </sc-for>
-                </div>
-              </sc-for>
-            </div>
-            </sc-if>
-            <sc-if value="{{ flat }}" hint-placeholder-val="{{ false }}">
-            <div class="card" style="padding:6px 4px 16px">
-              <sc-for list="{{ accounts }}" as="a" hint-placeholder-count="5">
-                <div class="rowline accrow" style="display:flex;align-items:center;gap:12px;padding:16px;margin:0 4px;border-radius:14px" onClick="{{ a.edit }}">
-                  <span class="coin" data-len="{{ a.iconLen }}" style="{{ a.iconStyle }}">{{ a.icon }}</span>
-                  <div style="flex:1;min-width:0">
-                    <div style="font-size:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ a.name }}</div>
-                    <div style="font-size:12px;color:var(--ink3);display:flex;flex-wrap:wrap;gap:0 6px">
-                      <span style="white-space:nowrap">{{ a.kind }}</span><span class="num" style="white-space:nowrap">{{ a.investedLabel }}</span>
-                    </div>
-                  </div>
-                  <div style="text-align:right">
-                    <div class="num big" style="font-size:clamp(16px,1.6vw,20px);white-space:nowrap;color:{{ a.color }}">{{ a.balanceLabel }}</div>
-                    <div class="num" style="font-size:12px;color:var(--ink3);white-space:nowrap">{{ a.rubLabel }}</div>
-                  </div>
-                  <button class="btn btn-s acc-edit" style="flex:none" onClick="{{ a.edit }}">Изменить</button>
-                </div>
-              </sc-for>
-            </div>
-            </sc-if>
-            </div>
-            </sc-if>
-            <button class="btn btn-p" style="align-self:flex-start" onClick="{{ openAcc }}">Добавить счёт</button>
-            </div>
+          <div class="screen" style="padding:22px 28px 32px;display:flex;flex-direction:column;gap:16px">
+            <!-- сверху две карточки одной высоты: где лежат деньги и чистый капитал -->
+            <div class="acc-top">
             <sc-if value="{{ hasShares }}" hint-placeholder-val="{{ true }}">
-            <div class="card acc-shares" style="padding:20px 22px">
+            <div class="card acc-shares" style="padding:20px 22px;height:100%;box-sizing:border-box">
               <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
                 <div class="big" style="font-size:17px">Где лежат деньги</div>
                 <div class="seg seg-cur" style="margin-left:auto">
@@ -688,6 +653,121 @@
                   </div>
                 </sc-for>
               </div>
+            </div>
+            </sc-if>
+            <div class="card acc-cap-card" style="padding:20px 22px;display:flex;flex-direction:column;gap:14px">
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+                <div class="big" style="font-size:17px">Чистый капитал</div>
+                <div class="seg seg-cur" style="margin-left:auto">
+                  <sc-for list="{{ capCurs }}" as="c" hint-placeholder-count="4"><span class="segopt" data-on="{{ c.on }}" onClick="{{ c.pick }}" title="{{ c.title }}">{{ c.sym }}</span></sc-for>
+                </div>
+              </div>
+              <div>
+                <div class="num big" style="font-size:clamp(28px,3vw,38px);white-space:nowrap">{{ capTotal }}</div>
+                <div style="font-size:13px;color:var(--ink3);margin-top:2px">всё, что есть, минус долги</div>
+              </div>
+              <div style="display:flex;flex-direction:column;margin-top:auto">
+                <sc-for list="{{ capRows }}" as="r" hint-placeholder-count="5">
+                  <div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding:9px 0;border-top:1px solid var(--line);font-size:14px">
+                    <span style="color:var(--ink2)">{{ r.label }}</span>
+                    <span class="num" style="white-space:nowrap;text-align:right;color:{{ r.color }}">{{ r.value }}<span style="display:block;font-size:12px;color:var(--ink3)">{{ r.sub }}</span></span>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+            </div>
+
+            <sc-if value="{{ hasAccounts }}" hint-placeholder-val="{{ true }}">
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+              <span style="font-size:13px;color:var(--ink2)">Группировать</span>
+              <div class="seg">
+                <span class="segopt" data-on="{{ gNone }}" onClick="{{ groupByNone }}">Все вместе</span>
+                <span class="segopt" data-on="{{ gKind }}" onClick="{{ groupByKind }}">По типу</span>
+              </div>
+              <button class="btn btn-p" style="margin-left:auto" onClick="{{ openAcc }}">Добавить счёт</button>
+            </div>
+            <!-- таблица счетов на всю ширину: P&L и вложенное есть у крипто-счетов -->
+            <div class="card" style="padding:6px 4px 10px">
+              <div class="acctr acc-head">
+                <span>Счёт</span><span>P&amp;L</span><span>Вложено</span><span>Баланс</span><span></span>
+              </div>
+              <sc-if value="{{ flat }}" hint-placeholder-val="{{ true }}">
+              <sc-for list="{{ accounts }}" as="a" hint-placeholder-count="5">
+                <div class="rowline accrow acctr" data-crypto="{{ a.crypto }}" onClick="{{ a.edit }}">
+                  <span class="acc-name">
+                    <span class="coin" data-len="{{ a.iconLen }}" style="{{ a.iconStyle }}">{{ a.icon }}</span>
+                    <span style="min-width:0">
+                      <span style="display:block;font-size:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ a.name }}</span>
+                      <span style="display:block;font-size:12px;color:var(--ink3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ a.kind }}</span>
+                    </span>
+                  </span>
+                  <span class="num acc-cell" data-empty="{{ a.pnlEmpty }}">
+                    <span class="acc-cap">P&amp;L</span>
+                    <span style="display:block;font-size:15px;font-weight:500;color:{{ a.pnlColor }}">{{ a.pnlLabel }}</span>
+                    <span style="display:block;font-size:12px;color:{{ a.pnlColor }}">{{ a.pnlSub }}</span>
+                  </span>
+                  <span class="num acc-cell" data-empty="{{ a.investedEmpty }}">
+                    <span class="acc-cap">Вложено</span>
+                    <span style="display:block;font-size:15px;color:var(--ink2)">{{ a.investedMain }}</span>
+                    <span style="display:block;font-size:12px;color:var(--ink3)">{{ a.investedSub }}</span>
+                  </span>
+                  <span class="num acc-cell acc-bal">
+                    <span class="acc-cap">Баланс</span>
+                    <span class="big" style="display:block;font-size:clamp(16px,1.5vw,19px);color:{{ a.color }}">{{ a.balanceLabel }}</span>
+                    <span style="display:block;font-size:12px;color:var(--ink3)">{{ a.rubLabel }}</span>
+                  </span>
+                  <button class="btn btn-s acc-edit" onClick="{{ a.edit }}">Изменить</button>
+                </div>
+              </sc-for>
+              </sc-if>
+              <sc-if value="{{ grouped }}" hint-placeholder-val="{{ false }}">
+              <sc-for list="{{ accountGroups }}" as="g" hint-placeholder-count="3">
+                <div class="acc-group">
+                  <span>{{ g.kind }}</span>
+                  <span class="num">{{ g.totalLabel }}</span>
+                </div>
+                <sc-for list="{{ g.items }}" as="a" hint-placeholder-count="2">
+                <div class="rowline accrow acctr" data-crypto="{{ a.crypto }}" onClick="{{ a.edit }}">
+                  <span class="acc-name">
+                    <span class="coin" data-len="{{ a.iconLen }}" style="{{ a.iconStyle }}">{{ a.icon }}</span>
+                    <span style="min-width:0">
+                      <span style="display:block;font-size:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ a.name }}</span>
+                      <span style="display:block;font-size:12px;color:var(--ink3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ a.kind }}</span>
+                    </span>
+                  </span>
+                  <span class="num acc-cell" data-empty="{{ a.pnlEmpty }}">
+                    <span class="acc-cap">P&amp;L</span>
+                    <span style="display:block;font-size:15px;font-weight:500;color:{{ a.pnlColor }}">{{ a.pnlLabel }}</span>
+                    <span style="display:block;font-size:12px;color:{{ a.pnlColor }}">{{ a.pnlSub }}</span>
+                  </span>
+                  <span class="num acc-cell" data-empty="{{ a.investedEmpty }}">
+                    <span class="acc-cap">Вложено</span>
+                    <span style="display:block;font-size:15px;color:var(--ink2)">{{ a.investedMain }}</span>
+                    <span style="display:block;font-size:12px;color:var(--ink3)">{{ a.investedSub }}</span>
+                  </span>
+                  <span class="num acc-cell acc-bal">
+                    <span class="acc-cap">Баланс</span>
+                    <span class="big" style="display:block;font-size:clamp(16px,1.5vw,19px);color:{{ a.color }}">{{ a.balanceLabel }}</span>
+                    <span style="display:block;font-size:12px;color:var(--ink3)">{{ a.rubLabel }}</span>
+                  </span>
+                  <button class="btn btn-s acc-edit" onClick="{{ a.edit }}">Изменить</button>
+                </div>
+                </sc-for>
+              </sc-for>
+              </sc-if>
+              <div class="acctr acc-foot">
+                <span>Итого</span>
+                <span class="num" style="color:{{ accSumPnlColor }}">{{ accSumPnl }}</span>
+                <span class="num">{{ accSumInvested }}</span>
+                <span class="num" style="color:var(--ink)">{{ totalLabel }}</span>
+                <span></span>
+              </div>
+            </div>
+            </sc-if>
+            <sc-if value="{{ noAccounts }}" hint-placeholder-val="{{ false }}">
+            <div class="card" style="padding:24px 22px;display:flex;flex-direction:column;align-items:flex-start;gap:12px">
+              <div style="font-size:14px;color:var(--ink2)">Счетов пока нет.</div>
+              <button class="btn btn-p" onClick="{{ openAcc }}">Добавить счёт</button>
             </div>
             </sc-if>
           </div>
@@ -2019,7 +2099,7 @@ class Component extends DCLogic {
   state = {
     // операции открываются на сегодня; «весь месяц» рядом с датой снимает выбор дня
     screen: initialScreen, dialog: null, editIndex: null, groupBy: "none", opsY: TODAY_Y, opsM: TODAY_M, opsDate: TODAY,
-    moreOpen: false, opsCalOpen: false, opsSearch: false, assetCur: "RUB",
+    moreOpen: false, opsCalOpen: false, opsSearch: false, assetCur: "RUB", capCur: "RUB",
     filter: "all", query: "",
     type: "expense", amount: "", note: "", cat: "", catNav: null, editTx: null, acc: "",
     date: TODAY, calY: TODAY_Y, calM: TODAY_M,
@@ -2180,6 +2260,13 @@ class Component extends DCLogic {
     return toUsdt(out ? -amount : amount, this.curOf(out ? t.to : t.a));
   }
   accInvested(acc) { return this.state.txs.reduce((sum, t) => sum + this.crFlow(t, acc), 0); }
+  // «+12,4 %» к вложенному; без вложенного процента нет
+  pctLabel(pnl, invested) {
+    if (!(invested > 0)) return "—";
+    const pct = pnl / invested * 100;
+    if (Math.abs(pct) < 0.05) return "0,0 %";
+    return (pct < 0 ? "−" : "+") + Math.abs(pct).toFixed(1).replace(".", ",") + " %";
+  }
 
   applyServer(data, extra) {
     const rates = data.rates || {};
@@ -3118,22 +3205,41 @@ class Component extends DCLogic {
       tabVals["go" + (id === "ops" ? "Ops2" : k)] = () => this.goScreen(id);
     });
 
-    // У крипто-счёта большая цифра — стоимость вместе с купленными на нём
-    // монетами, а во второй строке ещё и вложенное, чтобы прибыль была видна.
+    // Строка таблицы счетов. Баланс — стоимость счёта целиком: у крипто-счёта
+    // остаток плюс купленные на нём монеты. Вложенное и P&L пока есть только
+    // у крипто-счетов — у остальных нечем их посчитать, там прочерк. Вклады
+    // и инвестиции встанут сюда же, когда у них появится своя доходность.
+    const usdtRub = this.coinRub("USDT");
+    const accPnl = a => {
+      if (a.kind !== "Криптокошелёк" || !(usdtRub > 0)) return null;
+      const invested = this.accInvested(a), value = this.accRub(a) / usdtRub;
+      return { invested, value, pnl: value - invested };
+    };
     const accounts = st.accounts.map((a, i) => {
-      const crypto = a.kind === "Криптокошелёк";
-      const worth = this.accWorth(a);
-      const invested = crypto ? this.accInvested(a) : 0;
+      const worth = this.accWorth(a), p = accPnl(a);
+      const hasInvested = !!p && Math.abs(p.invested) > 0.005;
       return Object.assign(curBadge(a.cur || "RUB"), {
-      key: a.name + i, name: a.name,
-      kind: a.cur === "RUB" ? a.kind : a.kind + " · " + a.cur,
-      balanceLabel: this.money(worth, a.cur),
-      rubLabel: a.cur === "RUB" ? "" : "≈ " + this.money(this.accRub(a)),
-      investedLabel: crypto && Math.abs(invested) > 0.005 ? "вложено " + this.usdt(invested) : "",
-      color: worth < 0 ? "var(--neg)" : "var(--ink)",
-      edit: () => this.setState({ dialog: "acc", editIndex: i, accName: a.name, accKind: a.kind, accCur: a.cur || "RUB" })
+        key: a.name + i, name: a.name,
+        kind: a.cur === "RUB" ? a.kind : a.kind + " · " + a.cur,
+        crypto: p ? "1" : "0",
+        balanceLabel: this.money(worth, a.cur),
+        rubLabel: a.cur === "RUB" ? "" : "≈ " + this.money(this.accRub(a)),
+        color: worth < 0 ? "var(--neg)" : "var(--ink)",
+        investedEmpty: hasInvested ? "0" : "1",
+        investedMain: hasInvested ? this.usdt(p.invested) : "—",
+        investedSub: hasInvested ? "≈ " + this.money(p.invested * usdtRub) : "",
+        // без вложенного прибыль была бы всей стоимостью счёта — это неправда, поэтому прочерк
+        pnlEmpty: hasInvested ? "0" : "1",
+        pnlLabel: hasInvested ? this.usdt(p.pnl, true) : "—",
+        pnlSub: hasInvested ? (p.invested > 0 ? this.pctLabel(p.pnl, p.invested) : "") : "",
+        pnlColor: !hasInvested ? "var(--ink3)" : p.pnl > 0.005 ? "var(--pos)" : p.pnl < -0.005 ? "var(--neg)" : "var(--ink2)",
+        edit: () => this.setState({ dialog: "acc", editIndex: i, accName: a.name, accKind: a.kind, accCur: a.cur || "RUB" })
       });
     });
+    // итог по P&L и вложенному — только по крипто-счетам, где вложенное есть
+    const accPnls = st.accounts.map(accPnl).filter(p => p && Math.abs(p.invested) > 0.005);
+    const accSumInvestedUsdt = accPnls.reduce((sum, p) => sum + p.invested, 0);
+    const accSumPnlUsdt = accPnls.reduce((sum, p) => sum + p.pnl, 0);
     const rub = a => this.accRub(a); // у крипто-счёта сюда входят и монеты на нём
     const total = st.accounts.reduce((s, a) => s + rub(a), 0);
     const free = st.accounts.filter(a => a.kind === "Карта" || a.kind === "Наличные").reduce((s, a) => s + rub(a), 0);
@@ -3196,19 +3302,19 @@ class Component extends DCLogic {
 
     const order = ["Карта", "Наличные", "Вклад", "Инвестиции", "Криптокошелёк", "Кредит"];
     const kinds = {};
-    st.accounts.forEach(a => { if (a.balance > 0) kinds[a.kind] = (kinds[a.kind] || 0) + rub(a); });
+    st.accounts.forEach(a => { if (rub(a) > 0) kinds[a.kind] = (kinds[a.kind] || 0) + rub(a); });
     const posTotal = Object.values(kinds).reduce((s, v) => s + v, 0) || 1;
     // Donut of positive balances by kind: segments run clockwise from 12 o'clock
     // in the fixed kind order, and a kind keeps its colour whatever its size.
     // the card shows the shares in the currency picked on it, converted from roubles at the same rates as everywhere else
-    const assetCur = CUR[st.assetCur] ? st.assetCur : "RUB";
-    const inAssetCur = v => v / CUR[assetCur].rate;
     // USDT здесь — денежная единица, а не монета с шестью знаками: округление как у остальных сумм
-    const assetLabel = v => {
-      if (assetCur !== "USDT") return this.money(inAssetCur(v), assetCur);
-      const n = inAssetCur(v);
+    const rubIn = (v, code) => {
+      const n = v / CUR[code].rate;
+      if (code !== "USDT") return this.money(n, code);
       return n.toLocaleString("ru-RU", { maximumFractionDigits: st.cents ? 2 : 0 }).replace(/\u00a0/g, " ") + " USDT";
     };
+    const assetCur = CUR[st.assetCur] ? st.assetCur : "RUB";
+    const assetLabel = v => rubIn(v, assetCur);
     const RING = 2 * Math.PI * 48, GAP = 1.4; // circumference at r=48; ~2px gap at 176px
     const shareKinds = order.filter(k => kinds[k] > 0).concat(Object.keys(kinds).filter(k => order.indexOf(k) === -1));
     let arc = 0;
@@ -3537,6 +3643,35 @@ class Component extends DCLogic {
         on: assetCur === code ? "1" : "0", pick: () => this.set("assetCur", code)
       })),
       sharesAria: "Где лежат деньги: " + accountShares.map(s => s.kind + " " + s.pctLabel).join(", "),
+      // ---- карточка «Чистый капитал»: своя валюта, из чего капитал складывается ----
+      ...(() => {
+        const capCur = CUR[st.capCur] ? st.capCur : "RUB";
+        const sumOf = test => st.accounts.filter(test).reduce((sum, a) => sum + rub(a), 0);
+        const assets = sumOf(a => rub(a) > 0), debts = sumOf(a => rub(a) < 0);
+        const saved = sumOf(a => (a.kind === "Вклад" || a.kind === "Инвестиции") && rub(a) > 0);
+        const crypto = sumOf(a => a.kind === "Криптокошелёк");
+        const rows = [
+          { key: "assets", label: "Активы", value: rubIn(assets, capCur), sub: "", color: "var(--ink)" },
+          debts < 0 ? { key: "debts", label: "Долги", value: rubIn(debts, capCur), sub: "", color: "var(--neg)" } : null,
+          { key: "free", label: "Свободные деньги", value: rubIn(free, capCur), sub: "карты и наличные", color: "var(--ink)" },
+          saved > 0 ? { key: "saved", label: "Вклады и инвестиции", value: rubIn(saved, capCur), sub: "", color: "var(--ink)" } : null,
+          st.accounts.some(a => a.kind === "Криптокошелёк")
+            ? { key: "crypto", label: "Крипто-счета", value: rubIn(crypto, capCur), color: "var(--ink)",
+                sub: accPnls.length ? "P&L " + this.usdt(accSumPnlUsdt, true) + " · " + this.pctLabel(accSumPnlUsdt, accSumInvestedUsdt) : "" }
+            : null
+        ].filter(Boolean);
+        return {
+          capCurs: ["RUB", "USD", "EUR", "USDT"].map(code => ({
+            key: code, sym: CUR[code].sym, title: CUR[code].label,
+            on: capCur === code ? "1" : "0", pick: () => this.set("capCur", code)
+          })),
+          capTotal: rubIn(total, capCur), capRows: rows
+        };
+      })(),
+      noAccounts: st.accounts.length === 0,
+      accSumInvested: accPnls.length ? this.usdt(accSumInvestedUsdt) : "",
+      accSumPnl: accPnls.length ? this.usdt(accSumPnlUsdt, true) + " · " + this.pctLabel(accSumPnlUsdt, accSumInvestedUsdt) : "",
+      accSumPnlColor: accSumPnlUsdt > 0.005 ? "var(--pos)" : accSumPnlUsdt < -0.005 ? "var(--neg)" : "var(--ink3)",
       accounts, accountShares, accountNames: st.accounts.map(a => a.name),
       totalLabel: this.money(total), freeLabel: this.money(free),
       incomeLabel: this.money(income), expenseLabel: this.money(expense),
