@@ -71,7 +71,7 @@ docker compose exec api /api reset-password user@example.com # новый слу
 | GET | `/api/auth/google/start` → Google → `/api/auth/google/callback` | |
 | GET | `/api/state` | |
 | POST, PUT `/{id}`, DELETE `/{id}` | `/api/accounts` | `{name, kind, balance, cur}`; у DELETE — `?replace=<id>`: перенести операции на этот счёт |
-| POST, PUT `/{id}`, DELETE `/{id}` | `/api/transactions` | `{date, title, type: expense\|income\|transfer\|buy\|sell, category, account, toAccount, amount, received, coin}` |
+| POST, PUT `/{id}`, DELETE `/{id}` | `/api/transactions` | `{date, title, type: expense\|income\|transfer\|buy\|sell, category, account, toAccount, amount, received, coin, close, closeDate}` — `close` и `closeDate` только у закрытой покупки |
 | POST, PUT `/{id}`, DELETE `/{id}` | `/api/categories` | `{name, parent, kind: expense\|income, icon}` — `icon` один эмодзи из 100 на выбор или пустая строка |
 | POST, PUT `/{id}`, DELETE `/{id}` | `/api/crypto/portfolios` | `{name, place}` |
 | POST, PUT `/{id}`, DELETE `/{id}` | `/api/crypto/assets` | `{portfolio, coin, amount, invested}` — `portfolio` только при создании |
@@ -190,6 +190,13 @@ docker compose exec api /api reset-password user@example.com # новый слу
   `amount` — сумма в валюте счёта); в доходы и расходы она не идёт, а в списке операций стоит
   в категории «Сделка». Щелчок по сделке — здесь или в «Операциях» — открывает тот же диалог
   для правки: монета, покупка или продажа, количество, цена и дата (`PUT /api/transactions/{id}`).
+- **Закрытие сделки.** У открытой покупки в «Движении средств» есть кнопка «Закрыть»: указываешь
+  цену закрытия (по умолчанию — текущий курс) и дату, и вся купленная монета продаётся по этой цене.
+  Выручка возвращается на остаток счёта, а покупка и закрытие остаются одной строкой: цена закрытия,
+  цена покупки, процент и доход или убыток по сделке. Щелчок по закрытой сделке открывает то же окно —
+  там можно поменять цену и дату или отменить закрытие. Закрыть нельзя, если часть монет этой
+  покупки уже продана другой сделкой. На сервере это `close` и `closeDate` у покупки; в выгрузке CSV
+  закрытая сделка идёт двумя строками — покупкой и продажей.
 - **Монеты на странице счёта** по умолчанию идут по стоимости в USDT, от большей к меньшей. Щелчок
   по заголовку колонки (монета, количество, цена, стоимость) сортирует по ней, второй — в обратную
   сторону, третий возвращает сортировку по стоимости. Щелчок по монете оставляет в «Движении

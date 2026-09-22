@@ -90,6 +90,9 @@ type Tx struct {
 	Got    *float64 `json:"got,omitempty"`
 	GotCur string   `json:"gotCur,omitempty"`
 	Type   string   `json:"type"`
+	// закрытая покупка: цена продажи в валюте счёта и день закрытия
+	Close     *float64 `json:"close,omitempty"`
+	CloseDate string   `json:"closeD,omitempty"`
 }
 
 // CryptoPortfolio is a wallet or an exchange account with coins inside. The
@@ -248,7 +251,8 @@ func (s *Store) State(ctx context.Context, uid int64) (*State, error) {
 		            WHEN right(t.time::text, 3) = ':00' THEN left(t.time::text, 5)
 		            ELSE t.time::text END,
 		       t.title, t.type, t.category_name,
-		       a.name, COALESCE(b.name, ''), COALESCE(b.currency, ''), t.amount, t.received, t.coin
+		       a.name, COALESCE(b.name, ''), COALESCE(b.currency, ''), t.amount, t.received, t.coin,
+		       t.close_price, COALESCE(to_char(t.close_date, 'YYYY-MM-DD'), '')
 		FROM transactions t
 		JOIN accounts a ON a.id = t.account_id
 		LEFT JOIN accounts b ON b.id = t.to_account_id
@@ -258,7 +262,7 @@ func (s *Store) State(ctx context.Context, uid int64) (*State, error) {
 		var t Tx
 		var received *float64
 		var coin string
-		err := r.Scan(&t.ID, &t.Date, &t.Time, &t.Title, &t.Type, &t.Cat, &t.Acc, &t.To, &t.GotCur, &t.V, &received, &coin)
+		err := r.Scan(&t.ID, &t.Date, &t.Time, &t.Title, &t.Type, &t.Cat, &t.Acc, &t.To, &t.GotCur, &t.V, &received, &coin, &t.Close, &t.CloseDate)
 		switch t.Type {
 		case "expense":
 			t.V = -t.V
@@ -459,6 +463,9 @@ type TxInput struct {
 	Amount    float64  `json:"amount"`
 	Received  *float64 `json:"received"`
 	Coin      string   `json:"coin"` // покупка и продажа: какая монета
+	// закрытие покупки: цена, по которой монета продана целиком, и когда
+	Close     *float64 `json:"close"`
+	CloseDate string   `json:"closeDate"`
 }
 
 func (in *TxInput) validate() error {
@@ -500,6 +507,20 @@ func (in *TxInput) validate() error {
 		}
 		if in.Title == "" {
 			in.Title = tradeCategory
+		}
+		if in.Close != nil {
+			if in.Type != "buy" {
+				return badRequest("Закрыть можно только покупку")
+			}
+			if !(*in.Close > 0) {
+				return badRequest("Цена закрытия должна быть больше нуля")
+			}
+			if _, err := time.Parse(time.DateOnly, in.CloseDate); err != nil {
+				return badRequest("Дата закрытия должна быть в формате ГГГГ-ММ-ДД")
+			}
+			if in.CloseDate < in.Date {
+				return badRequest("Сделку нельзя закрыть раньше покупки")
+			}
 		}
 	case "expense", "income":
 		if in.Category == "" {
@@ -567,6 +588,9 @@ func insertTx(ctx context.Context, tx pgx.Tx, uid int64, in TxInput, id *int64) 
 		return addBalance(ctx, tx, to.id, got)
 	}
 
+	if in.Type != "buy" || in.Close == nil {
+		in.Close, in.CloseDate = nil, ""
+	}
 	if in.Type == "buy" || in.Type == "sell" {
 		if from.kind != cryptoKind {
 			return badRequest("Сделку можно записать только на крипто-счёт")
@@ -575,9 +599,9 @@ func insertTx(ctx context.Context, tx pgx.Tx, uid int64, in TxInput, id *int64) 
 			return badRequest("Монета сделки совпадает с валютой счёта")
 		}
 		if _, err := tx.Exec(ctx, `
-			INSERT INTO transactions (id, user_id, date, title, type, account_id, amount, received, coin, time)
-			VALUES (COALESCE($10::bigint, nextval(pg_get_serial_sequence('transactions', 'id'))), $1, $2, $3, $4, $5, $6, $7, $8, NULLIF($9, '')::time)`,
-			uid, in.Date, in.Title, in.Type, from.id, in.Amount, *in.Received, in.Coin, in.Time, id); err != nil {
+			INSERT INTO transactions (id, user_id, date, title, type, account_id, amount, received, coin, time, close_price, close_date)
+			VALUES (COALESCE($10::bigint, nextval(pg_get_serial_sequence('transactions', 'id'))), $1, $2, $3, $4, $5, $6, $7, $8, NULLIF($9, '')::time, $11, NULLIF($12, '')::date)`,
+			uid, in.Date, in.Title, in.Type, from.id, in.Amount, *in.Received, in.Coin, in.Time, id, in.Close, in.CloseDate); err != nil {
 			return err
 		}
 		// покупка уводит сумму со счёта, продажа приводит
@@ -585,7 +609,16 @@ func insertTx(ctx context.Context, tx pgx.Tx, uid int64, in TxInput, id *int64) 
 		if in.Type == "buy" {
 			delta = -delta
 		}
-		return addBalance(ctx, tx, from.id, delta)
+		if err := addBalance(ctx, tx, from.id, delta); err != nil {
+			return err
+		}
+		if in.Close == nil {
+			return nil
+		}
+		// закрытие возвращает выручку; считается в базе, как и при откате
+		_, err := tx.Exec(ctx, `UPDATE accounts SET balance = balance + $2::numeric(24, 8) * $3::numeric(32, 12) WHERE id = $1`,
+			from.id, *in.Received, *in.Close)
+		return err
 	}
 
 	var catID *int64
@@ -620,6 +653,13 @@ func removeTx(ctx context.Context, tx pgx.Tx, uid, id int64) error {
 	var to *int64
 	var amount float64
 	var received *float64
+	// выручку от закрытой покупки снимаем со счёта до удаления, тем же счётом в базе
+	if _, err := tx.Exec(ctx, `
+		UPDATE accounts a SET balance = a.balance - t.received * t.close_price
+		FROM transactions t
+		WHERE t.id = $1 AND t.user_id = $2 AND t.close_price IS NOT NULL AND a.id = t.account_id`, id, uid); err != nil {
+		return err
+	}
 	err := tx.QueryRow(ctx, `
 			DELETE FROM transactions WHERE id = $1 AND user_id = $2
 			RETURNING type, account_id, to_account_id, amount, received`, id, uid).
