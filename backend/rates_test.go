@@ -70,3 +70,15 @@ func TestParseCoinGecko(t *testing.T) {
 		t.Error("want error when coins are missing")
 	}
 }
+
+func TestParseCoinGeckoChart(t *testing.T) {
+	// 2026-09-01 00:00 UTC, the same day later on, and 2026-09-02
+	body := []byte(`{"prices":[[1788220800000,100.5],[1788260000000,101],[1788307200000,102]]}`)
+	got, err := parseCoinGeckoChart(body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got["2026-09-01"] != 101 || got["2026-09-02"] != 102 || len(got) != 2 {
+		t.Fatalf("got %v", got)
+	}
+}

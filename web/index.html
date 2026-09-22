@@ -901,6 +901,40 @@
               </div>
             </div>
 
+            <!-- стоимость за 30 дней: линия по дням, подсказка по наведению -->
+            <sc-if value="{{ crChartOn }}" hint-placeholder-val="{{ true }}">
+            <div class="card" style="padding:18px 20px 14px">
+              <div style="display:flex;justify-content:space-between;align-items:baseline;gap:4px 12px;flex-wrap:wrap">
+                <span class="big" style="font-size:15px">Стоимость за 30 дней</span>
+                <span class="num" style="font-size:14px">{{ crChartNow }} <span class="tone" data-tone="{{ crChartTone }}" style="font-size:12px">{{ crChartCh }}</span></span>
+              </div>
+              <div style="font-size:12px;color:var(--ink3);margin-top:2px">{{ crChartNote }}</div>
+              <div style="position:relative;margin-top:10px">
+                <svg viewBox="{{ crChartBox }}" style="display:block;width:100%;height:auto" role="img" aria-label="{{ crChartAria }}" onMouseLeave="{{ crChartLeave }}">
+                  <defs><linearGradient id="crChartFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--accent);stop-opacity:.22"></stop><stop offset="1" style="stop-color:var(--accent);stop-opacity:0"></stop></linearGradient></defs>
+                  <sc-for list="{{ crChartGrid }}" as="g" hint-placeholder-count="3"><line x1="8" y1="{{ g.y }}" x2="612" y2="{{ g.y }}" vector-effect="non-scaling-stroke" style="stroke:var(--grid);stroke-dasharray:3 4;pointer-events:none"></line></sc-for>
+                  <path d="{{ crChartArea }}" style="fill:url(#crChartFill);pointer-events:none"></path>
+                  <polyline points="{{ crChartLine }}" fill="none" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linejoin="round" stroke-linecap="round" style="stroke:var(--accent);pointer-events:none"></polyline>
+                  <sc-if value="{{ crChartHover }}" hint-placeholder-val="{{ false }}">
+                    <line x1="{{ crChartHx }}" y1="14" x2="{{ crChartHx }}" y2="{{ crChartB }}" vector-effect="non-scaling-stroke" style="stroke:var(--ink3);stroke-width:1;pointer-events:none"></line>
+                    <circle cx="{{ crChartHx }}" cy="{{ crChartHy }}" r="{{ crChartR }}" vector-effect="non-scaling-stroke" style="fill:var(--accent);stroke:var(--card);stroke-width:2;pointer-events:none"></circle>
+                  </sc-if>
+                  <sc-for list="{{ crChartHits }}" as="h" hint-placeholder-count="30"><rect x="{{ h.x }}" y="0" width="{{ h.w }}" height="{{ crChartH }}" style="fill:transparent" onMouseEnter="{{ h.enter }}" onClick="{{ h.enter }}"></rect></sc-for>
+                </svg>
+                <sc-for list="{{ crChartGrid }}" as="g" hint-placeholder-count="3"><span class="num" style="position:absolute;right:0;top:{{ g.top }};transform:translateY(-120%);font-size:11px;color:var(--ink3);pointer-events:none">{{ g.label }}</span></sc-for>
+                <sc-if value="{{ crChartHover }}" hint-placeholder-val="{{ false }}">
+                  <div style="position:absolute;top:4%;left:{{ crChartTipL }};right:{{ crChartTipR }};width:max-content;padding:9px 12px;border-radius:12px;background:var(--raised);border:1px solid var(--line);box-shadow:0 8px 24px rgba(0,0,0,.22);pointer-events:none;z-index:2">
+                    <div class="num" style="font-size:15px;font-weight:600">{{ crChartTipVal }}</div>
+                    <div class="num" style="font-size:12px;color:var(--ink2);margin-top:2px">{{ crChartTipDay }} <span class="tone" data-tone="{{ crChartTipTone }}">{{ crChartTipCh }}</span></div>
+                  </div>
+                </sc-if>
+              </div>
+              <div style="position:relative;height:16px;margin-top:4px">
+                <sc-for list="{{ crChartTicks }}" as="t" hint-placeholder-count="4"><span style="position:absolute;left:{{ t.left }};transform:translateX({{ t.shift }});font-size:11px;color:var(--ink3);white-space:nowrap">{{ t.label }}</span></sc-for>
+              </div>
+            </div>
+            </sc-if>
+
             <!-- счета с типом «Криптокошелёк» из раздела «Счета» -->
             <sc-if value="{{ crHasAccounts }}" hint-placeholder-val="{{ false }}">
             <div style="display:flex;flex-direction:column;gap:10px">
@@ -2258,7 +2292,23 @@ const API = location.origin + "/api/";
 const CAT_ICONS = ["🛒", "🍎", "🥖", "🥩", "🧀", "🍕", "🍔", "🍣", "🍜", "🥗", "🍰", "☕", "🍷", "🍺", "🚗", "🚕", "🚌", "🚇", "🚆", "✈️", "⛽", "🅿️", "🚲", "🛴", "🔧", "🚢", "🏠", "💡", "💧", "🔥", "📶", "📱", "🛋️", "🧹", "🔨", "🪴", "🔑", "🧺", "💊", "🏥", "🦷", "👓", "🩺", "💆", "💇", "🧴", "👕", "👗", "👟", "👜", "💍", "🕶️", "🎁", "🛍️", "🎬", "🎮", "🎵", "🎭", "📚", "🎨", "🎤", "📷", "🎲", "📺", "🏖️", "⛺", "⚽", "🏒", "🏀", "🎾", "🏊", "🏋️", "🚴", "⛷️", "🧘", "🥊", "👶", "🧸", "🎓", "✏️", "🐶", "🐱", "💰", "💵", "💳", "🏦", "📈", "💼", "💻", "🧾", "🪙", "🐷", "💸", "🤝", "↩️", "🎉", "⭐", "❤️", "🙏", "📦"];
 
 // Demo data: shown only when the page runs without the backend (in the design canvas)
+// Демо-история курсов за 31 день: у каждой монеты своя плавная волна вокруг цены из COINS.
+const DEMO_HISTORY = (() => {
+  const out = {};
+  COINS.forEach(([code, , rub], i) => {
+    if (code === "USDT" || code === "USDC") return;
+    out[code] = {};
+    for (let k = 1; k <= 31; k++) {
+      const d = new Date(TODAY_Y, TODAY_M, TODAY_D - k);
+      const iso = d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate());
+      out[code][iso] = rub * (1 - 0.004 * k + 0.05 * Math.sin(k / 3.5 + i) + 0.02 * Math.sin(k * 1.3 + 2 * i));
+    }
+  });
+  return out;
+})();
+
 const DEMO = {
+  history: DEMO_HISTORY,
     cats: [
       { id: 1, name: "Продукты", parent: null, kind: "expense", icon: "🛒" },
       { id: 2, name: "Кафе и доставка", parent: null, kind: "expense", icon: "🍕" },
@@ -2340,7 +2390,7 @@ class Component extends DCLogic {
     expPreset: "all", expFrom: "", expTo: "", expTypes: { expense: true, income: true, transfer: true, trade: true }, expMsg: "",
     cats: [], accounts: [], txs: [], crypto: [], rates: {},
     delAccTo: "",
-    closeTx: null, closePrice: "", closeAuto: true, closeDate: "", dealKind: "buy", dealEdit: null, dealAccName: null, crCoin: null, crSort: "value", crSortDir: -1, dealCoin: "BTC", dealQty: "", dealPrice: "", dealPriceAuto: true,
+    crHover: null, closeTx: null, closePrice: "", closeAuto: true, closeDate: "", dealKind: "buy", dealEdit: null, dealAccName: null, crCoin: null, crSort: "value", crSortDir: -1, dealCoin: "BTC", dealQty: "", dealPrice: "", dealPriceAuto: true,
     dealDate: TODAY, dealOther: "", dealOut: "", dealIn: "", dealInTouched: false,
     crOpen: null, crAccOpen: null, crPortId: null, crPortName: "", crPortPlace: "",
     crAssetId: null, crAssetPort: null, crAssetCoin: "BTC", crAssetAmount: "", crAssetInvested: "",
@@ -2586,6 +2636,56 @@ class Component extends DCLogic {
     const amount = out ? (t.got != null ? t.got : t.v) : t.v;
     return toUsdt(out ? -amount : amount, this.curOf(out ? t.to : t.a));
   }
+  // Рубли за единицу в день day: сегодня — нынешний курс, раньше — дневной курс
+  // из истории, а если дня в ней нет — ближайший более ранний (или самый ранний).
+  rubOn(code, day) {
+    if (!code || code === "RUB") return 1;
+    const h = (this.state.history || {})[code];
+    if (day >= TODAY || !h) return this.toRub(1, code);
+    if (h[day] > 0) return h[day];
+    const keys = Object.keys(h).sort();
+    let best = keys[0];
+    keys.forEach(k => { if (k <= day) best = k; });
+    return best && h[best] > 0 ? h[best] : this.toRub(1, code);
+  }
+  // Стоимость в USDT на конец каждого из дней days. Крипто-счёт восстанавливается
+  // по операциям: остаток — нынешний минус всё, что было позже дня, монеты — сумма
+  // сделок до него включительно (закрытая покупка отдаёт монеты в день закрытия).
+  // У портфеля истории состава нет, поэтому он считается в нынешнем составе.
+  cryptoSeries(ports, accs, days) {
+    const events = accs.map(acc => {
+      const list = [];
+      this.state.txs.forEach(t => {
+        if (this.isTrade(t)) {
+          if (t.a !== acc.name) return;
+          const qty = Math.abs(t.got || 0) * (t.type === "buy" ? 1 : -1);
+          list.push({ d: t.d, bal: t.v, coin: t.gotCur, qty });
+          if (this.isClosed(t)) list.push({ d: t.closeD, bal: this.closeProceeds(t), coin: t.gotCur, qty: -qty });
+          return;
+        }
+        const v = this.txEffect(t, acc.name);
+        if (v) list.push({ d: t.d, bal: v });
+      });
+      return { acc, list };
+    });
+    return days.map(day => {
+      let rub = 0;
+      ports.forEach(p => p.assets.forEach(a => { rub += a.amount * this.rubOn(a.coin, day); }));
+      events.forEach(({ acc, list }) => {
+        let bal = acc.balance;
+        const held = {};
+        list.forEach(e => {
+          if (e.d > day) bal -= e.bal;
+          else if (e.coin) held[e.coin] = (held[e.coin] || 0) + e.qty;
+        });
+        rub += bal * this.rubOn(acc.cur || "RUB", day);
+        Object.keys(held).forEach(c => { if (held[c] > 1e-12) rub += held[c] * this.rubOn(c, day); });
+      });
+      const usdt = this.rubOn("USDT", day);
+      return usdt > 0 ? rub / usdt : 0;
+    });
+  }
+
   accInvested(acc) { return this.state.txs.reduce((sum, t) => sum + this.crFlow(t, acc), 0); }
   // «+12,4 %» к вложенному; без вложенного процента нет
   pctLabel(pnl, invested) {
@@ -2606,7 +2706,7 @@ class Component extends DCLogic {
       const kind = s.type === "income" ? "income" : "expense";
       const cat = cats.some(c => c.name === s.cat && c.kind === kind) ? s.cat : this.firstLeaf(kind, cats);
       return Object.assign({ user: data.user || null, accounts, cats, txs: data.txs || [],
-        crypto: data.crypto || [], rates, acc, accTo, cat }, extra);
+        crypto: data.crypto || [], rates, history: data.history || {}, acc, accTo, cat }, extra);
     });
   }
 
@@ -3845,6 +3945,7 @@ class Component extends DCLogic {
         .map(({ c, depth }) => ({ key: "p" + c.id, value: String(c.id), label: "· ".repeat(depth) + c.name })));
 
     const months = ["января","февраля","марта","апреля","мая","июня","июля","августа","сентября","октября","ноября","декабря"];
+    const shortMonthsCr = ["янв","фев","мар","апр","мая","июн","июл","авг","сен","окт","ноя","дек"];
     const monthsNom = ["Январь","Февраль","Март","Апрель","Май","Июнь","Июль","Август","Сентябрь","Октябрь","Ноябрь","Декабрь"];
     const dp = st.date.split("-");
     const platform = this.props.platform ?? "Десктоп";
@@ -3915,6 +4016,27 @@ class Component extends DCLogic {
       + crAccScope.reduce((sum, a) => sum + crAccInvested(a), 0);
     const crScopePnl = crScopeValue - crScopeInvested;
     const crNum = v => parseFloat(String(v).replace(/[^\d.,-]/g, "").replace(",", ".")) || 0;
+
+    // ---- график стоимости за 30 дней: то, что сейчас в виджетах, по дням ----
+    const crDays = st.screen !== "crypto" ? [] : Array.from({ length: 30 }, (_, k) => {
+      const d = new Date(TODAY_Y, TODAY_M, TODAY_D - 29 + k);
+      return d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate());
+    });
+    const crSeries = crDays.length ? this.cryptoSeries(crPortScope, crAccScope, crDays) : [];
+    const crChartOn = crSeries.some(v => Math.abs(v) > 0.005);
+    const crLo0 = crChartOn ? Math.min(...crSeries) : 0, crHi0 = crChartOn ? Math.max(...crSeries) : 1;
+    const crSpan = Math.max(crHi0 - crLo0, Math.abs(crHi0) * 0.02, 1);
+    const crLo = crLo0 >= 0 ? Math.max(0, crLo0 - crSpan * 0.15) : crLo0 - crSpan * 0.15, crHi = crHi0 + crSpan * 0.15;
+    // plot: x 8..612, y 14..H−16 в viewBox 620×H; на телефоне график выше, иначе он сплющен
+    const crH = isNarrow() ? 320 : 180, crB = crH - 16;
+    const cx = i => 8 + i / Math.max(1, crDays.length - 1) * 604;
+    const cy = v => crB - (v - crLo) / (crHi - crLo || 1) * (crB - 14);
+    const crPts = crSeries.map((v, i) => cx(i).toFixed(1) + "," + cy(v).toFixed(1));
+    const crHov = st.crHover !== null && st.crHover < crSeries.length ? st.crHover : null;
+    const crFirst = crSeries.length ? crSeries[0] : 0, crLast = crSeries.length ? crSeries[crSeries.length - 1] : 0;
+    const crDayLabel = iso => Number(iso.slice(8)) + " " + months[Number(iso.slice(5, 7)) - 1];
+    const crShortDay = iso => Number(iso.slice(8)) + " " + shortMonthsCr[Number(iso.slice(5, 7)) - 1];
+    const crAxisVal = v => Math.round(v).toLocaleString("ru-RU").replace(/\u00a0/g, " ");
 
     // ---- Сделка по крипто-счёту ----
     // Покупка и продажа остаются внутри счёта: с него уходит (или на него
@@ -4384,6 +4506,37 @@ class Component extends DCLogic {
       },
       // ---- Криптовалюта: виджеты, список портфелей и монеты внутри ----
       crInside: !!crOpenPort || !!crOpenAcc,
+      crChartOn,
+      crChartLine: crPts.join(" "),
+      crChartArea: crPts.length ? "M8," + crB + " L" + crPts.join(" L") + " L612," + crB + " Z" : "",
+      crChartBox: "0 0 620 " + crH, crChartR: crH > 200 ? "8" : "4.5", crChartH: String(crH), crChartB: String(crB),
+      crChartNow: this.usdt(crLast),
+      crChartCh: crFirst > 0.005 ? this.usdt(crLast - crFirst, true) + " · " + crPctLabel(crLast - crFirst, crFirst) : "",
+      crChartTone: crTone(crLast - crFirst),
+      crChartNote: crPortScope.some(p => p.assets.length)
+        ? (crAccScope.length ? "портфели — в нынешнем составе, по курсам тех дней" : "в нынешнем составе портфеля, по курсам тех дней")
+        : "остаток и монеты на конец каждого дня, по курсам тех дней",
+      crChartAria: "Стоимость за 30 дней: с " + this.usdt(crFirst) + " до " + this.usdt(crLast),
+      crChartGrid: [0, 0.5, 1].map(f => ({ key: "g" + f, y: (14 + f * (crB - 14)).toFixed(1), label: crAxisVal(crHi - f * (crHi - crLo)),
+        top: ((14 + f * (crB - 14)) / crH * 100).toFixed(2) + "%" })),
+      crChartTicks: crDays.length ? [0, 10, 20, 29].map(i => ({ key: "t" + i,
+        label: i === 29 ? "сегодня" : crShortDay(crDays[i]),
+        left: (cx(i) / 620 * 100).toFixed(2) + "%",
+        shift: i === 0 ? "0" : i === 29 ? "-100%" : "-50%" })) : [],
+      crChartHits: crDays.map((d, i) => ({ key: d, x: (cx(i) - 302 / Math.max(1, crDays.length - 1)).toFixed(1),
+        w: (604 / Math.max(1, crDays.length - 1)).toFixed(1),
+        enter: () => { if (this.state.crHover !== i) this.setState({ crHover: i }); } })),
+      crChartLeave: () => this.setState({ crHover: null }),
+      crChartHover: crHov !== null,
+      crChartHx: crHov !== null ? cx(crHov).toFixed(1) : "0",
+      crChartHy: crHov !== null ? cy(crSeries[crHov]).toFixed(1) : "0",
+      crChartTipL: crHov !== null && crHov < 15 ? (cx(crHov) / 620 * 100 + 2).toFixed(2) + "%" : "auto",
+      crChartTipR: crHov !== null && crHov >= 15 ? (100 - cx(crHov) / 620 * 100 + 2).toFixed(2) + "%" : "auto",
+      crChartTipDay: crHov !== null ? (crHov === crDays.length - 1 ? "Сегодня" : crDayLabel(crDays[crHov])) : "",
+      crChartTipVal: crHov !== null ? this.usdt(crSeries[crHov]) : "",
+      crChartTipCh: crHov !== null && crHov > 0 && crSeries[crHov - 1] > 0.005
+        ? this.usdt(crSeries[crHov] - crSeries[crHov - 1], true) + " за день" : "",
+      crChartTipTone: crHov !== null && crHov > 0 ? crTone(crSeries[crHov] - crSeries[crHov - 1]) : "",
       crInsidePort: !!crOpenPort,
       crInsideAcc: !!crOpenAcc,
       crList: !crOpenPort && !crOpenAcc && st.crypto.length > 0,

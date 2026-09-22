@@ -127,6 +127,8 @@ type State struct {
 	Txs      []Tx              `json:"txs"`
 	Crypto   []CryptoPortfolio `json:"crypto"`
 	Rates    map[string]Rate   `json:"rates"`
+	// курсы за последние дни для графиков: код → день (ГГГГ-ММ-ДД) → рубли
+	History map[string]map[string]float64 `json:"history"`
 }
 
 // APIError is a user-facing error: its message is shown in the page as is.
@@ -220,7 +222,7 @@ func (s *Store) migrate(ctx context.Context) error {
 
 // State returns the user's data, newest operations first, and the shared rates.
 func (s *Store) State(ctx context.Context, uid int64) (*State, error) {
-	st := &State{Rates: map[string]Rate{}}
+	st := &State{Rates: map[string]Rate{}, History: map[string]map[string]float64{}}
 	var err error
 
 	rows, _ := s.db.Query(ctx, `
@@ -296,6 +298,25 @@ func (s *Store) State(ctx context.Context, uid int64) (*State, error) {
 			return nil, err
 		}
 		st.Rates[code] = r
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	rows, _ = s.db.Query(ctx, `
+		SELECT code, to_char(day, 'YYYY-MM-DD'), rub FROM rate_history
+		WHERE day >= CURRENT_DATE - $1::int ORDER BY code, day`, historyDays)
+	defer rows.Close()
+	for rows.Next() {
+		var code, day string
+		var rub float64
+		if err := rows.Scan(&code, &day, &rub); err != nil {
+			return nil, err
+		}
+		if st.History[code] == nil {
+			st.History[code] = map[string]float64{}
+		}
+		st.History[code][day] = rub
 	}
 	return st, rows.Err()
 }
@@ -1059,7 +1080,8 @@ func (s *Store) DeleteCategory(ctx context.Context, uid, id int64) error {
 
 // ---- rates ----
 
-// UpsertRates stores rub prices per currency code from one source.
+// UpsertRates stores rub prices per currency code from one source; the price
+// also becomes today's in the daily history.
 func (s *Store) UpsertRates(ctx context.Context, rates map[string]float64, source string) error {
 	batch := &pgx.Batch{}
 	for code, rub := range rates {
@@ -1067,6 +1089,38 @@ func (s *Store) UpsertRates(ctx context.Context, rates map[string]float64, sourc
 			INSERT INTO rates (code, rub, source, updated_at) VALUES ($1, $2, $3, now())
 			ON CONFLICT (code) DO UPDATE SET rub = EXCLUDED.rub, source = EXCLUDED.source, updated_at = EXCLUDED.updated_at`,
 			code, rub, source)
+		batch.Queue(`
+			INSERT INTO rate_history (code, day, rub) VALUES ($1, CURRENT_DATE, $2)
+			ON CONFLICT (code, day) DO UPDATE SET rub = EXCLUDED.rub`, code, rub)
+	}
+	return s.db.SendBatch(ctx, batch).Close()
+}
+
+// HistoryDays says how many of the last historyDays days have a price for
+// each code, so the backfill fetches only coins with gaps.
+func (s *Store) HistoryDays(ctx context.Context) (map[string]int, error) {
+	rows, _ := s.db.Query(ctx, `
+		SELECT code, count(*) FROM rate_history
+		WHERE day >= CURRENT_DATE - $1::int AND day < CURRENT_DATE GROUP BY code`, historyDays)
+	out := map[string]int{}
+	for rows.Next() {
+		var code string
+		var n int
+		if err := rows.Scan(&code, &n); err != nil {
+			return nil, err
+		}
+		out[code] = n
+	}
+	return out, rows.Err()
+}
+
+// AddHistory fills past days of one code; a day that already has a price keeps it.
+func (s *Store) AddHistory(ctx context.Context, code string, days map[string]float64) error {
+	batch := &pgx.Batch{}
+	for day, rub := range days {
+		batch.Queue(`
+			INSERT INTO rate_history (code, day, rub) VALUES ($1, $2::date, $3)
+			ON CONFLICT (code, day) DO NOTHING`, code, day, rub)
 	}
 	return s.db.SendBatch(ctx, batch).Close()
 }

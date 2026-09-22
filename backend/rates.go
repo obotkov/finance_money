@@ -22,12 +22,17 @@ import (
 const (
 	cbrURL       = "https://www.cbr.ru/scripts/XML_daily.asp"
 	coingeckoURL = "https://api.coingecko.com/api/v3/simple/price"
-	userAgent    = "finance-money/1.0 (+https://okayconnect.online)"
+	// дневные цены монеты за последние дни: /coins/{id}/market_chart
+	coingeckoChartURL = "https://api.coingecko.com/api/v3/coins/%s/market_chart?vs_currency=rub&days=%d&interval=daily"
+	userAgent         = "finance-money/1.0 (+https://okayconnect.online)"
 )
 
 // Fiat comes from the Bank of Russia, crypto from CoinGecko (by coin id).
 // coinIDs is also the list of coins a crypto portfolio may hold; coreCoins are
 // the ones an account can be kept in, so a refresh without them is a failure.
+// historyDays — сколько дней курсов отдаётся странице для графиков.
+const historyDays = 31
+
 var (
 	fiatCodes = []string{"USD", "EUR"}
 	coreCoins = []string{"BTC", "ETH", "TON", "USDT"}
@@ -52,8 +57,10 @@ func NewRateUpdater(store *Store, log *slog.Logger) *RateUpdater {
 }
 
 // Run refreshes the rates now and then every interval until ctx is done.
+// After each refresh the daily history of coins is backfilled where it has gaps.
 func (u *RateUpdater) Run(ctx context.Context, every time.Duration) {
 	_ = u.Refresh(ctx)
+	u.Backfill(ctx)
 	t := time.NewTicker(every)
 	defer t.Stop()
 	for {
@@ -62,8 +69,72 @@ func (u *RateUpdater) Run(ctx context.Context, every time.Duration) {
 			return
 		case <-t.C:
 			_ = u.Refresh(ctx)
+			u.Backfill(ctx)
 		}
 	}
+}
+
+// Backfill fetches the daily prices of the last historyDays days for coins
+// whose history has gaps (a new server, a new coin). CoinGecko's free API
+// allows a few calls a minute, so the calls are spaced out and a refusal
+// stops the round — the next one picks up the rest.
+func (u *RateUpdater) Backfill(ctx context.Context) {
+	have, err := u.store.HistoryDays(ctx)
+	if err != nil {
+		u.log.Warn("rate history", "err", err)
+		return
+	}
+	codes := make([]string, 0, len(coinIDs))
+	for code := range coinIDs {
+		if have[code] < historyDays-2 {
+			codes = append(codes, code)
+		}
+	}
+	slices.Sort(codes)
+	for i, code := range codes {
+		if i > 0 {
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(15 * time.Second):
+			}
+		}
+		body, err := u.get(ctx, fmt.Sprintf(coingeckoChartURL, coinIDs[code], historyDays))
+		if err == nil {
+			var days map[string]float64
+			if days, err = parseCoinGeckoChart(body); err == nil {
+				err = u.store.AddHistory(ctx, code, days)
+			}
+		}
+		if err != nil {
+			u.log.Warn("rate history backfill stopped", "coin", code, "err", err)
+			return
+		}
+		u.log.Info("rate history backfilled", "coin", code)
+	}
+}
+
+// parseCoinGeckoChart turns market_chart prices ([ms, price] pairs) into a
+// price per UTC day; today is left to the live refresh.
+func parseCoinGeckoChart(body []byte) (map[string]float64, error) {
+	var resp struct {
+		Prices [][2]float64 `json:"prices"`
+	}
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return nil, fmt.Errorf("parse CoinGecko chart: %w", err)
+	}
+	today := time.Now().UTC().Format(time.DateOnly)
+	out := map[string]float64{}
+	for _, p := range resp.Prices {
+		day := time.UnixMilli(int64(p[0])).UTC().Format(time.DateOnly)
+		if p[1] > 0 && day < today {
+			out[day] = p[1]
+		}
+	}
+	if len(out) == 0 {
+		return nil, errors.New("no prices in CoinGecko chart")
+	}
+	return out, nil
 }
 
 // Refresh fetches both sources; a source that fails keeps its previous rates.
