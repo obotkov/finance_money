@@ -141,6 +141,9 @@
   .crcoin:hover { background: var(--hover-soft); }
   .crcoin[data-on="1"] { background: var(--accent-soft); }
   .crcoin .m-only, .crop-row .m-only, .cr-accfoot .m-only { display: none !important; }
+  .movers-h { font-size: 12px; color: var(--ink3); padding: 8px 18px 4px; }
+  .mover { display: flex; align-items: center; gap: 12px; padding: 9px 14px; margin: 0 4px; border-radius: 12px; cursor: pointer; }
+  .movers-none { font-size: 13px; color: var(--ink3); padding: 8px 18px; }
   .crop-close { display: inline-block; margin-top: 3px; padding: 3px 10px; font-size: 12px; border-radius: 980px; background: var(--btn-s); color: var(--accent); }
   .crop-close:hover { filter: brightness(1.1); }
   .cr-seclabel { font-size: 13px; color: var(--ink2); padding: 0 4px; }
@@ -572,6 +575,58 @@
                 <polyline points="{{ worthLine }}" fill="none" stroke="var(--pos)" stroke-width="2" stroke-linejoin="round"></polyline>
               </svg>
               <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--ink3)"><span>{{ worthFrom }}</span><span>{{ worthTo }}</span></div>
+            </div>
+            </sc-if>
+
+            <!-- криптовалюта: какие из ваших монет сильнее всех выросли и упали за период -->
+            <sc-if value="{{ moversOn }}" hint-placeholder-val="{{ true }}">
+            <div class="card" style="padding:8px 4px 10px">
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:8px 12px;flex-wrap:wrap;padding:10px 18px 2px">
+                <span class="big" style="font-size:17px">Ваши монеты: рост и падение</span>
+                <span style="display:flex;align-items:center;gap:14px">
+                  <span class="seg">
+                    <sc-for list="{{ moversPeriods }}" as="p" hint-placeholder-count="3"><span class="segopt" data-on="{{ p.on }}" onClick="{{ p.pick }}">{{ p.label }}</span></sc-for>
+                  </span>
+                  <a href="#" onClick="{{ goCrypto }}" style="font-size:13px">Все</a>
+                </span>
+              </div>
+              <div style="font-size:12px;color:var(--ink3);padding:0 18px 6px">{{ moversSub }}</div>
+              <div class="cols" style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:0 12px">
+                <div>
+                  <div class="movers-h">Выросли</div>
+                  <sc-for list="{{ moversUp }}" as="m" hint-placeholder-count="3">
+                    <div class="rowline mover" title="{{ m.hint }}" onClick="{{ m.open }}">
+                      <span class="coin" data-len="{{ m.iconLen }}" style="{{ m.iconStyle }}">{{ m.icon }}</span>
+                      <span style="flex:1;min-width:0">
+                        <span style="display:block;font-size:14px">{{ m.coin }} <span style="color:var(--ink3);font-size:12px">{{ m.name }}</span></span>
+                        <span class="num" style="display:block;font-size:12px;color:var(--ink3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ m.delta }}</span>
+                      </span>
+                      <span class="num" style="text-align:right;white-space:nowrap">
+                        <span class="tone" data-tone="{{ m.tone }}" style="display:block;font-size:15px;font-weight:500">{{ m.pct }}</span>
+                        <span style="display:block;font-size:12px;color:var(--ink3)">{{ m.price }}</span>
+                      </span>
+                    </div>
+                  </sc-for>
+                  <sc-if value="{{ moversNoUp }}" hint-placeholder-val="{{ false }}"><div class="movers-none">Ничего не выросло за этот период.</div></sc-if>
+                </div>
+                <div>
+                  <div class="movers-h">Упали</div>
+                  <sc-for list="{{ moversDown }}" as="m" hint-placeholder-count="3">
+                    <div class="rowline mover" title="{{ m.hint }}" onClick="{{ m.open }}">
+                      <span class="coin" data-len="{{ m.iconLen }}" style="{{ m.iconStyle }}">{{ m.icon }}</span>
+                      <span style="flex:1;min-width:0">
+                        <span style="display:block;font-size:14px">{{ m.coin }} <span style="color:var(--ink3);font-size:12px">{{ m.name }}</span></span>
+                        <span class="num" style="display:block;font-size:12px;color:var(--ink3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ m.delta }}</span>
+                      </span>
+                      <span class="num" style="text-align:right;white-space:nowrap">
+                        <span class="tone" data-tone="{{ m.tone }}" style="display:block;font-size:15px;font-weight:500">{{ m.pct }}</span>
+                        <span style="display:block;font-size:12px;color:var(--ink3)">{{ m.price }}</span>
+                      </span>
+                    </div>
+                  </sc-for>
+                  <sc-if value="{{ moversNoDown }}" hint-placeholder-val="{{ false }}"><div class="movers-none">Ничего не упало за этот период.</div></sc-if>
+                </div>
+              </div>
             </div>
             </sc-if>
 
@@ -2390,7 +2445,7 @@ class Component extends DCLogic {
     expPreset: "all", expFrom: "", expTo: "", expTypes: { expense: true, income: true, transfer: true, trade: true }, expMsg: "",
     cats: [], accounts: [], txs: [], crypto: [], rates: {},
     delAccTo: "",
-    crHover: null, closeTx: null, closePrice: "", closeAuto: true, closeDate: "", dealKind: "buy", dealEdit: null, dealAccName: null, crCoin: null, crSort: "value", crSortDir: -1, dealCoin: "BTC", dealQty: "", dealPrice: "", dealPriceAuto: true,
+    crHover: null, moversDays: 1, closeTx: null, closePrice: "", closeAuto: true, closeDate: "", dealKind: "buy", dealEdit: null, dealAccName: null, crCoin: null, crSort: "value", crSortDir: -1, dealCoin: "BTC", dealQty: "", dealPrice: "", dealPriceAuto: true,
     dealDate: TODAY, dealOther: "", dealOut: "", dealIn: "", dealInTouched: false,
     crOpen: null, crAccOpen: null, crPortId: null, crPortName: "", crPortPlace: "",
     crAssetId: null, crAssetPort: null, crAssetCoin: "BTC", crAssetAmount: "", crAssetInvested: "",
@@ -2684,6 +2739,54 @@ class Component extends DCLogic {
       const usdt = this.rubOn("USDT", day);
       return usdt > 0 ? rub / usdt : 0;
     });
+  }
+
+  // Сводка: монеты из портфелей и крипто-счетов, которые больше всех выросли и
+  // упали за период — по дневным курсам, в USDT. Стейблкоины не в счёт.
+  moversVals() {
+    const st = this.state, days = st.moversDays || 1;
+    const d = new Date(TODAY_Y, TODAY_M, TODAY_D - days);
+    const then = d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate());
+    const held = {};
+    const add = (coin, amount) => {
+      if (!(amount > 0) || coin === "USDT" || coin === "USDC" || !COIN[coin]) return;
+      held[coin] = (held[coin] || 0) + amount;
+    };
+    st.crypto.forEach(p => p.assets.forEach(a => add(a.coin, a.amount)));
+    st.accounts.filter(a => a.kind === "Криптокошелёк").forEach(a => {
+      add(a.cur, a.balance);
+      this.holdings(a).forEach(h => add(h.coin, h.amount));
+    });
+    const usdt = day => this.rubOn("USDT", day);
+    const rows = Object.keys(held).map(coin => {
+      const now = this.rubOn(coin, TODAY) / usdt(TODAY), was = this.rubOn(coin, then) / usdt(then);
+      return { coin, amount: held[coin], now, was, pct: was > 0 ? (now / was - 1) * 100 : 0 };
+    });
+    // монета без курса в истории выглядит неизменной — её в списки не берём
+    const moved = rows.filter(r => Math.abs(r.pct) >= 0.05 && Math.abs(r.now - r.was) > 1e-12);
+    const pct = r => (r.pct > 0 ? "+" : "−") + Math.abs(r.pct).toFixed(1).replace(".", ",") + " %";
+    const shape = r => Object.assign(curBadge(r.coin), {
+      key: "m" + r.coin, coin: r.coin, name: COIN[r.coin].name,
+      pct: pct(r), tone: r.pct > 0 ? "good" : "bad",
+      price: this.coinPrice(r.coin),
+      // сколько на этом заработали или потеряли ваши монеты; их количество — во всплывающей подсказке
+      delta: this.usdt(r.amount * (r.now - r.was), true),
+      hint: "У вас " + this.coinAmount(r.amount, r.coin) + " · цена была " + r.was.toLocaleString("ru-RU",
+        { maximumFractionDigits: r.was >= 100 ? 2 : r.was >= 1 ? 3 : 6 }).replace(/\u00a0/g, " ") + " USDT",
+      open: () => this.goScreen("crypto")
+    });
+    const up = moved.filter(r => r.pct > 0).sort((a, b) => b.pct - a.pct).slice(0, 4).map(shape);
+    const down = moved.filter(r => r.pct < 0).sort((a, b) => a.pct - b.pct).slice(0, 4).map(shape);
+    return {
+      moversOn: rows.length > 0,
+      moversUp: up, moversDown: down,
+      moversNoUp: up.length === 0, moversNoDown: down.length === 0,
+      moversSub: pluralRu(rows.length, "монета", "монеты", "монет") + " в портфелях и на крипто-счетах · цены в USDT",
+      moversPeriods: [[1, "сутки"], [7, "неделя"], [30, "месяц"]].map(([n, label]) => ({
+        key: "p" + n, label, on: days === n ? "1" : "0", pick: () => this.set("moversDays", n)
+      })),
+      goCrypto: e => { e.preventDefault(); this.goScreen("crypto"); }
+    };
   }
 
   accInvested(acc) { return this.state.txs.reduce((sum, t) => sum + this.crFlow(t, acc), 0); }
@@ -4185,6 +4288,7 @@ class Component extends DCLogic {
       savedLabel: "отложено " + this.money(income - expense),
       recent: st.txs.slice().sort((a, b) => (a.d < b.d ? 1 : -1)).slice(0, 6).map(shapeTx),
       ...this.summaryVals(),
+      ...(st.screen === "summary" ? this.moversVals() : { moversOn: false }),
       visibleTxs: visible.map(shapeTx),
       countLabel: visible.length + " из " + periodTxs.length + " операций",
       noTxs: visible.length === 0,
