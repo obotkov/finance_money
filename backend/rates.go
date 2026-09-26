@@ -24,7 +24,7 @@ const (
 	coingeckoURL = "https://api.coingecko.com/api/v3/simple/price"
 	// дневные цены монеты за последние дни: /coins/{id}/market_chart
 	coingeckoChartURL = "https://api.coingecko.com/api/v3/coins/%s/market_chart?vs_currency=rub&days=%d&interval=daily"
-	userAgent         = "finance-money/1.0 (+https://okayconnect.online)"
+	userAgent         = "finance-money/1.0 (+https://penny.place)"
 )
 
 // Fiat comes from the Bank of Russia, crypto from CoinGecko (by coin id).

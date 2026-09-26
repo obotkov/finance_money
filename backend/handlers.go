@@ -16,7 +16,7 @@ import (
 )
 
 type Config struct {
-	PublicURL          string // the site as the browser sees it, e.g. https://okayconnect.online
+	PublicURL          string // the site as the browser sees it, e.g. https://penny.place
 	GoogleClientID     string // Google sign-in is off while these are empty
 	GoogleClientSecret string
 }

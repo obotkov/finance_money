@@ -3,6 +3,11 @@
 	@www header_regexp www Host ^www\.(.+)$
 	redir @www https://{re.www.1}{uri} permanent
 
+	# Остальные домены из DOMAIN (старый адрес) ведут на основной CANONICAL_HOST.
+	# Без CANONICAL_HOST каждый домен работает сам по себе.
+	@alias expression `{env.CANONICAL_HOST} != "" && {host} != {env.CANONICAL_HOST}`
+	redir @alias https://{env.CANONICAL_HOST}{uri} permanent
+
 	encode zstd gzip
 
 	handle /api/* {

@@ -1,13 +1,13 @@
 # Penny — учёт финансов
 
 Учёт для нескольких людей: у каждого свои счета, операции, категории, бюджеты и аналитика.
-Сайт: https://okayconnect.online
+Сайт: https://penny.place
 
 ## Устройство
 
 | Сервис | Что делает |
 | --- | --- |
-| `web` | Caddy: HTTPS, страница из `web/`, прокси `/api/*` на `api` |
+| `web` | Caddy: HTTPS, страница из `web/`, прокси `/api/*` на `api`; `www.` и домены кроме `CANONICAL_HOST` (старый okayconnect.online) редиректятся на основной |
 | `api` | Go-бэкенд из `backend/`: пользователи и вход, счета, операции, категории, крипто-портфели, импорт CSV, курсы валют |
 | `db` | PostgreSQL 18, данные в томе `pgdata` |
 
@@ -53,7 +53,7 @@ docker compose exec api /api reset-password user@example.com # новый слу
    тип External, название, почта поддержки; scopes `openid`, `email`, `profile`. Опубликуйте приложение
    (Publish app), иначе войти смогут только тестовые пользователи.
 2. Credentials → Create credentials → OAuth client ID → Web application.
-   Authorized redirect URI: `https://okayconnect.online/api/auth/google/callback`.
+   Authorized redirect URI: `https://penny.place/api/auth/google/callback`.
 3. Впишите Client ID и Client secret в `/opt/finance-money/.env` на сервере:
    `GOOGLE_CLIENT_ID=...`, `GOOGLE_CLIENT_SECRET=...` — и запустите `./deploy.sh`.
 

@@ -43,6 +43,7 @@ services:
       - "443:443/udp"
     environment:
       DOMAIN: ${DOMAIN:-localhost}
+      CANONICAL_HOST: ${CANONICAL_HOST:-}
     volumes:
       - caddy_data:/data
       - caddy_config:/config
