@@ -22,23 +22,21 @@ type Config struct {
 }
 
 type API struct {
-	store   *Store
-	rates   *RateUpdater
-	log     *slog.Logger
-	origin  string         // the site's own origin: writes from other origins are refused
-	secure  bool           // cookies only over HTTPS
-	google  *oauth2.Config // nil when Google sign-in isn't configured
-	limiter *limiter
+	store  *Store
+	rates  *RateUpdater
+	log    *slog.Logger
+	origin string         // the site's own origin: writes from other origins are refused
+	secure bool           // cookies only over HTTPS
+	google *oauth2.Config // nil when Google sign-in isn't configured
 }
 
 func NewAPI(store *Store, rates *RateUpdater, cfg Config, log *slog.Logger) *API {
 	a := &API{
-		store:   store,
-		rates:   rates,
-		log:     log,
-		origin:  cfg.PublicURL,
-		secure:  strings.HasPrefix(cfg.PublicURL, "https://"),
-		limiter: newLimiter(15 * time.Minute),
+		store:  store,
+		rates:  rates,
+		log:    log,
+		origin: cfg.PublicURL,
+		secure: strings.HasPrefix(cfg.PublicURL, "https://"),
 	}
 	if cfg.GoogleClientID != "" && cfg.GoogleClientSecret != "" {
 		a.google = &oauth2.Config{
@@ -61,8 +59,6 @@ func (a *API) Handler() http.Handler {
 
 	mux.HandleFunc("GET /api/auth/config", a.authConfig)
 	mux.HandleFunc("GET /api/auth/me", a.me)
-	mux.HandleFunc("POST /api/auth/register", a.register)
-	mux.HandleFunc("POST /api/auth/login", a.login)
 	mux.HandleFunc("POST /api/auth/logout", a.logout)
 	mux.HandleFunc("GET /api/auth/google/start", a.googleStart)
 	mux.HandleFunc("GET /api/auth/google/callback", a.googleCallback)

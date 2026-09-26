@@ -6,24 +6,18 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"errors"
-	"fmt"
 	"net/http"
-	"net/mail"
 	"strings"
 	"time"
-	"unicode/utf8"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
-	"golang.org/x/crypto/bcrypt"
 )
 
-const (
-	sessionTTL  = 30 * 24 * time.Hour
-	bcryptCost  = 12
-	minPassword = 8  // characters
-	maxPassword = 72 // bytes: bcrypt ignores the rest
-)
+// Вход только через Google. password_hash остался у аккаунтов, заведённых
+// до этого по почте и паролю: такой аккаунт забирает себе первый вход через
+// Google с той же почтой (см. GoogleUser).
+const sessionTTL = 30 * 24 * time.Hour
 
 type User struct {
 	ID    int64  `json:"id"`
@@ -31,28 +25,7 @@ type User struct {
 	Name  string `json:"name"`
 }
 
-var errBadCredentials = &APIError{http.StatusUnauthorized, "Неверная почта или пароль"}
-
-// dummyHash makes a sign-in with an unknown email as slow as one with a wrong
-// password, so response time doesn't tell which emails are registered.
-var dummyHash, _ = bcrypt.GenerateFromPassword([]byte("not a real password"), bcryptCost)
-
 func normalizeEmail(s string) string { return strings.ToLower(strings.TrimSpace(s)) }
-
-// validateCredentials expects an already normalized email.
-func validateCredentials(email, password string) error {
-	addr, err := mail.ParseAddress(email)
-	if err != nil || addr.Address != email || !strings.Contains(email[strings.LastIndex(email, "@"):], ".") {
-		return badRequest("Проверьте адрес почты")
-	}
-	if utf8.RuneCountInString(password) < minPassword {
-		return badRequest("Пароль — не короче 8 символов")
-	}
-	if len(password) > maxPassword {
-		return badRequest("Пароль слишком длинный")
-	}
-	return nil
-}
 
 func randomToken() string {
 	b := make([]byte, 32)
@@ -65,30 +38,16 @@ func hashToken(token string) []byte {
 	return h[:]
 }
 
-func (s *Store) Register(ctx context.Context, email, password, name string) (*User, error) {
-	email = normalizeEmail(email)
-	if err := validateCredentials(email, password); err != nil {
-		return nil, err
-	}
-	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcryptCost)
-	if err != nil {
-		return nil, err
-	}
-	return s.createUser(ctx, email, strings.TrimSpace(name), string(hash), "")
-}
-
-// createUser adds a user with the starting categories. The password hash is
-// empty for Google accounts, the Google sub for password accounts.
-func (s *Store) createUser(ctx context.Context, email, name, hash, googleSub string) (*User, error) {
+// createUser adds a Google user with the starting categories.
+func (s *Store) createUser(ctx context.Context, email, name, googleSub string) (*User, error) {
 	if name == "" {
 		name = email[:strings.Index(email, "@")]
 	}
 	u := &User{Email: email, Name: name}
 	err := pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) error {
 		err := tx.QueryRow(ctx, `
-			INSERT INTO users (email, name, password_hash, google_sub)
-			VALUES ($1, $2, NULLIF($3, ''), NULLIF($4, '')) RETURNING id`,
-			email, name, hash, googleSub).Scan(&u.ID)
+			INSERT INTO users (email, name, google_sub) VALUES ($1, $2, $3) RETURNING id`,
+			email, name, googleSub).Scan(&u.ID)
 		if err != nil {
 			return err
 		}
@@ -96,31 +55,10 @@ func (s *Store) createUser(ctx context.Context, email, name, hash, googleSub str
 	})
 	var pe *pgconn.PgError
 	if errors.As(err, &pe) && pe.Code == "23505" {
-		return nil, &APIError{http.StatusConflict, "Эта почта уже зарегистрирована — войдите"}
+		return nil, &APIError{http.StatusConflict, "Эта почта уже привязана к другому Google-аккаунту"}
 	}
 	if err != nil {
 		return nil, err
-	}
-	return u, nil
-}
-
-func (s *Store) Authenticate(ctx context.Context, email, password string) (*User, error) {
-	u := &User{}
-	var hash *string
-	err := s.db.QueryRow(ctx, `SELECT id, email, name, password_hash FROM users WHERE email = $1`, normalizeEmail(email)).
-		Scan(&u.ID, &u.Email, &u.Name, &hash)
-	if errors.Is(err, pgx.ErrNoRows) {
-		_ = bcrypt.CompareHashAndPassword(dummyHash, []byte(password))
-		return nil, errBadCredentials
-	}
-	if err != nil {
-		return nil, err
-	}
-	if hash == nil {
-		return nil, &APIError{http.StatusUnauthorized, "Этот адрес привязан к Google — войдите через Google"}
-	}
-	if bcrypt.CompareHashAndPassword([]byte(*hash), []byte(password)) != nil {
-		return nil, errBadCredentials
 	}
 	return u, nil
 }
@@ -137,10 +75,10 @@ func (s *Store) GoogleUser(ctx context.Context, sub, email, name string) (*User,
 		return nil, err
 	}
 
-	// A password account with this email is taken over by the Google account.
-	// Sign-up doesn't verify emails, so anyone could have registered the
-	// address first: the password is dropped and its sessions end, leaving
-	// access only to the owner of the address, whom Google has verified.
+	// An account left from password sign-in with this email is taken over by
+	// the Google account. Sign-up never verified emails, so anyone could have
+	// registered the address first: the password is dropped and its sessions
+	// end, leaving access only to the owner of the address, whom Google verified.
 	email = normalizeEmail(email)
 	err = pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) error {
 		err := tx.QueryRow(ctx, `
@@ -159,7 +97,7 @@ func (s *Store) GoogleUser(ctx context.Context, sub, email, name string) (*User,
 	if !errors.Is(err, pgx.ErrNoRows) {
 		return nil, err
 	}
-	return s.createUser(ctx, email, strings.TrimSpace(name), "", sub)
+	return s.createUser(ctx, email, strings.TrimSpace(name), sub)
 }
 
 // CreateSession returns a new session token; only its hash is stored.
@@ -202,33 +140,6 @@ func (s *Store) ListUsers(ctx context.Context) ([]UserInfo, error) {
 		err := r.Scan(&u.ID, &u.Email, &u.Name, &u.Password, &u.Google, &u.Accounts, &u.Txs, &u.CreatedAt, &u.LastLoginAt)
 		return u, err
 	})
-}
-
-// ResetPassword gives the user a new random password, ends their sessions and
-// returns the password. It also lets a Google-only account sign in by password.
-func (s *Store) ResetPassword(ctx context.Context, email string) (string, error) {
-	password := rand.Text()
-	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcryptCost)
-	if err != nil {
-		return "", err
-	}
-	err = pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) error {
-		var id int64
-		err := tx.QueryRow(ctx, `UPDATE users SET password_hash = $2 WHERE email = $1 RETURNING id`,
-			normalizeEmail(email), string(hash)).Scan(&id)
-		if errors.Is(err, pgx.ErrNoRows) {
-			return fmt.Errorf("нет пользователя с почтой %s", normalizeEmail(email))
-		}
-		if err != nil {
-			return err
-		}
-		_, err = tx.Exec(ctx, `DELETE FROM sessions WHERE user_id = $1`, id)
-		return err
-	})
-	if err != nil {
-		return "", err
-	}
-	return password, nil
 }
 
 // SessionUser returns the user of a live session, or nil.

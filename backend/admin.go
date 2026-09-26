@@ -10,16 +10,13 @@ import (
 )
 
 const adminUsage = `Команды администратора (на сервере, из /opt/finance-money):
-  docker compose exec api /api users                     список пользователей
-  docker compose exec api /api reset-password <почта>    новый случайный пароль для пользователя
+  docker compose exec api /api users    список пользователей
 
-Пароли хранятся только как bcrypt-хеши, поэтому вывести текущий пароль нельзя — только задать новый.`
+Вход только через Google, паролей нет.`
 
 // runAdmin runs an admin subcommand against the database and returns the exit code.
 func runAdmin(args []string) int {
-	users := args[0] == "users" && len(args) == 1
-	reset := args[0] == "reset-password" && len(args) == 2
-	if !users && !reset {
+	if args[0] != "users" || len(args) != 1 {
 		fmt.Fprintln(os.Stderr, adminUsage)
 		return 2
 	}
@@ -33,16 +30,9 @@ func runAdmin(args []string) int {
 	}
 	defer store.Close()
 
-	if users {
-		var list []UserInfo
-		if list, err = store.ListUsers(ctx); err == nil {
-			printUsers(os.Stdout, list)
-		}
-	} else {
-		var password string
-		if password, err = store.ResetPassword(ctx, args[1]); err == nil {
-			fmt.Printf("Новый пароль для %s: %s\nСтарые сессии этого пользователя завершены.\n", normalizeEmail(args[1]), password)
-		}
+	list, err := store.ListUsers(ctx)
+	if err == nil {
+		printUsers(os.Stdout, list)
 	}
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "ошибка:", err)
@@ -59,12 +49,10 @@ func printUsers(w io.Writer, users []UserInfo) {
 	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
 	fmt.Fprintln(tw, "ID\tПОЧТА\tИМЯ\tВХОД\tСЧЕТОВ\tОПЕРАЦИЙ\tРЕГИСТРАЦИЯ (UTC)\tПОСЛЕДНИЙ ВХОД (UTC)")
 	for _, u := range users {
-		method := "пароль"
-		switch {
-		case u.Password && u.Google:
-			method = "пароль + Google"
-		case u.Google:
-			method = "Google"
+		// аккаунт со старым паролем без Google войдёт, когда владелец зайдёт через Google с той же почтой
+		method := "Google"
+		if !u.Google {
+			method = "пароль, ждёт Google"
 		}
 		last := "—"
 		if u.LastLoginAt != nil {

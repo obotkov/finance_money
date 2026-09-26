@@ -7,11 +7,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
 	"net/url"
-	"strings"
-	"sync"
 	"time"
 
 	"golang.org/x/oauth2"
@@ -23,18 +20,7 @@ const (
 	googleVerifierCookie = "google_verifier"
 	googleCookiePath     = "/api/auth/google"
 	googleUserinfoURL    = "https://openidconnect.googleapis.com/v1/userinfo"
-
-	// Limits per 15 minutes
-	emailFailLimit = 10 // failed sign-ins per email
-	ipFailLimit    = 30 // failed sign-ins per client IP
-	signupLimit    = 10 // sign-ups per client IP
 )
-
-type credentials struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
-	Name     string `json:"name"`
-}
 
 func (a *API) authConfig(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]bool{"google": a.google != nil})
@@ -44,52 +30,6 @@ func (a *API) me(w http.ResponseWriter, r *http.Request) {
 	if u, ok := a.requireUser(w, r); ok {
 		writeJSON(w, http.StatusOK, u)
 	}
-}
-
-func (a *API) register(w http.ResponseWriter, r *http.Request) {
-	key := "signup:" + clientIP(r)
-	if !a.limiter.allow(key, signupLimit) {
-		writeJSON(w, http.StatusTooManyRequests, errorBody("Слишком много регистраций с этого адреса — попробуйте позже"))
-		return
-	}
-	var in credentials
-	if err := decode(r, &in); err != nil {
-		a.fail(w, r, err)
-		return
-	}
-	a.limiter.add(key)
-	u, err := a.store.Register(r.Context(), in.Email, in.Password, in.Name)
-	if err != nil {
-		a.fail(w, r, err)
-		return
-	}
-	a.log.Info("user registered", "user", u.ID)
-	a.signIn(w, r, u)
-}
-
-func (a *API) login(w http.ResponseWriter, r *http.Request) {
-	var in credentials
-	if err := decode(r, &in); err != nil {
-		a.fail(w, r, err)
-		return
-	}
-	emailKey, ipKey := "email:"+normalizeEmail(in.Email), "ip:"+clientIP(r)
-	if !a.limiter.allow(emailKey, emailFailLimit) || !a.limiter.allow(ipKey, ipFailLimit) {
-		writeJSON(w, http.StatusTooManyRequests, errorBody("Слишком много неудачных попыток — подождите 15 минут"))
-		return
-	}
-	u, err := a.store.Authenticate(r.Context(), in.Email, in.Password)
-	if err != nil {
-		var ae *APIError
-		if errors.As(err, &ae) && ae.Status == http.StatusUnauthorized {
-			a.limiter.add(emailKey)
-			a.limiter.add(ipKey)
-		}
-		a.fail(w, r, err)
-		return
-	}
-	a.limiter.reset(emailKey)
-	a.signIn(w, r, u)
 }
 
 // signIn starts a session in a cookie and answers with the user.
@@ -253,68 +193,4 @@ func fetchGoogleProfile(ctx context.Context, client *http.Client) (*googleProfil
 		return nil, errors.New("userinfo: no sub")
 	}
 	return &p, nil
-}
-
-// clientIP is the address Caddy saw. The API is reachable only through Caddy,
-// which sets X-Forwarded-For itself.
-func clientIP(r *http.Request) string {
-	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
-		return strings.TrimSpace(strings.Split(xff, ",")[0])
-	}
-	host, _, err := net.SplitHostPort(r.RemoteAddr)
-	if err != nil {
-		return r.RemoteAddr
-	}
-	return host
-}
-
-// limiter counts events per key over a sliding window, in memory.
-type limiter struct {
-	mu     sync.Mutex
-	window time.Duration
-	hits   map[string][]time.Time
-}
-
-func newLimiter(window time.Duration) *limiter {
-	return &limiter{window: window, hits: map[string][]time.Time{}}
-}
-
-func (l *limiter) allow(key string, max int) bool {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	return len(l.recent(key)) < max
-}
-
-func (l *limiter) add(key string) {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	if len(l.hits) > 10000 {
-		for k := range l.hits {
-			l.recent(k)
-		}
-	}
-	l.hits[key] = append(l.recent(key), time.Now())
-}
-
-func (l *limiter) reset(key string) {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	delete(l.hits, key)
-}
-
-// recent drops the key's events older than the window and returns the rest.
-func (l *limiter) recent(key string) []time.Time {
-	cutoff := time.Now().Add(-l.window)
-	h := l.hits[key]
-	i := 0
-	for i < len(h) && h[i].Before(cutoff) {
-		i++
-	}
-	if i == len(h) {
-		delete(l.hits, key)
-		return nil
-	}
-	h = h[i:]
-	l.hits[key] = h
-	return h
 }

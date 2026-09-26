@@ -19,7 +19,7 @@ func TestPrintUsers(t *testing.T) {
 	var b strings.Builder
 	printUsers(&b, users)
 	out := b.String()
-	for _, want := range []string{"anna@example.com", "2026-09-15 07:30", "пароль + Google", "Всего: 3"} {
+	for _, want := range []string{"anna@example.com", "2026-09-15 07:30", "пароль, ждёт Google", "Всего: 3"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("output lacks %q:\n%s", want, out)
 		}
