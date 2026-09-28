@@ -150,6 +150,9 @@
     .rt-row[data-cols="4"] .coin { display: none; }
     .rt-row[data-cols="4"] .rt-big { font-size: 13px !important; }
     .rt-row .rt-name, .rt-row .rt-sub { white-space: normal !important; line-height: 1.25; }
+    .bk-row { flex-wrap: wrap; row-gap: 4px !important; }
+    .bk-row > div:first-child { flex-basis: 100% !important; }
+    .bk-row .btn:first-child { padding-left: 0; }
   }
   .movers-h { font-size: 12px; color: var(--ink3); padding: 8px 18px 4px; }
   .mover { display: flex; align-items: center; gap: 12px; padding: 9px 14px; margin: 0 4px; border-radius: 12px; cursor: pointer; }
@@ -1649,6 +1652,43 @@
                 <button class="btn btn-s" onClick="{{ openImport }}">Загрузить CSV…</button>
               </div>
             </div>
+            <!-- бекапы: снимки всех данных на сервере, скачивание и восстановление -->
+            <div class="card" style="grid-column:1 / -1;padding:20px 22px;display:flex;flex-direction:column;gap:14px">
+              <div style="display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap">
+                <div style="flex:1;min-width:220px">
+                  <div class="big" style="font-size:17px">Бекапы</div>
+                  <div style="font-size:13px;color:var(--ink3)">Полная копия счетов с остатками, категорий, операций и крипто-портфелей. Хранятся последние {{ bkMax }}; перед восстановлением текущие данные сохраняются сами.</div>
+                </div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap">
+                  <label class="btn btn-s" style="cursor:pointer;opacity:{{ adminOpacity }}">
+                    Восстановить из файла…
+                    <input type="file" accept=".json,application/json" style="display:none" onChange="{{ onBackupFile }}">
+                  </label>
+                  <button class="btn btn-p" style="opacity:{{ adminOpacity }}" onClick="{{ makeBackup }}">Сделать бекап</button>
+                </div>
+              </div>
+              <sc-if value="{{ bkHas }}" hint-placeholder-val="{{ true }}">
+                <div style="border-top:1px solid var(--line)">
+                  <sc-for list="{{ bkRows }}" as="b" hint-placeholder-count="3">
+                    <div class="bk-row" style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--line)">
+                      <div style="flex:1;min-width:0">
+                        <div style="font-size:14px;font-weight:500">{{ b.when }}</div>
+                        <div style="font-size:12px;color:var(--ink3)">{{ b.info }}</div>
+                      </div>
+                      <div style="display:flex;gap:4px;flex:none">
+                        <a class="btn btn-t" href="{{ b.href }}" download="">Скачать</a>
+                        <button class="btn btn-t" onClick="{{ b.restore }}">Восстановить</button>
+                        <button class="btn btn-t" style="color:var(--neg)" onClick="{{ b.remove }}">Удалить</button>
+                      </div>
+                    </div>
+                  </sc-for>
+                </div>
+              </sc-if>
+              <sc-if value="{{ bkEmpty }}" hint-placeholder-val="{{ false }}">
+                <div style="font-size:13px;color:var(--ink3)">{{ bkEmptyText }}</div>
+              </sc-if>
+              <div style="font-size:12px;color:var(--accent)">{{ bkMsg }}</div>
+            </div>
             <!-- демо-данные и очистка аккаунта -->
             <div class="card" style="grid-column:1 / -1;padding:20px 22px;display:flex;flex-direction:column;gap:14px">
               <div>
@@ -2490,11 +2530,11 @@ class Component extends DCLogic {
     catId: null, catName: "", catParent: "", catKind: "expense", catIcon: "", catTab: "expense",
     anaPreset: "month", anaFrom: THIS_MONTH + "-01", anaTo: TODAY,
     anaGran: "day", anaHover: null, anaCats: null, anaCatGran: "week", anaCatHover: null,
-    dataText: "", dataMsg: "", dataAdminMsg: "",
+    dataText: "", dataMsg: "", dataAdminMsg: "", bkMsg: "",
     theme: initialTheme, cents: initialCents,
     repMode: "detail", repFrom: THIS_MONTH + "-01", repTo: TODAY, repPreset: "month", repView: "bars", repPath: [], repList: null,
     expPreset: "all", expFrom: "", expTo: "", expTypes: { expense: true, income: true, transfer: true, trade: true }, expMsg: "",
-    cats: [], accounts: [], txs: [], crypto: [], rates: {},
+    cats: [], accounts: [], txs: [], crypto: [], rates: {}, backups: [],
     delAccTo: "",
     crHover: null, moversDays: 1, ratesTab: "fiat", closeTx: null, closePrice: "", closeAuto: true, closeDate: "", dealKind: "buy", dealEdit: null, dealAccName: null, crCoin: null, crSort: "value", crSortDir: -1, dealCoin: "BTC", dealQty: "", dealPrice: "", dealPriceAuto: true,
     dealDate: TODAY, dealOther: "", dealOut: "", dealIn: "", dealInTouched: false,
@@ -2940,7 +2980,7 @@ class Component extends DCLogic {
       const kind = s.type === "income" ? "income" : "expense";
       const cat = cats.some(c => c.name === s.cat && c.kind === kind) ? s.cat : this.firstLeaf(kind, cats);
       return Object.assign({ user: data.user || null, accounts, cats, txs: data.txs || [],
-        crypto: data.crypto || [], rates, history: data.history || {}, acc, accTo, cat }, extra);
+        crypto: data.crypto || [], rates, history: data.history || {}, backups: data.backups || [], acc, accTo, cat }, extra);
     });
   }
 
@@ -3030,6 +3070,70 @@ class Component extends DCLogic {
     this.api("POST", "data/reset")
       .then(() => this.set("dataAdminMsg", "Все данные удалены — аккаунт пустой."))
       .catch(() => {});
+  }
+
+  // ---- бекапы ----
+
+  // «28 сентября 2026, 23:48» — по часам браузера
+  backupWhen(iso) {
+    const d = new Date(iso);
+    return d.toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" }).replace(/\s*г\.$/, "")
+      + ", " + d.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
+  }
+  backupVals() {
+    const st = this.state, list = st.backups || [];
+    const size = n => n >= 1 << 20 ? (n / (1 << 20)).toFixed(1).replace(".", ",") + " МБ" : Math.max(1, Math.round(n / 1024)) + " КБ";
+    return {
+      bkMax: "30",
+      bkHas: list.length > 0,
+      bkEmpty: list.length === 0,
+      bkEmptyText: st.online ? "Бекапов пока нет — нажмите «Сделать бекап»." : "Без сервера бекапы недоступны — войдите в аккаунт.",
+      bkMsg: st.bkMsg,
+      bkRows: list.map(b => ({
+        key: String(b.id),
+        when: this.backupWhen(b.createdAt),
+        info: (b.kind === "auto" ? "Сохранён сам перед восстановлением · " : "")
+          + pluralRu(b.accounts, "счёт", "счёта", "счетов") + " · " + pluralRu(b.txs, "операция", "операции", "операций") + " · " + size(b.size),
+        href: API + "backups/" + b.id + "/file",
+        restore: () => {
+          if (!window.confirm("Восстановить бекап от " + this.backupWhen(b.createdAt) + "?\n\nСчета, операции и категории заменятся данными из бекапа. "
+            + "Текущие данные перед этим сохранятся отдельным бекапом — к ним можно будет вернуться.")) return;
+          this.set("bkMsg", "");
+          this.api("POST", "backups/" + b.id + "/restore")
+            .then(() => this.set("bkMsg", "Восстановлен бекап от " + this.backupWhen(b.createdAt) + "."))
+            .catch(() => {});
+        },
+        remove: () => {
+          if (!window.confirm("Удалить бекап от " + this.backupWhen(b.createdAt) + "? Вернуть его будет нельзя.")) return;
+          this.set("bkMsg", "");
+          this.api("DELETE", "backups/" + b.id).catch(() => {});
+        }
+      })),
+      makeBackup: () => {
+        if (!st.online) { this.set("bkMsg", "Без сервера бекапы не сохраняются."); return; }
+        this.set("bkMsg", "");
+        this.api("POST", "backups").then(() => this.set("bkMsg", "Бекап сохранён.")).catch(() => {});
+      },
+      onBackupFile: e => {
+        const file = e.target.files && e.target.files[0];
+        e.target.value = ""; // тот же файл можно выбрать снова
+        if (!file) return;
+        if (!st.online) { this.set("bkMsg", "Без сервера данные не меняются."); return; }
+        file.text().then(text => {
+          let data;
+          try { data = JSON.parse(text); } catch (_) { data = null; }
+          if (!data || data.format !== "penny-backup") { this.set("bkMsg", "«" + file.name + "» — не файл бекапа Penny."); return; }
+          const what = pluralRu((data.accounts || []).length, "счёт", "счёта", "счетов") + ", "
+            + pluralRu((data.transactions || []).length, "операция", "операции", "операций");
+          if (!window.confirm("Восстановить из файла «" + file.name + "»?\n\nБекап от " + this.backupWhen(data.createdAt) + ": " + what + ".\n"
+            + "Счета, операции и категории заменятся данными из файла. Текущие данные перед этим сохранятся отдельным бекапом.")) return;
+          this.set("bkMsg", "Восстанавливаю…");
+          this.api("POST", "backups/restore", data)
+            .then(() => this.set("bkMsg", "Данные восстановлены из «" + file.name + "»."))
+            .catch(() => this.set("bkMsg", ""));
+        });
+      }
+    };
   }
 
   firstLeaf(kind, cats) {
@@ -4539,6 +4643,7 @@ class Component extends DCLogic {
       adminOpacity: st.online ? "1" : "0.5",
       loadDemo: () => this.loadDemo(),
       wipeAll: () => this.wipeAll(),
+      ...(st.screen === "settings" ? this.backupVals() : {}),
       dataText: st.dataText, onDataText: e => this.set("dataText", e.target.value),
       onPickFile: e => {
         const file = e.target.files && e.target.files[0];

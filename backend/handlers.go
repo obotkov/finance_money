@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -108,6 +110,25 @@ func (a *API) Handler() http.Handler {
 		return s.Reset(r.Context(), uid)
 	}))
 	mux.HandleFunc("POST /api/import", a.importCSV)
+
+	mux.HandleFunc("POST /api/backups", a.withState(func(r *http.Request, uid int64) error {
+		return s.CreateBackup(r.Context(), uid)
+	}))
+	mux.HandleFunc("DELETE /api/backups/{id}", a.withState(withID(s.DeleteBackup)))
+	mux.HandleFunc("GET /api/backups/{id}/file", a.backupFile)
+	mux.HandleFunc("POST /api/backups/{id}/restore", a.withState(withID(s.RestoreBackup)))
+	// тело — сам файл бекапа, его JSON как есть
+	mux.HandleFunc("POST /api/backups/restore", a.withState(func(r *http.Request, uid int64) error {
+		raw, err := io.ReadAll(r.Body)
+		var tooBig *http.MaxBytesError
+		if errors.As(err, &tooBig) {
+			return badRequest(fmt.Sprintf("Файл больше %d МБ", maxBackupBytes>>20))
+		}
+		if err != nil {
+			return badRequest("Файл не дошёл: " + err.Error())
+		}
+		return s.RestoreFile(r.Context(), uid, raw)
+	}))
 	return a.middleware(mux)
 }
 
@@ -175,6 +196,32 @@ func (a *API) importCSV(w http.ResponseWriter, r *http.Request) {
 		Imported int `json:"imported"`
 	}{st, n})
 }
+
+// backupFile отдаёт бекап файлом. Имя — по времени создания, по Москве.
+func (a *API) backupFile(w http.ResponseWriter, r *http.Request) {
+	u, ok := a.requireUser(w, r)
+	if !ok {
+		return
+	}
+	id, err := pathID(r)
+	if err != nil {
+		a.fail(w, r, err)
+		return
+	}
+	data, at, err := a.store.BackupJSON(r.Context(), u.ID, id)
+	if err != nil {
+		a.fail(w, r, err)
+		return
+	}
+	name := "penny-backup-" + at.In(moscow).Format("2006-01-02-1504") + ".json"
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("Content-Disposition", `attachment; filename="`+name+`"`)
+	w.Header().Set("Cache-Control", "no-store")
+	_, _ = w.Write(data)
+}
+
+// moscow — пояс для имён файлов; UTC+3 без переходов, tzdata в образе не нужна.
+var moscow = time.FixedZone("MSK", 3*60*60)
 
 func withBody[T any](fn func(context.Context, int64, T) error) func(*http.Request, int64) error {
 	return func(r *http.Request, uid int64) error {
@@ -247,7 +294,11 @@ func (a *API) middleware(next http.Handler) http.Handler {
 				return
 			}
 		}
-		r.Body = http.MaxBytesReader(w, r.Body, 5<<20)
+		limit := int64(5 << 20)
+		if r.URL.Path == "/api/backups/restore" {
+			limit = maxBackupBytes
+		}
+		r.Body = http.MaxBytesReader(w, r.Body, limit)
 		next.ServeHTTP(w, r)
 		if r.Method != http.MethodGet {
 			a.log.Info("request", "method", r.Method, "path", r.URL.Path, "took", time.Since(start).Round(time.Millisecond))

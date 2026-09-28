@@ -126,6 +126,7 @@ type State struct {
 	Cats     []Category        `json:"cats"`
 	Txs      []Tx              `json:"txs"`
 	Crypto   []CryptoPortfolio `json:"crypto"`
+	Backups  []BackupInfo      `json:"backups"`
 	Rates    map[string]Rate   `json:"rates"`
 	// курсы за последние дни для графиков: код → день (ГГГГ-ММ-ДД) → рубли
 	History map[string]map[string]float64 `json:"history"`
@@ -285,6 +286,11 @@ func (s *Store) State(ctx context.Context, uid int64) (*State, error) {
 	}
 
 	st.Crypto, err = s.cryptoPortfolios(ctx, uid)
+	if err != nil {
+		return nil, err
+	}
+
+	st.Backups, err = s.Backups(ctx, uid)
 	if err != nil {
 		return nil, err
 	}
