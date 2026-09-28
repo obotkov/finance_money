@@ -144,6 +144,7 @@
   .rt-row { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) minmax(0, .7fr); gap: 12px; align-items: center; }
   .rt-row[data-cols="4"] { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, .8fr); }
   .rt-row[data-cols="3"] .rt-usd { display: none; }
+  .chart-tip { position: absolute; top: 2%; width: max-content; max-width: 70%; padding: 9px 12px; border-radius: 12px; background: var(--raised); border: 1px solid var(--line); box-shadow: 0 8px 24px rgba(0,0,0,.22); pointer-events: none; z-index: 2; }
   .rc-row[data-on="1"] { background: var(--accent-soft); margin: 0 -10px; padding-left: 10px !important; padding-right: 10px !important; border-radius: 10px; }
   @media (max-width: 760px) {
     .rt-row, .rt-row[data-cols="4"] { gap: 8px; }
@@ -511,14 +512,26 @@
                 <div class="big" style="font-size:15px">Траты нарастающим итогом</div>
                 <!-- labels sit over the chart as HTML: the template puts text into SVG as HTML spans, which SVG doesn't draw -->
                 <div style="position:relative;margin-top:6px">
-                <svg viewBox="0 0 300 110" style="width:100%;height:auto;display:block" role="img" aria-label="Траты этого месяца по дням против прошлого месяца">
+                <svg viewBox="0 0 300 110" style="width:100%;height:auto;display:block" role="img" aria-label="Траты этого месяца по дням против прошлого месяца" onMouseLeave="{{ cumLeave }}">
                   <line x1="0" y1="105" x2="300" y2="105" stroke="var(--line)"></line>
-                  <polyline points="{{ sumCumPrev }}" fill="none" stroke="var(--ink3)" stroke-width="1.5" stroke-dasharray="4 3"></polyline>
-                  <polyline points="{{ sumCumNow }}" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linejoin="round"></polyline>
-                  <circle cx="{{ sumCumX }}" cy="{{ sumCumY }}" r="3.5" fill="var(--accent)"></circle>
+                  <polyline points="{{ sumCumPrev }}" fill="none" stroke="var(--ink3)" stroke-width="1.5" stroke-dasharray="4 3" style="pointer-events:none"></polyline>
+                  <polyline points="{{ sumCumNow }}" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linejoin="round" style="pointer-events:none"></polyline>
+                  <circle cx="{{ sumCumX }}" cy="{{ sumCumY }}" r="3.5" fill="var(--accent)" style="pointer-events:none"></circle>
+                  <sc-if value="{{ cumHover }}" hint-placeholder-val="{{ false }}">
+                    <line x1="{{ cumHx }}" y1="4" x2="{{ cumHx }}" y2="105" style="stroke:var(--ink3);stroke-width:.7;pointer-events:none"></line>
+                    <sc-if value="{{ cumHasPrev }}" hint-placeholder-val="{{ false }}"><circle cx="{{ cumHx }}" cy="{{ cumHyPrev }}" r="2.6" style="fill:var(--ink3);stroke:var(--card);stroke-width:1.2;pointer-events:none"></circle></sc-if>
+                    <sc-if value="{{ cumHasNow }}" hint-placeholder-val="{{ false }}"><circle cx="{{ cumHx }}" cy="{{ cumHyNow }}" r="3.2" style="fill:var(--accent);stroke:var(--card);stroke-width:1.2;pointer-events:none"></circle></sc-if>
+                  </sc-if>
+                  <sc-for list="{{ cumHits }}" as="h" hint-placeholder-count="31"><rect x="{{ h.x }}" y="0" width="{{ h.w }}" height="110" style="fill:transparent" onMouseEnter="{{ h.enter }}" onClick="{{ h.enter }}"></rect></sc-for>
                 </svg>
-                <span class="num sum-chart-lbl" style="left:{{ sumCumLabelX }};top:{{ sumCumLabelY }};color:var(--ink);font-weight:500">{{ sumCumLabel }}</span>
-                <span class="sum-chart-lbl" style="left:{{ sumCumPrevX }};top:{{ sumCumPrevY }};color:var(--ink3)">{{ sumCumPrevLabel }}</span>
+                <span class="num sum-chart-lbl" style="left:{{ sumCumLabelX }};top:{{ sumCumLabelY }};color:var(--ink);font-weight:500;opacity:{{ cumLblOpacity }}">{{ sumCumLabel }}</span>
+                <span class="sum-chart-lbl" style="left:{{ sumCumPrevX }};top:{{ sumCumPrevY }};color:var(--ink3);opacity:{{ cumLblOpacity }}">{{ sumCumPrevLabel }}</span>
+                <sc-if value="{{ cumHover }}" hint-placeholder-val="{{ false }}">
+                <div class="chart-tip" style="left:{{ cumTipL }};right:{{ cumTipR }}">
+                  <div class="num" style="font-size:15px;font-weight:600">{{ cumTipVal }}</div>
+                  <div class="num" style="font-size:12px;color:var(--ink2);margin-top:2px">{{ cumTipDay }} <span class="tone" data-tone="{{ cumTipTone }}">{{ cumTipCh }}</span></div>
+                </div>
+                </sc-if>
                 </div>
                 <div style="font-size:12px;color:var(--ink3);margin-top:4px">{{ sumCumNote }}</div>
               </div>
@@ -589,9 +602,22 @@
                 <span class="big" style="font-size:15px">Чистый капитал {{ worthSpan }}</span>
                 <span class="num" style="font-size:14px">{{ worthNow }} <span class="tone" data-tone="{{ worthTone }}" style="font-size:12px">{{ worthCh }}</span></span>
               </div>
-              <svg viewBox="0 0 360 62" style="width:100%;height:auto;display:block;margin-top:8px" role="img" aria-label="Чистый капитал по месяцам">
-                <polyline points="{{ worthLine }}" fill="none" stroke="var(--pos)" stroke-width="2" stroke-linejoin="round"></polyline>
+              <div style="position:relative;margin-top:8px">
+              <svg viewBox="0 0 360 62" style="width:100%;height:auto;display:block" role="img" aria-label="Чистый капитал по месяцам" onMouseLeave="{{ worthLeave }}">
+                <polyline points="{{ worthLine }}" fill="none" stroke="var(--pos)" stroke-width="2" stroke-linejoin="round" style="pointer-events:none"></polyline>
+                <sc-if value="{{ worthHover }}" hint-placeholder-val="{{ false }}">
+                  <line x1="{{ worthHx }}" y1="2" x2="{{ worthHx }}" y2="62" style="stroke:var(--ink3);stroke-width:.6;pointer-events:none"></line>
+                  <circle cx="{{ worthHx }}" cy="{{ worthHy }}" r="3" style="fill:var(--pos);stroke:var(--card);stroke-width:1.2;pointer-events:none"></circle>
+                </sc-if>
+                <sc-for list="{{ worthHits }}" as="h" hint-placeholder-count="12"><rect x="{{ h.x }}" y="0" width="{{ h.w }}" height="62" style="fill:transparent" onMouseEnter="{{ h.enter }}" onClick="{{ h.enter }}"></rect></sc-for>
               </svg>
+              <sc-if value="{{ worthHover }}" hint-placeholder-val="{{ false }}">
+                <div class="chart-tip" style="left:{{ worthTipL }};right:{{ worthTipR }}">
+                  <div class="num" style="font-size:15px;font-weight:600">{{ worthTipVal }}</div>
+                  <div class="num" style="font-size:12px;color:var(--ink2);margin-top:2px">{{ worthTipDay }} <span class="tone" data-tone="{{ worthTipTone }}">{{ worthTipCh }}</span></div>
+                </div>
+              </sc-if>
+              </div>
               <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--ink3)"><span>{{ worthFrom }}</span><span>{{ worthTo }}</span></div>
             </div>
             </sc-if>
@@ -1350,17 +1376,18 @@
                   <div style="position:relative;width:200px;height:200px;max-width:100%;flex:none;margin:0 auto">
                     <svg viewBox="0 0 120 120" width="200" height="200" role="img" aria-label="{{ repAria }}" style="display:block;max-width:100%">
                       <sc-for list="{{ repSegs }}" as="s" hint-placeholder-count="3">
-                        <circle cx="60" cy="60" r="48" fill="none" stroke-width="16" stroke-dasharray="{{ s.dash }}" stroke-dashoffset="{{ s.offset }}" transform="rotate(-90 60 60)" style="stroke:{{ s.color }};cursor:{{ s.cursor }}" onClick="{{ s.open }}"></circle>
+                        <circle cx="60" cy="60" r="48" fill="none" stroke-width="16" stroke-dasharray="{{ s.dash }}" stroke-dashoffset="{{ s.offset }}" transform="rotate(-90 60 60)" opacity="{{ s.opacity }}" style="stroke:{{ s.color }};cursor:{{ s.cursor }};transition:opacity .15s" onClick="{{ s.open }}" onMouseEnter="{{ s.enter }}" onMouseLeave="{{ s.leave }}"></circle>
                       </sc-for>
                     </svg>
                     <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;pointer-events:none">
                       <div style="font-size:11px;color:var(--ink3);max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ repLevelLabel }}</div>
                       <div class="num" style="font-size:15px;font-weight:600;white-space:nowrap">{{ repTotalLabel }}</div>
+                      <div class="num" style="font-size:11px;color:var(--ink3)">{{ repTotalSub }}</div>
                     </div>
                   </div>
                   <div style="flex:1;min-width:220px;display:flex;flex-direction:column;gap:2px">
                     <sc-for list="{{ repItems }}" as="it" hint-placeholder-count="4">
-                      <div class="rowline" style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:10px;cursor:pointer;font-size:14px" onClick="{{ it.open }}">
+                      <div class="rowline" style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:10px;cursor:pointer;font-size:14px;opacity:{{ it.opacity }};transition:opacity .15s" onClick="{{ it.open }}" onMouseEnter="{{ it.enter }}" onMouseLeave="{{ it.leave }}">
                         <span style="width:10px;height:10px;border-radius:3px;flex:none;background:{{ it.swatch }}"></span>
                         <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ it.label }}</span>
                         <span class="num" style="white-space:nowrap">{{ it.amountLabel }}</span>
@@ -2634,7 +2661,7 @@ class Component extends DCLogic {
     expPreset: "all", expFrom: "", expTo: "", expTypes: { expense: true, income: true, transfer: true, trade: true }, expMsg: "",
     cats: [], accounts: [], txs: [], crypto: [], rates: {}, backups: [],
     delAccTo: "",
-    crHover: null, moversDays: 1, ratesTab: "fiat", closeTx: null, closePrice: "", closeAuto: true, closeDate: "", dealKind: "buy", dealEdit: null, dealAccName: null, crCoin: null, crSort: "value", crSortDir: -1, dealCoin: "BTC", dealQty: "", dealPrice: "", dealPriceAuto: true,
+    crHover: null, cumHover: null, worthHover: null, repHover: null, moversDays: 1, ratesTab: "fiat", closeTx: null, closePrice: "", closeAuto: true, closeDate: "", dealKind: "buy", dealEdit: null, dealAccName: null, crCoin: null, crSort: "value", crSortDir: -1, dealCoin: "BTC", dealQty: "", dealPrice: "", dealPriceAuto: true,
     dealDate: TODAY, dealOther: "", dealOut: "", dealIn: "", dealInTouched: false,
     crOpen: null, crAccOpen: null, crPortId: null, crPortName: "", crPortPlace: "",
     crAssetId: null, crAssetPort: null, crAssetCoin: "BTC", crAssetAmount: "", crAssetInvested: "",
@@ -3645,14 +3672,25 @@ class Component extends DCLogic {
     // categories fold into «Другое», so no two segments share a colour
     const RING = 2 * Math.PI * 48, GAP = 1.4;
     const folded = kind && items.length > SLOTS;
-    const parts = (folded ? items.slice(0, SLOTS) : items).map(it => ({ total: it.total, color: it.swatch, open: it.open, cursor: "pointer" }))
-      .concat(folded ? [{ total: items.slice(SLOTS).reduce((s, it) => s + it.total, 0), color: OTHER, open: () => {}, cursor: "default" }] : [])
+    const parts = (folded ? items.slice(0, SLOTS) : items).map(it => ({ total: it.total, color: it.swatch, open: it.open, cursor: "pointer", label: it.label, items: [it] }))
+      .concat(folded ? [{ total: items.slice(SLOTS).reduce((s, it) => s + it.total, 0), color: OTHER, open: () => {}, cursor: "default", label: "Другое", items: items.slice(SLOTS) }] : [])
       .filter(p => p.total > 0);
+    // наведение на сектор или строку списка: остальное бледнеет, в центре — сумма и доля
+    const hov = st.repHover !== null && st.repHover < parts.length ? parts[st.repHover] : null;
+    const hoverOn = i => () => { if (this.state.repHover !== i) this.setState({ repHover: i }); };
+    const hoverOff = () => this.setState({ repHover: null });
+    items.forEach(it => {
+      const i = parts.findIndex(p => p.items.indexOf(it) !== -1);
+      it.enter = i === -1 ? () => {} : hoverOn(i);
+      it.leave = hoverOff;
+      it.opacity = !hov || hov.items.indexOf(it) !== -1 ? "1" : ".4";
+    });
     let arc = 0;
     const segs = parts.map((p, i) => {
       const frac = p.total / (total || 1);
       const len = Math.max(frac * RING - (parts.length > 1 ? GAP : 0), 0.5);
-      const seg = { key: "s" + i, color: p.color, dash: len.toFixed(2) + " " + (RING - len).toFixed(2), offset: (-arc).toFixed(2), open: p.open, cursor: p.cursor };
+      const seg = { key: "s" + i, color: p.color, dash: len.toFixed(2) + " " + (RING - len).toFixed(2), offset: (-arc).toFixed(2), open: p.open, cursor: p.cursor,
+        opacity: !hov || hov === p ? "1" : ".35", enter: hoverOn(i), leave: hoverOff };
       arc += frac * RING;
       return seg;
     });
@@ -3701,7 +3739,8 @@ class Component extends DCLogic {
       repShowDonut: !list && !empty && st.repView === "donut",
       repShowList: !!list && !empty,
       repAria: levelLabel + ": " + items.map(it => it.label + " " + it.pctLabel).join(", "),
-      repLevelLabel: levelLabel, repTotalLabel: this.money(total),
+      repLevelLabel: hov ? hov.label : levelLabel, repTotalLabel: this.money(hov ? hov.total : total),
+      repTotalSub: hov && total > 0 ? Math.round(hov.total / total * 100) + " %" : "",
       repOps: listOps.map((t, i) => ({
         key: "t" + (t.id || i), title: t.t,
         meta: dm(t.d) + (t.tm ? " " + t.tm : "") + " · " + t.a,
@@ -3959,6 +3998,62 @@ class Component extends DCLogic {
 
   // ---- the summary: how the month goes, where the money goes, what is ahead ----
   // Everything is derived from the operations; amounts are in rubles at today's rates.
+  // Подсказки по наведению на графиках Сводки: траты нарастающим итогом (по дням)
+  // и чистый капитал (по месяцам). Карточка встаёт с той стороны точки, где больше места.
+  summaryHoverVals({ cumNow, cumPrev, cx, cy, span, PREV, worthPoints, wx, wy }) {
+    const st = this.state;
+    const GEN = ["января","февраля","марта","апреля","мая","июня","июля","августа","сентября","октября","ноября","декабря"];
+    const monthOf = ym => Number(ym.slice(5, 7)) - 1;
+    const side = (x, width) => x / width < 0.5
+      ? { L: (x / width * 100 + 3).toFixed(1) + "%", R: "auto" }
+      : { L: "auto", R: (100 - x / width * 100 + 3).toFixed(1) + "%" };
+
+    // траты: день d месяца; прошлый месяц — пунктир
+    const d = st.cumHover, days = span + 1, step = 290 / Math.max(1, span);
+    const hasNow = d !== null && d <= TODAY_D, hasPrev = d !== null && d < cumPrev.length;
+    const now = hasNow ? cumNow[d] : 0, prev = hasPrev ? cumPrev[d] : 0;
+    const cs = d !== null ? side(cx(d), 300) : { L: "auto", R: "auto" };
+    const PREP = ["январе","феврале","марте","апреле","мае","июне","июле","августе","сентябре","октябре","ноябре","декабре"];
+
+    // капитал: конец месяца i (последняя точка — сегодня)
+    const w = st.worthHover !== null && st.worthHover < worthPoints.length ? st.worthHover : null;
+    const wp = w !== null ? worthPoints[w] : null, wPrev = w ? worthPoints[w - 1] : null;
+    const ws = w !== null ? side(wx(w), 360) : { L: "auto", R: "auto" };
+    const wStep = 352 / Math.max(1, worthPoints.length - 1);
+    const wDiff = wp && wPrev ? wp.v - wPrev.v : 0;
+
+    return {
+      cumHover: d !== null, cumHasNow: hasNow, cumHasPrev: hasPrev,
+      cumHx: d !== null ? cx(d) : 0, cumHyNow: hasNow ? cy(now) : 0, cumHyPrev: hasPrev ? cy(prev) : 0,
+      cumTipL: cs.L, cumTipR: cs.R,
+      cumTipVal: hasNow ? this.money(now) : hasPrev ? this.money(prev) : "",
+      cumTipDay: d === null ? "" : hasNow
+        ? "с 1 по " + d + " " + GEN[TODAY_M] + (d === TODAY_D ? " (сегодня)" : "")
+        : "с 1 по " + d + " " + GEN[monthOf(PREV)],
+      cumTipCh: hasNow && hasPrev ? "· в " + PREP[monthOf(PREV)] + " " + this.money(prev) : "",
+      cumTipTone: hasNow && hasPrev ? (now <= prev ? "good" : "bad") : "",
+      cumLblOpacity: d !== null ? "0" : "1",
+      cumHits: Array.from({ length: days }, (_, i) => i + 1).map(day => ({
+        key: "d" + day, x: (cx(day) - step / 2).toFixed(1), w: step.toFixed(1),
+        enter: () => { if (this.state.cumHover !== day) this.setState({ cumHover: day }); }
+      })),
+      cumLeave: () => this.setState({ cumHover: null }),
+
+      worthHover: w !== null,
+      worthHx: w !== null ? wx(w) : 0, worthHy: wp ? wy(wp.v) : 0,
+      worthTipL: ws.L, worthTipR: ws.R,
+      worthTipVal: wp ? this.money(wp.v) : "",
+      worthTipDay: wp ? (w === worthPoints.length - 1 ? "сегодня" : "конец " + GEN[monthOf(wp.ym)] + " " + wp.ym.slice(0, 4)) : "",
+      worthTipCh: wPrev ? "· " + this.signed(wDiff) + " за месяц" : "",
+      worthTipTone: wPrev ? (wDiff >= 0 ? "good" : "bad") : "",
+      worthHits: worthPoints.map((p, i) => ({
+        key: p.ym, x: (wx(i) - wStep / 2).toFixed(1), w: wStep.toFixed(1),
+        enter: () => { if (this.state.worthHover !== i) this.setState({ worthHover: i }); }
+      })),
+      worthLeave: () => this.setState({ worthHover: null })
+    };
+  }
+
   summaryVals() {
     const st = this.state;
     const inRub = t => this.toRub(t.v, this.curOf(t.a));
@@ -4140,6 +4235,7 @@ class Component extends DCLogic {
       worthFrom: worthPoints.length ? shortMonths[Number(worthPoints[0].ym.slice(5, 7)) - 1] : "",
       worthTo: shortMonths[TODAY_M],
       worthSpan: worthPoints.length ? "за " + worthPoints.length + " " + plural(worthPoints.length, "месяц", "месяца", "месяцев") : "",
+      ...this.summaryHoverVals({ cumNow, cumPrev, cx, cy, span, PREV, worthPoints, wx, wy }),
       idle: idle >= 3, idleText: "Последняя операция " + idle + " " + plural(idle, "день", "дня", "дней") + " назад",
       quickExpense: () => this.quickAdd("expense"), quickIncome: () => this.quickAdd("income"),
       quickTransfer: () => this.quickAdd("transfer"),
