@@ -2407,7 +2407,7 @@ const DEMO_HISTORY = (() => {
       out[code][iso] = rub * (1 - amp * 0.08 * k + amp * Math.sin(k / 3.5 + i) + amp * 0.4 * Math.sin(k * 1.3 + 2 * i));
     }
   };
-  COINS.forEach(([code, , rub], i) => { if (code !== "USDT" && code !== "USDC") wave(code, rub, i, 0.05); });
+  COINS.forEach(([code, , rub], i) => wave(code, rub, i, code === "USDT" || code === "USDC" ? 0.002 : 0.05));
   FIATS.forEach(([code, , , , rub], i) => wave(code, CUR[code] ? CUR[code].rate : rub, i, 0.006));
   METALS.forEach(([code, , , , , , , , rub], i) => wave(code, rub, i, 0.015));
   return out;
@@ -2832,22 +2832,34 @@ class Component extends DCLogic {
       const r = st.rates[code];
       return r && r.rub > 0 ? r.rub : CUR[code] ? CUR[code].rate : demo || 0;
     };
-    const rubBefore = code => {
+    const lastDay = code => {
       const h = (st.history || {})[code];
-      if (!h) return 0;
-      const day = Object.keys(h).filter(d => d < utcToday).sort().pop();
-      return day ? h[day] : 0;
+      return h ? Object.keys(h).filter(d => d < utcToday).sort().pop() || "" : "";
+    };
+    const rubBefore = code => {
+      const day = lastDay(code);
+      return day ? st.history[code][day] : 0;
+    };
+    // Вчерашняя цена монеты в USDT — по рублёвым курсам монеты и USDT за тот же день
+    const usdtBefore = code => {
+      const day = lastDay(code), u = day && (st.history.USDT || {})[day];
+      return u > 0 ? st.history[code][day] / u : 0;
     };
     const rubFmt = (n, max) => n.toLocaleString("ru-RU", { maximumFractionDigits: max }).replace(/\u00a0/g, " ") + " ₽";
     const digits = n => (n >= 100 ? 2 : n >= 1 ? 3 : n >= 0.01 ? 4 : 6);
-    const change = (code, now, scale) => {
-      const was = rubBefore(code);
+    const usdtFmt = (n, max) => n.toLocaleString("ru-RU", { maximumFractionDigits: max }).replace(/\u00a0/g, " ") + " USDT";
+    // usdt — изменение монеты в USDT: и процент, и разница считаются в долларовой цене, а не в рублях
+    const change = (code, now, scale, usdt) => {
+      const was = usdt ? usdtBefore(code) : rubBefore(code);
       if (!(was > 0) || !(now > 0)) return { pct: "", abs: "", tone: "" };
-      const pct = (now / was - 1) * 100, d = (now - was) * scale;
+      const pct = (now / was - 1) * 100, d = (now - was) * scale, a = Math.abs(d);
       if (Math.abs(pct) < 0.005) return { pct: "0,00 %", abs: "", tone: "" };
+      // в USDT знаков — по цене монеты: у дорогих хватает центов, у дешёвых нужны доли цента
+      const usdtMax = a >= 100 ? 0 : now >= 1 ? 2 : 4;
       return {
         pct: (pct > 0 ? "+" : "−") + Math.abs(pct).toFixed(2).replace(".", ",") + " %",
-        abs: (d > 0 ? "+" : "−") + rubFmt(Math.abs(d), Math.abs(d) >= 100 ? 0 : Math.abs(d) >= 0.01 ? 2 : 4),
+        abs: usdt ? (a >= 0.5 * Math.pow(10, -usdtMax) ? (d > 0 ? "+" : "−") + usdtFmt(a, usdtMax) : "")
+          : (d > 0 ? "+" : "−") + rubFmt(a, a >= 100 ? 0 : a >= 0.01 ? 2 : 4),
         tone: pct > 0 ? "good" : "bad"
       };
     };
@@ -2870,7 +2882,8 @@ class Component extends DCLogic {
           key: code, name, sub: code,
           price: rub > 0 ? rubFmt(rub, digits(rub)) : "—",
           priceSub: "", usd: this.coinPrice(code).replace(/ USDT$/, "") || "—", usdSub: "", cols: "4",
-          ...change(code, rub, 1)
+          // сам USDT в USDT не меняется — у него показываем изменение курса к рублю
+          ...(code === "USDT" ? change(code, rub, 1) : change(code, this.coinUsdt(code), 1, true))
         });
       });
     } else {
