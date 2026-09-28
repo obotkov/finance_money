@@ -142,8 +142,13 @@
   .crcoin[data-on="1"] { background: var(--accent-soft); }
   .crcoin .m-only, .crop-row .m-only, .cr-accfoot .m-only { display: none !important; }
   .rt-row { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) minmax(0, .7fr); gap: 12px; align-items: center; }
+  .rt-row[data-cols="4"] { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, .8fr); }
+  .rt-row[data-cols="3"] .rt-usd { display: none; }
   @media (max-width: 760px) {
-    .rt-row { gap: 8px; }
+    .rt-row, .rt-row[data-cols="4"] { gap: 8px; }
+    .rt-row[data-cols="4"] { grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, .85fr); }
+    .rt-row[data-cols="4"] .coin { display: none; }
+    .rt-row[data-cols="4"] .rt-big { font-size: 13px !important; }
     .rt-row .rt-name, .rt-row .rt-sub { white-space: normal !important; line-height: 1.25; }
   }
   .movers-h { font-size: 12px; color: var(--ink3); padding: 8px 18px 4px; }
@@ -1212,7 +1217,7 @@
 
           <!-- Курсы: вкладки валют, криптовалюты и металлов -->
           <sc-if value="{{ isRates }}" hint-placeholder-val="{{ false }}">
-          <div class="screen" style="padding:22px 28px 32px;display:flex;flex-direction:column;gap:12px;max-width:900px">
+          <div class="screen" style="padding:22px 28px 32px;display:flex;flex-direction:column;gap:12px">
             <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
               <div class="seg">
                 <sc-for list="{{ ratesTabs }}" as="t" hint-placeholder-count="3"><span class="segopt" data-on="{{ t.on }}" onClick="{{ t.pick }}">{{ t.label }}</span></sc-for>
@@ -1222,11 +1227,11 @@
               </sc-if>
             </div>
             <div class="card" style="padding:6px 4px 10px">
-              <div class="rt-row" style="padding:10px 14px 8px;margin:0 4px;font-size:12px;color:var(--ink3);border-bottom:1px solid var(--line)">
-                <span>Название</span><span style="text-align:right">{{ ratesPriceHead }}</span><span style="text-align:right">За сутки</span>
+              <div class="rt-row" data-cols="{{ ratesCols }}" style="padding:10px 14px 8px;margin:0 4px;font-size:12px;color:var(--ink3);border-bottom:1px solid var(--line)">
+                <span>Название</span><span style="text-align:right">{{ ratesPriceHead }}</span><span class="rt-usd" style="text-align:right">{{ ratesUsdHead }}</span><span style="text-align:right">За сутки</span>
               </div>
               <sc-for list="{{ ratesRows }}" as="r" hint-placeholder-count="8">
-                <div class="rowline rt-row" style="padding:11px 14px;margin:0 4px">
+                <div class="rowline rt-row" data-cols="{{ r.cols }}" style="padding:11px 14px;margin:0 4px">
                   <span style="display:flex;align-items:center;gap:10px;min-width:0">
                     <span class="coin" data-len="{{ r.iconLen }}" style="{{ r.iconStyle }}">{{ r.icon }}</span>
                     <span style="min-width:0">
@@ -1235,8 +1240,12 @@
                     </span>
                   </span>
                   <span class="num" style="text-align:right;white-space:nowrap;min-width:0">
-                    <span style="display:block;font-size:15px">{{ r.price }}</span>
+                    <span class="rt-big" style="display:block;font-size:15px">{{ r.price }}</span>
                     <span class="rt-sub" style="display:block;font-size:12px;color:var(--ink3)">{{ r.priceSub }}</span>
+                  </span>
+                  <span class="num rt-usd" style="text-align:right;white-space:nowrap;min-width:0">
+                    <span class="rt-big" style="display:block;font-size:15px">{{ r.usd }}</span>
+                    <span class="rt-sub" style="display:block;font-size:12px;color:var(--ink3)">{{ r.usdSub }}</span>
                   </span>
                   <span class="num" style="text-align:right;white-space:nowrap">
                     <span class="tone" data-tone="{{ r.tone }}" style="display:block;font-size:14px">{{ r.pct }}</span>
@@ -2838,7 +2847,7 @@ class Component extends DCLogic {
       if (Math.abs(pct) < 0.005) return { pct: "0,00 %", abs: "", tone: "" };
       return {
         pct: (pct > 0 ? "+" : "−") + Math.abs(pct).toFixed(2).replace(".", ",") + " %",
-        abs: (d > 0 ? "+" : "−") + rubFmt(Math.abs(d), Math.abs(d) >= 0.01 ? 2 : 4),
+        abs: (d > 0 ? "+" : "−") + rubFmt(Math.abs(d), Math.abs(d) >= 100 ? 0 : Math.abs(d) >= 0.01 ? 2 : 4),
         tone: pct > 0 ? "good" : "bad"
       };
     };
@@ -2850,7 +2859,7 @@ class Component extends DCLogic {
         const rub = rubNow(code, demo);
         return Object.assign(CUR[code] ? curBadge(code) : badge(sym, "#6e6e73"), {
           key: code, name, sub: per > 1 ? per.toLocaleString("ru-RU").replace(/\u00a0/g, " ") + " " + code : code,
-          price: rub > 0 ? rubFmt(rub * per, rub * per >= 1 ? 2 : 4) : "—", priceSub: "",
+          price: rub > 0 ? rubFmt(rub * per, rub * per >= 1 ? 2 : 4) : "—", priceSub: "", usd: "", usdSub: "", cols: "3",
           ...change(code, rub, per)
         });
       });
@@ -2860,17 +2869,19 @@ class Component extends DCLogic {
         return Object.assign(curBadge(code), {
           key: code, name, sub: code,
           price: rub > 0 ? rubFmt(rub, digits(rub)) : "—",
-          priceSub: code === "USDT" ? "" : this.coinPrice(code),
+          priceSub: "", usd: this.coinPrice(code).replace(/ USDT$/, "") || "—", usdSub: "", cols: "4",
           ...change(code, rub, 1)
         });
       });
     } else {
       rows = METALS.map(([code, name, sym, color, per, unit, grams, exUnit, demo]) => {
         const rub = rubNow(code, demo);
+        const usd = usdRub > 0 ? rub * grams / usdRub : 0;
         return Object.assign(badge(sym, color), {
-          key: code, name, sub: "за " + unit,
-          price: rub > 0 ? rubFmt(rub * per, 2) : "—",
-          priceSub: rub > 0 && usdRub > 0 ? "$" + (rub * grams / usdRub).toLocaleString("ru-RU", { maximumFractionDigits: rub * grams / usdRub >= 100 ? 0 : 2 }).replace(/\u00a0/g, " ") + " за " + exUnit : "",
+          key: code, name, sub: code, cols: "4",
+          price: rub > 0 ? rubFmt(rub * per, 2) : "—", priceSub: "за " + unit,
+          usd: usd > 0 ? "$" + usd.toLocaleString("ru-RU", { maximumFractionDigits: 2, minimumFractionDigits: 2 }).replace(/\u00a0/g, " ") : "—",
+          usdSub: "за " + exUnit,
           ...change(code, rub, per)
         });
       });
@@ -2882,7 +2893,9 @@ class Component extends DCLogic {
       ratesTabs: [["fiat", "Валюты"], ["crypto", "Криптовалюта"], ["metals", "Металлы"]].map(([id, label]) => ({
         key: id, label, on: tab === id ? "1" : "0", pick: () => this.set("ratesTab", id)
       })),
-      ratesPriceHead: tab === "metals" ? "Цена" : "Курс",
+      ratesPriceHead: tab === "fiat" ? "Курс" : "В рублях",
+      ratesUsdHead: tab === "crypto" ? "В USDT" : "В долларах",
+      ratesCols: tab === "fiat" ? "3" : "4",
       ratesSource: tab === "fiat" ? "Официальный курс ЦБ РФ на сегодня."
         : tab === "crypto" ? "CoinGecko, цена в рублях и в USDT."
         : "gold-api.com: биржевая цена в долларах, в рубли — по курсу ЦБ.",
