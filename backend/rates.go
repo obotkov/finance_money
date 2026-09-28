@@ -22,6 +22,8 @@ import (
 const (
 	cbrURL       = "https://www.cbr.ru/scripts/XML_daily.asp"
 	coingeckoURL = "https://api.coingecko.com/api/v3/simple/price"
+	// металлы: цена в долларах за тройскую унцию (медь — за фунт)
+	goldAPIURL = "https://api.gold-api.com/price/%s"
 	// дневные цены монеты за последние дни: /coins/{id}/market_chart
 	coingeckoChartURL = "https://api.coingecko.com/api/v3/coins/%s/market_chart?vs_currency=rub&days=%d&interval=daily"
 	userAgent         = "finance-money/1.0 (+https://penny.place)"
@@ -33,8 +35,24 @@ const (
 // historyDays — сколько дней курсов отдаётся странице для графиков.
 const historyDays = 31
 
+// Металлы для раздела «Курсы»: код у нас → символ у gold-api и сколько граммов
+// в единице, за которую он даёт цену. В базе цена хранится в рублях за грамм.
+var metals = []struct {
+	code, symbol string
+	grams        float64
+}{
+	{"XAU", "XAU", troyOunce}, {"XAG", "XAG", troyOunce}, {"XPT", "XPT", troyOunce},
+	{"XPD", "XPD", troyOunce}, {"XCU", "HG", 453.59237},
+}
+
+const troyOunce = 31.1034768 // граммов
+
 var (
+	// fiatCodes — валюты счетов, без них обновление ЦБ считается неудачным;
+	// cbrCodes — всё, что показывает раздел «Курсы»
 	fiatCodes = []string{"USD", "EUR"}
+	cbrCodes  = []string{"USD", "EUR", "CNY", "GBP", "CHF", "JPY", "TRY", "KZT", "BYN", "AED",
+		"GEL", "AMD", "UZS", "KGS", "THB", "INR", "HKD", "CAD"}
 	coreCoins = []string{"BTC", "ETH", "TON", "USDT"}
 	coinIDs   = map[string]string{
 		"BTC": "bitcoin", "ETH": "ethereum", "TON": "the-open-network", "USDT": "tether",
@@ -148,6 +166,7 @@ func (u *RateUpdater) Refresh(ctx context.Context) error {
 	}{
 		{"cbr", u.fetchCBR},
 		{"coingecko", u.fetchCoinGecko},
+		{"gold-api", u.fetchMetals}, // после ЦБ: доллары в рубли — по его курсу
 	}
 	var errs []error
 	for _, src := range sources {
@@ -189,6 +208,47 @@ func (u *RateUpdater) fetchCoinGecko(ctx context.Context) (map[string]float64, e
 	return parseCoinGecko(body)
 }
 
+// fetchMetals берёт цены металлов в долларах и переводит их в рубли за грамм
+// по курсу доллара ЦБ из базы. Металл без цены сохраняет прежнюю.
+func (u *RateUpdater) fetchMetals(ctx context.Context) (map[string]float64, error) {
+	usd, err := u.store.CurrentRub(ctx, "USD")
+	if err != nil {
+		return nil, err
+	}
+	out := map[string]float64{}
+	for _, m := range metals {
+		body, err := u.get(ctx, fmt.Sprintf(goldAPIURL, m.symbol))
+		if err != nil {
+			u.log.Warn("metal price", "metal", m.code, "err", err)
+			continue
+		}
+		price, err := parseGoldAPI(body)
+		if err != nil {
+			u.log.Warn("metal price", "metal", m.code, "err", err)
+			continue
+		}
+		out[m.code] = price * usd / m.grams
+	}
+	if len(out) == 0 {
+		return nil, errors.New("no metal prices")
+	}
+	return out, nil
+}
+
+// parseGoldAPI reads {"price": <USD>} from gold-api.com.
+func parseGoldAPI(body []byte) (float64, error) {
+	var resp struct {
+		Price float64 `json:"price"`
+	}
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return 0, fmt.Errorf("parse gold-api JSON: %w", err)
+	}
+	if !(resp.Price > 0) {
+		return 0, errors.New("no price in gold-api JSON")
+	}
+	return resp.Price, nil
+}
+
 func (u *RateUpdater) get(ctx context.Context, url string) ([]byte, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
@@ -228,7 +288,7 @@ func parseCBR(body []byte) (map[string]float64, error) {
 	}
 	out := map[string]float64{}
 	for _, v := range doc.Valutes {
-		if !slices.Contains(fiatCodes, v.CharCode) {
+		if !slices.Contains(cbrCodes, v.CharCode) {
 			continue
 		}
 		value, err := strconv.ParseFloat(strings.Replace(strings.TrimSpace(v.Value), ",", ".", 1), 64)

@@ -141,6 +141,11 @@
   .crcoin:hover { background: var(--hover-soft); }
   .crcoin[data-on="1"] { background: var(--accent-soft); }
   .crcoin .m-only, .crop-row .m-only, .cr-accfoot .m-only { display: none !important; }
+  .rt-row { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) minmax(0, .7fr); gap: 12px; align-items: center; }
+  @media (max-width: 760px) {
+    .rt-row { gap: 8px; }
+    .rt-row .rt-name, .rt-row .rt-sub { white-space: normal !important; line-height: 1.25; }
+  }
   .movers-h { font-size: 12px; color: var(--ink3); padding: 8px 18px 4px; }
   .mover { display: flex; align-items: center; gap: 12px; padding: 9px 14px; margin: 0 4px; border-radius: 12px; cursor: pointer; }
   .movers-none { font-size: 13px; color: var(--ink3); padding: 8px 18px; }
@@ -1205,6 +1210,45 @@
           </div>
           </sc-if>
 
+          <!-- Курсы: вкладки валют, криптовалюты и металлов -->
+          <sc-if value="{{ isRates }}" hint-placeholder-val="{{ false }}">
+          <div class="screen" style="padding:22px 28px 32px;display:flex;flex-direction:column;gap:12px;max-width:900px">
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+              <div class="seg">
+                <sc-for list="{{ ratesTabs }}" as="t" hint-placeholder-count="3"><span class="segopt" data-on="{{ t.on }}" onClick="{{ t.pick }}">{{ t.label }}</span></sc-for>
+              </div>
+              <sc-if value="{{ ratesCanRefresh }}" hint-placeholder-val="{{ false }}">
+                <button class="btn btn-t" style="margin-left:auto" onClick="{{ refreshRates }}">Обновить</button>
+              </sc-if>
+            </div>
+            <div class="card" style="padding:6px 4px 10px">
+              <div class="rt-row" style="padding:10px 14px 8px;margin:0 4px;font-size:12px;color:var(--ink3);border-bottom:1px solid var(--line)">
+                <span>Название</span><span style="text-align:right">{{ ratesPriceHead }}</span><span style="text-align:right">За сутки</span>
+              </div>
+              <sc-for list="{{ ratesRows }}" as="r" hint-placeholder-count="8">
+                <div class="rowline rt-row" style="padding:11px 14px;margin:0 4px">
+                  <span style="display:flex;align-items:center;gap:10px;min-width:0">
+                    <span class="coin" data-len="{{ r.iconLen }}" style="{{ r.iconStyle }}">{{ r.icon }}</span>
+                    <span style="min-width:0">
+                      <span class="rt-name" style="display:block;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ r.name }}</span>
+                      <span class="num" style="display:block;font-size:12px;color:var(--ink3)">{{ r.sub }}</span>
+                    </span>
+                  </span>
+                  <span class="num" style="text-align:right;white-space:nowrap;min-width:0">
+                    <span style="display:block;font-size:15px">{{ r.price }}</span>
+                    <span class="rt-sub" style="display:block;font-size:12px;color:var(--ink3)">{{ r.priceSub }}</span>
+                  </span>
+                  <span class="num" style="text-align:right;white-space:nowrap">
+                    <span class="tone" data-tone="{{ r.tone }}" style="display:block;font-size:14px">{{ r.pct }}</span>
+                    <span style="display:block;font-size:12px;color:var(--ink3)">{{ r.abs }}</span>
+                  </span>
+                </div>
+              </sc-for>
+            </div>
+            <div style="font-size:12px;color:var(--ink3);padding:0 4px">{{ ratesSource }} {{ ratesNote }}</div>
+          </div>
+          </sc-if>
+
           <!-- Бюджеты -->
           <sc-if value="{{ isBudgets }}" hint-placeholder-val="{{ false }}">
           <div class="screen cols" style="padding:22px 28px 32px;display:grid;grid-template-columns:minmax(0,1.45fr) minmax(0,1fr);gap:16px;align-items:start">
@@ -1617,23 +1661,6 @@
                 <button class="btn btn-s" style="flex:none;color:var(--neg);opacity:{{ adminOpacity }}" onClick="{{ wipeAll }}">Удалить всё…</button>
               </div>
               <div style="font-size:12px;color:var(--accent)">{{ dataAdminMsg }}</div>
-            </div>
-            <div class="card" style="padding:20px 22px;display:flex;flex-direction:column;gap:10px">
-              <div style="display:flex;align-items:center;gap:10px">
-                <span class="lbl" style="margin:0">Курсы к рублю</span>
-                <button class="btn btn-t" style="margin-left:auto" onClick="{{ refreshRates }}">Обновить</button>
-              </div>
-              <sc-for list="{{ rateRows }}" as="r" hint-placeholder-count="6">
-                <div class="num" style="display:flex;align-items:center;gap:10px;font-size:14px">
-                  <span class="coin" data-len="{{ r.iconLen }}" style="{{ r.iconStyle }}">{{ r.icon }}</span>
-                  <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ r.label }}</span>
-                  <span style="text-align:right;white-space:nowrap">
-                    <span style="display:block">{{ r.value }}</span>
-                    <span style="display:block;font-size:12px;color:var(--ink3)">{{ r.usdt }}</span>
-                  </span>
-                </div>
-              </sc-for>
-              <div style="font-size:12px;color:var(--ink3)">{{ ratesNote }}</div>
             </div>
           </div>
           </sc-if>
@@ -2271,7 +2298,7 @@ const initialCents = (() => {
   try { return localStorage.getItem("cents") === "1"; } catch (_) { return false; }
 })();
 // the open section survives a reload; an unknown or missing value opens the summary
-const SCREENS = ["summary", "ops", "accounts", "crypto", "budgets", "reports", "charts", "categories", "settings"];
+const SCREENS = ["summary", "ops", "accounts", "crypto", "rates", "budgets", "reports", "charts", "categories", "settings"];
 const initialScreen = (() => {
   let s = null;
   try { s = localStorage.getItem("screen"); } catch (_) { /* storage off */ }
@@ -2341,17 +2368,39 @@ const CAT_ICONS = ["🛒", "🍎", "🥖", "🥩", "🧀", "🍕", "🍔", "🍣
 
 // Demo data: shown only when the page runs without the backend (in the design canvas)
 // Демо-история курсов за 31 день: у каждой монеты своя плавная волна вокруг цены из COINS.
+// Раздел «Курсы». Валюты ЦБ (коды — cbrCodes в backend/rates.go): название,
+// символ, за сколько единиц показывать цену (как у ЦБ) и цена одной единицы для демо.
+const FIATS = [
+  ["USD", "Доллар США", "$", 1, 92], ["EUR", "Евро", "€", 1, 100], ["CNY", "Китайский юань", "¥", 1, 12.6],
+  ["GBP", "Фунт стерлингов", "£", 1, 117], ["CHF", "Швейцарский франк", "₣", 1, 104], ["JPY", "Японская иена", "¥", 100, 0.61],
+  ["TRY", "Турецкая лира", "₺", 10, 2.2], ["KZT", "Казахстанский тенге", "₸", 100, 0.17], ["BYN", "Белорусский рубль", "Br", 1, 27],
+  ["AED", "Дирхам ОАЭ", "Dh", 1, 25], ["GEL", "Грузинский лари", "₾", 1, 33], ["AMD", "Армянский драм", "֏", 100, 0.23],
+  ["UZS", "Узбекский сум", "сў", 10000, 0.0072], ["KGS", "Киргизский сом", "с", 100, 1.05], ["THB", "Тайский бат", "฿", 10, 2.7],
+  ["INR", "Индийская рупия", "₹", 100, 1.06], ["HKD", "Гонконгский доллар", "HK$", 1, 11.8], ["CAD", "Канадский доллар", "C$", 1, 66]
+];
+// Металлы (коды — metals в backend/rates.go): цена в базе — рубли за грамм;
+// показываем за грамм, медь — за килограмм, и в долларах за единицу биржи.
+const METALS = [
+  ["XAU", "Золото", "Au", "#c9a227", 1, "грамм", 31.1034768, "унцию", 11700],
+  ["XAG", "Серебро", "Ag", "#9ea3a8", 1, "грамм", 31.1034768, "унцию", 180],
+  ["XPT", "Платина", "Pt", "#7d8a96", 1, "грамм", 31.1034768, "унцию", 4900],
+  ["XPD", "Палладий", "Pd", "#6f7b7a", 1, "грамм", 31.1034768, "унцию", 3550],
+  ["XCU", "Медь", "Cu", "#b87333", 1000, "кг", 453.59237, "фунт", 1.2]
+];
+
 const DEMO_HISTORY = (() => {
   const out = {};
-  COINS.forEach(([code, , rub], i) => {
-    if (code === "USDT" || code === "USDC") return;
+  const wave = (code, rub, i, amp) => {
     out[code] = {};
     for (let k = 1; k <= 31; k++) {
       const d = new Date(TODAY_Y, TODAY_M, TODAY_D - k);
       const iso = d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate());
-      out[code][iso] = rub * (1 - 0.004 * k + 0.05 * Math.sin(k / 3.5 + i) + 0.02 * Math.sin(k * 1.3 + 2 * i));
+      out[code][iso] = rub * (1 - amp * 0.08 * k + amp * Math.sin(k / 3.5 + i) + amp * 0.4 * Math.sin(k * 1.3 + 2 * i));
     }
-  });
+  };
+  COINS.forEach(([code, , rub], i) => { if (code !== "USDT" && code !== "USDC") wave(code, rub, i, 0.05); });
+  FIATS.forEach(([code, , , , rub], i) => wave(code, CUR[code] ? CUR[code].rate : rub, i, 0.006));
+  METALS.forEach(([code, , , , , , , , rub], i) => wave(code, rub, i, 0.015));
   return out;
 })();
 
@@ -2438,7 +2487,7 @@ class Component extends DCLogic {
     expPreset: "all", expFrom: "", expTo: "", expTypes: { expense: true, income: true, transfer: true, trade: true }, expMsg: "",
     cats: [], accounts: [], txs: [], crypto: [], rates: {},
     delAccTo: "",
-    crHover: null, moversDays: 1, closeTx: null, closePrice: "", closeAuto: true, closeDate: "", dealKind: "buy", dealEdit: null, dealAccName: null, crCoin: null, crSort: "value", crSortDir: -1, dealCoin: "BTC", dealQty: "", dealPrice: "", dealPriceAuto: true,
+    crHover: null, moversDays: 1, ratesTab: "fiat", closeTx: null, closePrice: "", closeAuto: true, closeDate: "", dealKind: "buy", dealEdit: null, dealAccName: null, crCoin: null, crSort: "value", crSortDir: -1, dealCoin: "BTC", dealQty: "", dealPrice: "", dealPriceAuto: true,
     dealDate: TODAY, dealOther: "", dealOut: "", dealIn: "", dealInTouched: false,
     crOpen: null, crAccOpen: null, crPortId: null, crPortName: "", crPortPlace: "",
     crAssetId: null, crAssetPort: null, crAssetCoin: "BTC", crAssetAmount: "", crAssetInvested: "",
@@ -2762,6 +2811,86 @@ class Component extends DCLogic {
         key: "p" + n, label, on: days === n ? "1" : "0", pick: () => this.set("moversDays", n)
       })),
       goCrypto: e => { e.preventDefault(); this.goScreen("crypto"); }
+    };
+  }
+
+  // Раздел «Курсы»: вкладки валют, криптовалюты и металлов. Цена — сейчас,
+  // изменение — к последнему дню истории до сегодняшнего (по UTC, как её пишет сервер).
+  ratesVals() {
+    const st = this.state, tab = st.ratesTab;
+    const utcToday = new Date().toISOString().slice(0, 10);
+    const rubNow = (code, demo) => {
+      const r = st.rates[code];
+      return r && r.rub > 0 ? r.rub : CUR[code] ? CUR[code].rate : demo || 0;
+    };
+    const rubBefore = code => {
+      const h = (st.history || {})[code];
+      if (!h) return 0;
+      const day = Object.keys(h).filter(d => d < utcToday).sort().pop();
+      return day ? h[day] : 0;
+    };
+    const rubFmt = (n, max) => n.toLocaleString("ru-RU", { maximumFractionDigits: max }).replace(/\u00a0/g, " ") + " ₽";
+    const digits = n => (n >= 100 ? 2 : n >= 1 ? 3 : n >= 0.01 ? 4 : 6);
+    const change = (code, now, scale) => {
+      const was = rubBefore(code);
+      if (!(was > 0) || !(now > 0)) return { pct: "", abs: "", tone: "" };
+      const pct = (now / was - 1) * 100, d = (now - was) * scale;
+      if (Math.abs(pct) < 0.005) return { pct: "0,00 %", abs: "", tone: "" };
+      return {
+        pct: (pct > 0 ? "+" : "−") + Math.abs(pct).toFixed(2).replace(".", ",") + " %",
+        abs: (d > 0 ? "+" : "−") + rubFmt(Math.abs(d), Math.abs(d) >= 0.01 ? 2 : 4),
+        tone: pct > 0 ? "good" : "bad"
+      };
+    };
+    const badge = (text, bg) => ({ icon: text, iconLen: String(Math.min(text.length, 4)), iconStyle: "background:" + bg });
+    const usdRub = rubNow("USD");
+    let rows = [];
+    if (tab === "fiat") {
+      rows = FIATS.map(([code, name, sym, per, demo]) => {
+        const rub = rubNow(code, demo);
+        return Object.assign(CUR[code] ? curBadge(code) : badge(sym, "#6e6e73"), {
+          key: code, name, sub: per > 1 ? per.toLocaleString("ru-RU").replace(/\u00a0/g, " ") + " " + code : code,
+          price: rub > 0 ? rubFmt(rub * per, rub * per >= 1 ? 2 : 4) : "—", priceSub: "",
+          ...change(code, rub, per)
+        });
+      });
+    } else if (tab === "crypto") {
+      rows = COINS.map(([code, name]) => {
+        const rub = this.coinRub(code);
+        return Object.assign(curBadge(code), {
+          key: code, name, sub: code,
+          price: rub > 0 ? rubFmt(rub, digits(rub)) : "—",
+          priceSub: code === "USDT" ? "" : this.coinPrice(code),
+          ...change(code, rub, 1)
+        });
+      });
+    } else {
+      rows = METALS.map(([code, name, sym, color, per, unit, grams, exUnit, demo]) => {
+        const rub = rubNow(code, demo);
+        return Object.assign(badge(sym, color), {
+          key: code, name, sub: "за " + unit,
+          price: rub > 0 ? rubFmt(rub * per, 2) : "—",
+          priceSub: rub > 0 && usdRub > 0 ? "$" + (rub * grams / usdRub).toLocaleString("ru-RU", { maximumFractionDigits: rub * grams / usdRub >= 100 ? 0 : 2 }).replace(/\u00a0/g, " ") + " за " + exUnit : "",
+          ...change(code, rub, per)
+        });
+      });
+    }
+    const list = Object.values(st.rates);
+    const last = list.length ? new Date(Math.max(...list.map(r => Date.parse(r.updatedAt)))) : null;
+    return {
+      ratesRows: rows,
+      ratesTabs: [["fiat", "Валюты"], ["crypto", "Криптовалюта"], ["metals", "Металлы"]].map(([id, label]) => ({
+        key: id, label, on: tab === id ? "1" : "0", pick: () => this.set("ratesTab", id)
+      })),
+      ratesPriceHead: tab === "metals" ? "Цена" : "Курс",
+      ratesSource: tab === "fiat" ? "Официальный курс ЦБ РФ на сегодня."
+        : tab === "crypto" ? "CoinGecko, цена в рублях и в USDT."
+        : "gold-api.com: биржевая цена в долларах, в рубли — по курсу ЦБ.",
+      ratesNote: !st.online || !last ? "Демо-режим: курсы примерные."
+        : "Обновлено " + last.toLocaleString("ru-RU", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })
+          + ", дальше — раз в час. Изменение — к вчерашнему дню.",
+      refreshRates: () => { if (st.online) this.api("POST", "rates/refresh", {}).catch(() => {}); },
+      ratesCanRefresh: st.online
     };
   }
 
@@ -3697,10 +3826,11 @@ class Component extends DCLogic {
         : "доходы и расходы по категориям — до отдельных операций"],
       charts: ["Аналитика", "категории и динамика"],
       categories: ["Категории", st.cats.length + " категорий · вложенность до четырёх уровней"],
-      settings: ["Настройки", "учёт и напоминания"]
+      settings: ["Настройки", "учёт и напоминания"],
+      rates: ["Курсы", "валюты ЦБ, криптовалюта и металлы — в рублях"]
     };
     const nav = [
-      ["summary","Сводка"],["ops","Операции"],["accounts","Счета"],["crypto","Криптовалюта"],["budgets","Бюджеты"],
+      ["summary","Сводка"],["ops","Операции"],["accounts","Счета"],["crypto","Криптовалюта"],["rates","Курсы"],["budgets","Бюджеты"],
       ["reports","Отчёты"],["charts","Аналитика"],["categories","Категории"],["settings","Настройки"]
     ].map(([id, label]) => ({
       key: id, label, on: st.screen === id ? "1" : "0",
@@ -4202,7 +4332,7 @@ class Component extends DCLogic {
       isSummary: st.screen === "summary", isOps: st.screen === "ops", isAccounts: st.screen === "accounts",
       isCrypto: st.screen === "crypto",
       isBudgets: st.screen === "budgets", isReports: st.screen === "reports", isCharts: st.screen === "charts",
-      isCategories: st.screen === "categories", isSettings: st.screen === "settings",
+      isCategories: st.screen === "categories", isSettings: st.screen === "settings", isRates: st.screen === "rates",
       goOps: e => { e.preventDefault(); this.goScreen("ops"); },
       accountGroups,
       grouped: st.groupBy !== "none", flat: st.groupBy === "none",
@@ -4254,6 +4384,7 @@ class Component extends DCLogic {
       savedLabel: "отложено " + this.money(income - expense),
       recent: st.txs.slice().sort((a, b) => (a.d < b.d ? 1 : -1)).slice(0, 6).map(shapeTx),
       ...this.summaryVals(),
+      ...(st.screen === "rates" ? this.ratesVals() : {}),
       ...(st.screen === "summary" ? this.moversVals() : { moversOn: false }),
       visibleTxs: visible.map(shapeTx),
       countLabel: visible.length + " из " + periodTxs.length + " операций",
@@ -5013,21 +5144,6 @@ class Component extends DCLogic {
         this.setState(toCrypto ? { accKind: kind, accCur: "USDT" } : { accKind: kind });
       },
       accCur: st.accCur, onAccCur: e => this.set("accCur", e.target.value),
-      rateRows: Object.keys(CUR).filter(k => k !== "RUB").map(k => Object.assign({
-        key: k, label: CUR[k].label,
-        value: CUR[k].rate.toLocaleString("ru-RU", { maximumFractionDigits: 2 }).replace(/ /g, " ") + " ₽",
-        // цена в USDT: у самого USDT её писать незачем
-        usdt: k === "USDT" ? "" : this.coinPrice(k)
-      }, curBadge(k))),
-      ratesNote: (() => {
-        const list = Object.values(st.rates);
-        if (!st.online || !list.length) return "Демо-режим: курсы по умолчанию.";
-        if (list.some(r => r.source === "default")) return "Часть курсов ещё не загружена — показаны значения по умолчанию.";
-        const last = new Date(Math.max(...list.map(r => Date.parse(r.updatedAt))));
-        return "Доллар и евро — ЦБ РФ, крипта — CoinGecko. Обновлено " +
-          last.toLocaleString("ru-RU", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" }) + ", дальше — раз в час.";
-      })(),
-      refreshRates: () => { if (st.online) this.api("POST", "rates/refresh", {}).catch(() => {}); },
       currencyOptions: Object.keys(CUR).map(k => ({ key: k, value: k, label: CUR[k].label })),
       // Баланс не редактируется: он складывается из операций, а новый счёт открывается с нулём
       accConvertHint: (() => {

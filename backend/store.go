@@ -1096,6 +1096,13 @@ func (s *Store) UpsertRates(ctx context.Context, rates map[string]float64, sourc
 	return s.db.SendBatch(ctx, batch).Close()
 }
 
+// CurrentRub returns the stored rouble price of one unit of code.
+func (s *Store) CurrentRub(ctx context.Context, code string) (float64, error) {
+	var rub float64
+	err := s.db.QueryRow(ctx, `SELECT rub FROM rates WHERE code = $1`, code).Scan(&rub)
+	return rub, err
+}
+
 // HistoryDays says how many of the last historyDays days have a price for
 // each code, so the backfill fetches only coins with gaps.
 func (s *Store) HistoryDays(ctx context.Context) (map[string]int, error) {

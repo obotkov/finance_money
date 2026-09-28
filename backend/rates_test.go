@@ -22,7 +22,8 @@ func TestParseCBR(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := map[string]float64{"USD": 84.1234, "EUR": 98.5}
+	// CNY идёт в раздел «Курсы» — за 1 юань, а не за 10
+	want := map[string]float64{"USD": 84.1234, "EUR": 98.5, "CNY": 11.73}
 	if len(got) != len(want) {
 		t.Fatalf("got %v, want %v", got, want)
 	}
@@ -80,5 +81,15 @@ func TestParseCoinGeckoChart(t *testing.T) {
 	}
 	if got["2026-09-01"] != 101 || got["2026-09-02"] != 102 || len(got) != 2 {
 		t.Fatalf("got %v", got)
+	}
+}
+
+func TestParseGoldAPI(t *testing.T) {
+	got, err := parseGoldAPI([]byte(`{"currency":"USD","name":"Gold","price":4152.3,"symbol":"XAU"}`))
+	if err != nil || got != 4152.3 {
+		t.Fatalf("got %v, %v", got, err)
+	}
+	if _, err := parseGoldAPI([]byte(`{"price":0}`)); err == nil {
+		t.Error("want error without a price")
 	}
 }
