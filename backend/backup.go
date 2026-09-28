@@ -110,11 +110,34 @@ func (s *Store) Backups(ctx context.Context, uid int64) ([]BackupInfo, error) {
 	})
 }
 
-// CreateBackup сохраняет снимок текущих данных.
+// CurrentBackup — бекап, с которым данные сейчас совпадают, или nil, если
+// после сохранения или восстановления их меняли.
+func (s *Store) CurrentBackup(ctx context.Context, uid int64) (*int64, error) {
+	var id *int64
+	err := s.db.QueryRow(ctx, `SELECT current_backup_id FROM users WHERE id = $1`, uid).Scan(&id)
+	return id, err
+}
+
+// DataChanged отмечает, что данные разошлись с текущей версией.
+func (s *Store) DataChanged(ctx context.Context, uid int64) error {
+	_, err := s.db.Exec(ctx, `UPDATE users SET current_backup_id = NULL WHERE id = $1 AND current_backup_id IS NOT NULL`, uid)
+	return err
+}
+
+// CreateBackup сохраняет снимок текущих данных, и он становится текущей версией.
 func (s *Store) CreateBackup(ctx context.Context, uid int64) error {
 	return pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) error {
-		return saveBackup(ctx, tx, uid, "manual")
+		id, err := saveBackup(ctx, tx, uid)
+		if err != nil {
+			return err
+		}
+		return setCurrent(ctx, tx, uid, &id)
 	})
+}
+
+func setCurrent(ctx context.Context, tx pgx.Tx, uid int64, id *int64) error {
+	_, err := tx.Exec(ctx, `UPDATE users SET current_backup_id = $1 WHERE id = $2`, id, uid)
+	return err
 }
 
 // DeleteBackup удаляет один бекап.
@@ -141,29 +164,33 @@ func (s *Store) BackupJSON(ctx context.Context, uid, id int64) ([]byte, time.Tim
 	return out, at, err
 }
 
-// RestoreBackup заменяет данные пользователя сохранённым бекапом.
+// RestoreBackup переключает данные на сохранённый бекап: он становится
+// текущей версией, нового бекапа не создаётся.
 func (s *Store) RestoreBackup(ctx context.Context, uid, id int64) error {
 	raw, _, err := s.BackupJSON(ctx, uid, id)
 	if err != nil {
 		return err
 	}
-	return s.RestoreFile(ctx, uid, raw)
+	return s.restoreRaw(ctx, uid, raw, &id)
 }
 
-// RestoreFile заменяет данные пользователя содержимым файла бекапа. Перед этим
-// текущие данные сами сохраняются бекапом «перед восстановлением», чтобы
-// восстановление можно было отменить. Всё в одной транзакции: если файл не
-// встал, не меняется ничего.
+// RestoreFile заменяет данные пользователя содержимым файла бекапа. В списке
+// такой версии нет, поэтому текущая версия сбрасывается.
 func (s *Store) RestoreFile(ctx context.Context, uid int64, raw []byte) error {
+	return s.restoreRaw(ctx, uid, raw, nil)
+}
+
+// restoreRaw идёт одной транзакцией: если файл не встал, не меняется ничего.
+func (s *Store) restoreRaw(ctx context.Context, uid int64, raw []byte, current *int64) error {
 	f, err := parseBackup(raw)
 	if err != nil {
 		return err
 	}
 	err = pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) error {
-		if err := saveBackup(ctx, tx, uid, "auto"); err != nil {
+		if err := restore(ctx, tx, uid, f); err != nil {
 			return err
 		}
-		return restore(ctx, tx, uid, f)
+		return setCurrent(ctx, tx, uid, current)
 	})
 	// нарушенные ограничения и кривые значения — это файл, а не сервер
 	var pe *pgconn.PgError
@@ -220,37 +247,35 @@ func parseBackup(raw []byte) (*backupFile, error) {
 }
 
 // saveBackup снимает данные пользователя и кладёт их в backups, оставляя
-// последние maxBackups. Пустой аккаунт перед восстановлением не сохраняется —
-// возвращать там нечего.
-func saveBackup(ctx context.Context, tx pgx.Tx, uid int64, kind string) error {
+// последние maxBackups. Возвращает id нового бекапа.
+func saveBackup(ctx context.Context, tx pgx.Tx, uid int64) (int64, error) {
 	f, err := dumpBackup(ctx, tx, uid)
 	if err != nil {
-		return err
-	}
-	if kind == "auto" && len(f.Accounts) == 0 && len(f.Transactions) == 0 && len(f.Crypto) == 0 {
-		return nil
+		return 0, err
 	}
 	raw, err := json.Marshal(f)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	var buf bytes.Buffer
 	zw := gzip.NewWriter(&buf)
 	if _, err := zw.Write(raw); err != nil {
-		return err
+		return 0, err
 	}
 	if err := zw.Close(); err != nil {
-		return err
+		return 0, err
 	}
-	if _, err := tx.Exec(ctx, `
-		INSERT INTO backups (user_id, created_at, kind, accounts, txs, size, data) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-		uid, f.CreatedAt, kind, len(f.Accounts), len(f.Transactions), len(raw), buf.Bytes()); err != nil {
-		return err
+	var id int64
+	if err := tx.QueryRow(ctx, `
+		INSERT INTO backups (user_id, created_at, kind, accounts, txs, size, data) VALUES ($1, $2, 'manual', $3, $4, $5, $6)
+		RETURNING id`,
+		uid, f.CreatedAt, len(f.Accounts), len(f.Transactions), len(raw), buf.Bytes()).Scan(&id); err != nil {
+		return 0, err
 	}
 	_, err = tx.Exec(ctx, `
 		DELETE FROM backups WHERE user_id = $1 AND id NOT IN (
 			SELECT id FROM backups WHERE user_id = $1 ORDER BY created_at DESC, id DESC LIMIT $2)`, uid, maxBackups)
-	return err
+	return id, err
 }
 
 func dumpBackup(ctx context.Context, tx pgx.Tx, uid int64) (*backupFile, error) {

@@ -1657,7 +1657,7 @@
               <div style="display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap">
                 <div style="flex:1;min-width:220px">
                   <div class="big" style="font-size:17px">Бекапы</div>
-                  <div style="font-size:13px;color:var(--ink3)">Полная копия счетов с остатками, категорий, операций и крипто-портфелей. Хранятся последние {{ bkMax }}; перед восстановлением текущие данные сохраняются сами.</div>
+                  <div style="font-size:13px;color:var(--ink3)">Полная копия счетов с остатками, категорий, операций и крипто-портфелей. Хранятся последние {{ bkMax }}. Восстановление переключает данные на выбранную версию.</div>
                 </div>
                 <div style="display:flex;gap:8px;flex-wrap:wrap">
                   <label class="btn btn-s" style="cursor:pointer;opacity:{{ adminOpacity }}">
@@ -1668,16 +1668,19 @@
                 </div>
               </div>
               <sc-if value="{{ bkHas }}" hint-placeholder-val="{{ true }}">
+                <div style="font-size:12px;color:var(--ink3)">{{ bkStatus }}</div>
                 <div style="border-top:1px solid var(--line)">
                   <sc-for list="{{ bkRows }}" as="b" hint-placeholder-count="3">
                     <div class="bk-row" style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--line)">
                       <div style="flex:1;min-width:0">
-                        <div style="font-size:14px;font-weight:500">{{ b.when }}</div>
+                        <div style="font-size:14px;font-weight:500;display:flex;align-items:center;gap:8px;flex-wrap:wrap">{{ b.when }}
+                          <sc-if value="{{ b.current }}" hint-placeholder-val="{{ false }}"><span style="font-size:11px;font-weight:500;color:var(--accent);background:var(--accent-soft);border-radius:6px;padding:2px 7px">Текущая версия</span></sc-if>
+                        </div>
                         <div style="font-size:12px;color:var(--ink3)">{{ b.info }}</div>
                       </div>
                       <div style="display:flex;gap:4px;flex:none">
                         <a class="btn btn-t" href="{{ b.href }}" download="">Скачать</a>
-                        <button class="btn btn-t" onClick="{{ b.restore }}">Восстановить</button>
+                        <sc-if value="{{ b.notCurrent }}" hint-placeholder-val="{{ true }}"><button class="btn btn-t" onClick="{{ b.restore }}">Восстановить</button></sc-if>
                         <button class="btn btn-t" style="color:var(--neg)" onClick="{{ b.remove }}">Удалить</button>
                       </div>
                     </div>
@@ -2980,7 +2983,7 @@ class Component extends DCLogic {
       const kind = s.type === "income" ? "income" : "expense";
       const cat = cats.some(c => c.name === s.cat && c.kind === kind) ? s.cat : this.firstLeaf(kind, cats);
       return Object.assign({ user: data.user || null, accounts, cats, txs: data.txs || [],
-        crypto: data.crypto || [], rates, history: data.history || {}, backups: data.backups || [], acc, accTo, cat }, extra);
+        crypto: data.crypto || [], rates, history: data.history || {}, backups: data.backups || [], currentBackup: data.currentBackup || null, acc, accTo, cat }, extra);
     });
   }
 
@@ -3082,6 +3085,10 @@ class Component extends DCLogic {
   }
   backupVals() {
     const st = this.state, list = st.backups || [];
+    const cur = list.find(b => b.id === st.currentBackup);
+    // что пропадёт при переключении: изменения после последнего сохранения или восстановления
+    const lose = cur ? "Сейчас данные совпадают с версией от " + this.backupWhen(cur.createdAt) + " — на неё можно будет вернуться."
+      : "Изменения, которых нет ни в одном бекапе, пропадут — если они нужны, сначала нажмите «Сделать бекап».";
     const size = n => n >= 1 << 20 ? (n / (1 << 20)).toFixed(1).replace(".", ",") + " МБ" : Math.max(1, Math.round(n / 1024)) + " КБ";
     return {
       bkMax: "30",
@@ -3089,18 +3096,20 @@ class Component extends DCLogic {
       bkEmpty: list.length === 0,
       bkEmptyText: st.online ? "Бекапов пока нет — нажмите «Сделать бекап»." : "Без сервера бекапы недоступны — войдите в аккаунт.",
       bkMsg: st.bkMsg,
+      bkStatus: cur ? "Данные совпадают с версией от " + this.backupWhen(cur.createdAt) + "."
+        : "Данные изменены после последнего бекапа — эти изменения есть только в текущих данных.",
       bkRows: list.map(b => ({
         key: String(b.id),
         when: this.backupWhen(b.createdAt),
+        current: b.id === st.currentBackup, notCurrent: b.id !== st.currentBackup,
         info: (b.kind === "auto" ? "Сохранён сам перед восстановлением · " : "")
           + pluralRu(b.accounts, "счёт", "счёта", "счетов") + " · " + pluralRu(b.txs, "операция", "операции", "операций") + " · " + size(b.size),
         href: API + "backups/" + b.id + "/file",
         restore: () => {
-          if (!window.confirm("Восстановить бекап от " + this.backupWhen(b.createdAt) + "?\n\nСчета, операции и категории заменятся данными из бекапа. "
-            + "Текущие данные перед этим сохранятся отдельным бекапом — к ним можно будет вернуться.")) return;
+          if (!window.confirm("Переключиться на версию от " + this.backupWhen(b.createdAt) + "?\n\nСчета, операции и категории станут такими, как в этом бекапе. " + lose)) return;
           this.set("bkMsg", "");
           this.api("POST", "backups/" + b.id + "/restore")
-            .then(() => this.set("bkMsg", "Восстановлен бекап от " + this.backupWhen(b.createdAt) + "."))
+            .then(() => this.set("bkMsg", "Данные переключены на версию от " + this.backupWhen(b.createdAt) + "."))
             .catch(() => {});
         },
         remove: () => {
@@ -3126,7 +3135,7 @@ class Component extends DCLogic {
           const what = pluralRu((data.accounts || []).length, "счёт", "счёта", "счетов") + ", "
             + pluralRu((data.transactions || []).length, "операция", "операции", "операций");
           if (!window.confirm("Восстановить из файла «" + file.name + "»?\n\nБекап от " + this.backupWhen(data.createdAt) + ": " + what + ".\n"
-            + "Счета, операции и категории заменятся данными из файла. Текущие данные перед этим сохранятся отдельным бекапом.")) return;
+            + "Счета, операции и категории заменятся данными из файла. " + lose)) return;
           this.set("bkMsg", "Восстанавливаю…");
           this.api("POST", "backups/restore", data)
             .then(() => this.set("bkMsg", "Данные восстановлены из «" + file.name + "»."))

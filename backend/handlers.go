@@ -67,10 +67,10 @@ func (a *API) Handler() http.Handler {
 
 	mux.HandleFunc("GET /api/state", a.withState(func(*http.Request, int64) error { return nil }))
 
-	mux.HandleFunc("POST /api/accounts", a.withState(withBody(s.CreateAccount)))
-	mux.HandleFunc("PUT /api/accounts/{id}", a.withState(withIDBody(s.UpdateAccount)))
+	mux.HandleFunc("POST /api/accounts", a.withData(withBody(s.CreateAccount)))
+	mux.HandleFunc("PUT /api/accounts/{id}", a.withData(withIDBody(s.UpdateAccount)))
 	// ?replace=<id> переносит операции на другой счёт вместо того, чтобы удалить их
-	mux.HandleFunc("DELETE /api/accounts/{id}", a.withState(func(r *http.Request, uid int64) error {
+	mux.HandleFunc("DELETE /api/accounts/{id}", a.withData(func(r *http.Request, uid int64) error {
 		id, err := pathID(r)
 		if err != nil {
 			return err
@@ -84,21 +84,21 @@ func (a *API) Handler() http.Handler {
 		return s.DeleteAccount(r.Context(), uid, id, replace)
 	}))
 
-	mux.HandleFunc("POST /api/transactions", a.withState(withBody(s.CreateTx)))
-	mux.HandleFunc("PUT /api/transactions/{id}", a.withState(withIDBody(s.UpdateTx)))
-	mux.HandleFunc("DELETE /api/transactions/{id}", a.withState(withID(s.DeleteTx)))
+	mux.HandleFunc("POST /api/transactions", a.withData(withBody(s.CreateTx)))
+	mux.HandleFunc("PUT /api/transactions/{id}", a.withData(withIDBody(s.UpdateTx)))
+	mux.HandleFunc("DELETE /api/transactions/{id}", a.withData(withID(s.DeleteTx)))
 
-	mux.HandleFunc("POST /api/categories", a.withState(withBody(s.CreateCategory)))
-	mux.HandleFunc("PUT /api/categories/{id}", a.withState(withIDBody(s.UpdateCategory)))
-	mux.HandleFunc("DELETE /api/categories/{id}", a.withState(withID(s.DeleteCategory)))
+	mux.HandleFunc("POST /api/categories", a.withData(withBody(s.CreateCategory)))
+	mux.HandleFunc("PUT /api/categories/{id}", a.withData(withIDBody(s.UpdateCategory)))
+	mux.HandleFunc("DELETE /api/categories/{id}", a.withData(withID(s.DeleteCategory)))
 
-	mux.HandleFunc("POST /api/crypto/portfolios", a.withState(withBody(s.CreateCryptoPortfolio)))
-	mux.HandleFunc("PUT /api/crypto/portfolios/{id}", a.withState(withIDBody(s.UpdateCryptoPortfolio)))
-	mux.HandleFunc("DELETE /api/crypto/portfolios/{id}", a.withState(withID(s.DeleteCryptoPortfolio)))
+	mux.HandleFunc("POST /api/crypto/portfolios", a.withData(withBody(s.CreateCryptoPortfolio)))
+	mux.HandleFunc("PUT /api/crypto/portfolios/{id}", a.withData(withIDBody(s.UpdateCryptoPortfolio)))
+	mux.HandleFunc("DELETE /api/crypto/portfolios/{id}", a.withData(withID(s.DeleteCryptoPortfolio)))
 
-	mux.HandleFunc("POST /api/crypto/assets", a.withState(withBody(s.CreateCryptoAsset)))
-	mux.HandleFunc("PUT /api/crypto/assets/{id}", a.withState(withIDBody(s.UpdateCryptoAsset)))
-	mux.HandleFunc("DELETE /api/crypto/assets/{id}", a.withState(withID(s.DeleteCryptoAsset)))
+	mux.HandleFunc("POST /api/crypto/assets", a.withData(withBody(s.CreateCryptoAsset)))
+	mux.HandleFunc("PUT /api/crypto/assets/{id}", a.withData(withIDBody(s.UpdateCryptoAsset)))
+	mux.HandleFunc("DELETE /api/crypto/assets/{id}", a.withData(withID(s.DeleteCryptoAsset)))
 
 	mux.HandleFunc("POST /api/rates/refresh", a.withState(func(r *http.Request, _ int64) error {
 		if err := a.rates.Refresh(r.Context()); err != nil {
@@ -106,7 +106,7 @@ func (a *API) Handler() http.Handler {
 		}
 		return nil
 	}))
-	mux.HandleFunc("POST /api/data/reset", a.withState(func(r *http.Request, uid int64) error {
+	mux.HandleFunc("POST /api/data/reset", a.withData(func(r *http.Request, uid int64) error {
 		return s.Reset(r.Context(), uid)
 	}))
 	mux.HandleFunc("POST /api/import", a.importCSV)
@@ -160,6 +160,17 @@ func (a *API) withState(fn func(r *http.Request, uid int64) error) http.HandlerF
 	}
 }
 
+// withData — withState для изменений данных: после них данные уже не совпадают
+// с текущей версией из бекапов.
+func (a *API) withData(fn func(r *http.Request, uid int64) error) http.HandlerFunc {
+	return a.withState(func(r *http.Request, uid int64) error {
+		if err := fn(r, uid); err != nil {
+			return err
+		}
+		return a.store.DataChanged(r.Context(), uid)
+	})
+}
+
 func (a *API) state(ctx context.Context, u *User) (*State, error) {
 	st, err := a.store.State(ctx, u.ID)
 	if err != nil {
@@ -182,6 +193,9 @@ func (a *API) importCSV(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	n, err := a.store.Import(r.Context(), u.ID, in.Text)
+	if err == nil {
+		err = a.store.DataChanged(r.Context(), u.ID)
+	}
 	if err != nil {
 		a.fail(w, r, err)
 		return
