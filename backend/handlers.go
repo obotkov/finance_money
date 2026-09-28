@@ -100,6 +100,10 @@ func (a *API) Handler() http.Handler {
 	mux.HandleFunc("PUT /api/crypto/assets/{id}", a.withData(withIDBody(s.UpdateCryptoAsset)))
 	mux.HandleFunc("DELETE /api/crypto/assets/{id}", a.withData(withID(s.DeleteCryptoAsset)))
 
+	mux.HandleFunc("POST /api/recurring", a.withData(withBody(s.CreateRecurring)))
+	mux.HandleFunc("PUT /api/recurring/{id}", a.withData(withIDBody(s.UpdateRecurring)))
+	mux.HandleFunc("DELETE /api/recurring/{id}", a.withData(withID(s.DeleteRecurring)))
+
 	mux.HandleFunc("POST /api/rates/refresh", a.withState(func(r *http.Request, _ int64) error {
 		if err := a.rates.Refresh(r.Context()); err != nil {
 			return &APIError{http.StatusBadGateway, "Не удалось обновить курсы: " + err.Error()}

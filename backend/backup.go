@@ -47,6 +47,18 @@ type backupFile struct {
 	Categories   []backupCategory  `json:"categories"`
 	Transactions []backupTx        `json:"transactions"`
 	Crypto       []backupPortfolio `json:"cryptoPortfolios"`
+	Recurring    []backupRecurring `json:"recurring"`
+}
+
+type backupRecurring struct {
+	AccountID int64  `json:"accountId"`
+	Type      string `json:"type"`
+	Amount    string `json:"amount"`
+	Category  string `json:"category"`
+	Title     string `json:"title"`
+	Freq      string `json:"freq"`
+	Start     string `json:"start"`
+	Last      string `json:"last,omitempty"`
 }
 
 type backupAccount struct {
@@ -243,6 +255,22 @@ func parseBackup(raw []byte) (*backupFile, error) {
 			return nil, badRequest("В бекапе операция «" + t.Title + "» ссылается на счёт, которого нет")
 		}
 	}
+	for _, r := range f.Recurring {
+		if !accs[r.AccountID] {
+			return nil, badRequest("В бекапе повторяющаяся операция «" + r.Category + "» ссылается на счёт, которого нет")
+		}
+		if recurringFreqs[r.Freq] == "" {
+			return nil, badRequest("В бекапе неизвестная частота повтора " + r.Freq)
+		}
+		if _, err := time.Parse(time.DateOnly, r.Start); err != nil {
+			return nil, badRequest("В бекапе неверная дата начала повтора " + r.Start)
+		}
+		if r.Last != "" {
+			if _, err := time.Parse(time.DateOnly, r.Last); err != nil {
+				return nil, badRequest("В бекапе неверная дата повтора " + r.Last)
+			}
+		}
+	}
 	return &f, nil
 }
 
@@ -345,6 +373,18 @@ func dumpBackup(ctx context.Context, tx pgx.Tx, uid int64) (*backupFile, error) 
 			return nil, err
 		}
 	}
+	rows, _ = tx.Query(ctx, `
+		SELECT account_id, type, amount::text, category, title, freq, to_char(start_date, 'YYYY-MM-DD'),
+		       COALESCE(to_char(last_date, 'YYYY-MM-DD'), '')
+		FROM recurring WHERE user_id = $1 ORDER BY id`, uid)
+	f.Recurring, err = pgx.CollectRows(rows, func(r pgx.CollectableRow) (backupRecurring, error) {
+		var b backupRecurring
+		err := r.Scan(&b.AccountID, &b.Type, &b.Amount, &b.Category, &b.Title, &b.Freq, &b.Start, &b.Last)
+		return b, err
+	})
+	if err != nil {
+		return nil, err
+	}
 	return f, nil
 }
 
@@ -423,6 +463,30 @@ func restore(ctx context.Context, tx pgx.Tx, uid int64, f *backupFile) error {
 			        $13::numeric, $14::date, COALESCE($15, now()))`,
 			uid, t.Date, clock, t.Title, t.Type, cat, t.CategoryName, accs[t.AccountID],
 			to, t.Amount, t.Received, t.Coin, t.ClosePrice, closeDate, at(t.CreatedAt)); err != nil {
+			return err
+		}
+	}
+
+	// Повторы продолжаются со следующего срока после сегодняшнего: сроки между
+	// датой бекапа и сегодня не догоняются, иначе восстановленные данные сразу
+	// разошлись бы с бекапом.
+	today := moscowToday()
+	for _, r := range f.Recurring {
+		start, _ := time.Parse(time.DateOnly, r.Start)
+		after := today
+		var last *time.Time
+		if r.Last != "" {
+			l, _ := time.Parse(time.DateOnly, r.Last)
+			last = &l
+			if l.After(after) {
+				after = l
+			}
+		}
+		if _, err := tx.Exec(ctx, `
+			INSERT INTO recurring (user_id, type, account_id, amount, category, title, freq, start_date, last_date, next_date)
+			VALUES ($1, $2, $3, $4::numeric, $5, $6, $7, $8, $9, $10)`,
+			uid, r.Type, accs[r.AccountID], r.Amount, r.Category, r.Title, r.Freq, start, last,
+			nextAfter(start, r.Freq, after)); err != nil {
 			return err
 		}
 	}

@@ -43,6 +43,7 @@ func run(log *slog.Logger) error {
 
 	rates := NewRateUpdater(store, log)
 	go rates.Run(ctx, time.Hour)
+	go store.RunRecurring(ctx, log, 15*time.Minute)
 
 	cfg := Config{
 		PublicURL:          strings.TrimRight(getenv("PUBLIC_URL", "http://localhost"), "/"),

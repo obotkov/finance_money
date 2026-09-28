@@ -144,6 +144,7 @@
   .rt-row { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) minmax(0, .7fr); gap: 12px; align-items: center; }
   .rt-row[data-cols="4"] { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, .8fr); }
   .rt-row[data-cols="3"] .rt-usd { display: none; }
+  .rc-row[data-on="1"] { background: var(--accent-soft); margin: 0 -10px; padding-left: 10px !important; padding-right: 10px !important; border-radius: 10px; }
   @media (max-width: 760px) {
     .rt-row, .rt-row[data-cols="4"] { gap: 8px; }
     .rt-row[data-cols="4"] { grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, .85fr); }
@@ -151,6 +152,10 @@
     .rt-row[data-cols="4"] .rt-big { font-size: 13px !important; }
     .rt-row .rt-name, .rt-row .rt-sub { white-space: normal !important; line-height: 1.25; }
     .bk-row { flex-wrap: wrap; row-gap: 4px !important; }
+    .rc-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important; }
+    .rc-row { flex-wrap: wrap; row-gap: 2px !important; }
+    .rc-row .rc-btns { flex-basis: 100% !important; padding-left: 34px; }
+    .rc-row .rc-btns .btn:first-child { padding-left: 0; }
     .bk-row > div:first-child { flex-basis: 100% !important; }
     .bk-row .btn:first-child { padding-left: 0; }
   }
@@ -1597,6 +1602,66 @@
             <div class="card" style="padding:20px 22px;display:flex;flex-direction:column;gap:18px">
               <div><span class="lbl">Напоминание вносить операции</span><input class="inp" value="Каждый день в 21:00" readOnly="{{ true }}"></div>
             </div>
+            <!-- повторяющиеся операции: список правил и форма нового или изменяемого -->
+            <div class="card" style="grid-column:1 / -1;padding:20px 22px;display:flex;flex-direction:column;gap:14px">
+              <div>
+                <div class="big" style="font-size:17px">Повторяющиеся операции</div>
+                <div style="font-size:13px;color:var(--ink3)">Расход или доход, который записывается сам в день срока: аренда, подписки, зарплата. Остаток счёта меняется, как при ручной записи.</div>
+              </div>
+              <sc-if value="{{ rcHas }}" hint-placeholder-val="{{ true }}">
+                <div style="border-top:1px solid var(--line)">
+                  <sc-for list="{{ rcRows }}" as="r" hint-placeholder-count="2">
+                    <div class="rc-row" data-on="{{ r.editing }}" style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--line)">
+                      <span style="font-size:20px;width:28px;text-align:center;flex:none">{{ r.icon }}</span>
+                      <div style="flex:1;min-width:0">
+                        <div style="font-size:14px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ r.title }}</div>
+                        <div style="font-size:12px;color:var(--ink3)">{{ r.info }}</div>
+                      </div>
+                      <span class="num tone" data-tone="{{ r.tone }}" style="font-size:15px;white-space:nowrap">{{ r.amount }}</span>
+                      <div class="rc-btns" style="display:flex;gap:4px;flex:none">
+                        <button class="btn btn-t" onClick="{{ r.edit }}">Изменить</button>
+                        <button class="btn btn-t" style="color:var(--neg)" onClick="{{ r.remove }}">Удалить</button>
+                      </div>
+                    </div>
+                  </sc-for>
+                </div>
+              </sc-if>
+              <div style="border:1px solid var(--line);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:12px">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+                  <span style="font-size:14px;font-weight:500">{{ rcFormTitle }}</span>
+                  <div class="seg">
+                    <span class="segopt" data-on="{{ rcExpOn }}" onClick="{{ rcSetExp }}">Расход</span>
+                    <span class="segopt" data-on="{{ rcIncOn }}" onClick="{{ rcSetInc }}">Доход</span>
+                  </div>
+                </div>
+                <div class="rc-grid" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px">
+                  <div><span class="lbl">Счёт</span>
+                    <select class="inp" value="{{ rcAcc }}" onChange="{{ onRcAcc }}">
+                      <sc-for list="{{ rcAccOptions }}" as="o" hint-placeholder-count="4"><option value="{{ o.value }}">{{ o.label }}</option></sc-for>
+                    </select>
+                  </div>
+                  <div><span class="lbl">Сумма, {{ rcSym }}</span><input class="inp" inputMode="decimal" value="{{ rcAmount }}" onChange="{{ onRcAmount }}" placeholder="0"></div>
+                  <div><span class="lbl">Частота</span>
+                    <select class="inp" value="{{ rcFreq }}" onChange="{{ onRcFreq }}">
+                      <sc-for list="{{ rcFreqOptions }}" as="o" hint-placeholder-count="6"><option value="{{ o.value }}">{{ o.label }}</option></sc-for>
+                    </select>
+                  </div>
+                  <div><span class="lbl">Категория</span>
+                    <select class="inp" value="{{ rcCat }}" onChange="{{ onRcCat }}">
+                      <sc-for list="{{ rcCatOptions }}" as="o" hint-placeholder-count="8"><option value="{{ o.value }}">{{ o.label }}</option></sc-for>
+                    </select>
+                  </div>
+                  <div><span class="lbl">Описание</span><input class="inp" value="{{ rcTitle }}" onChange="{{ onRcTitle }}" placeholder="{{ rcTitlePlaceholder }}"></div>
+                  <div><span class="lbl">Первый раз</span><input class="inp" type="date" value="{{ rcStart }}" onChange="{{ onRcStart }}"></div>
+                </div>
+                <div style="font-size:12px;color:var(--ink3)">{{ rcHint }}</div>
+                <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+                  <button class="btn btn-p" style="opacity:{{ rcSaveOpacity }}" onClick="{{ rcSave }}">{{ rcSaveLabel }}</button>
+                  <sc-if value="{{ rcEditing }}" hint-placeholder-val="{{ false }}"><button class="btn btn-s" onClick="{{ rcCancel }}">Отмена</button></sc-if>
+                  <span style="font-size:12px;color:var(--accent)">{{ rcMsg }}</span>
+                </div>
+              </div>
+            </div>
             <!-- данные: выгрузка за период с примером и загрузка, на всю ширину -->
             <div class="card" style="grid-column:1 / -1;padding:20px 22px;display:flex;flex-direction:column;gap:16px">
               <div>
@@ -2333,6 +2398,34 @@ const CRYPTO_CURS = COINS.map(([code]) => code);
 const BUDGET_LIMITS = [["Продукты",25000],["Кафе и доставка",12000],["Транспорт",5000],["Жильё и связь",32000],["Здоровье",6000],["Подписки",2500]];
 
 const pad2 = n => String(n).padStart(2, "0");
+// Повторяющиеся операции: частоты и сроки — как в backend/recurring.go. n-й срок
+// считается от даты начала, месяцы не «уползают»: 31 января → 28 февраля → 31 марта.
+const RC_FREQS = [["day", "Каждый день"], ["week", "Каждую неделю"], ["2weeks", "Каждые 2 недели"],
+  ["month", "Каждый месяц"], ["quarter", "Каждый квартал"], ["year", "Каждый год"]];
+const RC_MAX_CATCH_UP = 400;
+const rcOccurrence = (start, freq, n) => {
+  const [y, m, d] = start.split("-").map(Number);
+  const iso = t => new Date(t).toISOString().slice(0, 10);
+  const step = { day: 1, week: 7, "2weeks": 14 }[freq];
+  if (step) return iso(Date.UTC(y, m - 1, d + step * n));
+  const months = n * ({ month: 1, quarter: 3, year: 12 }[freq] || 1);
+  const last = new Date(Date.UTC(y, m - 1 + months + 1, 0)).getUTCDate();
+  return iso(Date.UTC(y, m - 1 + months, Math.min(d, last)));
+};
+// первый срок позже after (ISO-даты сравниваются строками)
+const rcNextAfter = (start, freq, after) => {
+  if (after < start) return start;
+  const days = Math.floor((Date.parse(after) - Date.parse(start)) / 864e5);
+  let n = freq === "day" ? days : freq === "week" ? Math.floor(days / 7) : freq === "2weeks" ? Math.floor(days / 14) : 0;
+  while (rcOccurrence(start, freq, n) <= after) n++;
+  return rcOccurrence(start, freq, n);
+};
+// сроки от from до to включительно, не больше limit
+const rcDue = (start, freq, from, to, limit) => {
+  const out = [];
+  for (let d = from; d <= to && out.length <= limit; d = rcNextAfter(start, freq, d)) out.push(d);
+  return out;
+};
 const TODAY = (() => { const d = new Date(); return d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate()); })();
 const TODAY_Y = Number(TODAY.slice(0, 4)), TODAY_M = Number(TODAY.slice(5, 7)) - 1, TODAY_D = Number(TODAY.slice(8));
 const THIS_MONTH = TODAY.slice(0, 7);
@@ -2534,6 +2627,8 @@ class Component extends DCLogic {
     anaPreset: "month", anaFrom: THIS_MONTH + "-01", anaTo: TODAY,
     anaGran: "day", anaHover: null, anaCats: null, anaCatGran: "week", anaCatHover: null,
     dataText: "", dataMsg: "", dataAdminMsg: "", bkMsg: "",
+    // повторяющиеся операции: rcId — какое правило изменяется, null — новое
+    recurring: [], rcId: null, rcType: "expense", rcAcc: "", rcAmount: "", rcFreq: "month", rcCat: "", rcTitle: "", rcStart: TODAY, rcMsg: "",
     theme: initialTheme, cents: initialCents,
     repMode: "detail", repFrom: THIS_MONTH + "-01", repTo: TODAY, repPreset: "month", repView: "bars", repPath: [], repList: null,
     expPreset: "all", expFrom: "", expTo: "", expTypes: { expense: true, income: true, transfer: true, trade: true }, expMsg: "",
@@ -2983,7 +3078,7 @@ class Component extends DCLogic {
       const kind = s.type === "income" ? "income" : "expense";
       const cat = cats.some(c => c.name === s.cat && c.kind === kind) ? s.cat : this.firstLeaf(kind, cats);
       return Object.assign({ user: data.user || null, accounts, cats, txs: data.txs || [],
-        crypto: data.crypto || [], rates, history: data.history || {}, backups: data.backups || [], currentBackup: data.currentBackup || null, acc, accTo, cat }, extra);
+        crypto: data.crypto || [], rates, history: data.history || {}, backups: data.backups || [], recurring: data.recurring || [], currentBackup: data.currentBackup || null, acc, accTo, cat }, extra);
     });
   }
 
@@ -3073,6 +3168,116 @@ class Component extends DCLogic {
     this.api("POST", "data/reset")
       .then(() => this.set("dataAdminMsg", "Все данные удалены — аккаунт пустой."))
       .catch(() => {});
+  }
+
+  // ---- повторяющиеся операции ----
+
+  // «1 октября 2026»
+  longDate(iso) {
+    const M = ["января","февраля","марта","апреля","мая","июня","июля","августа","сентября","октября","ноября","декабря"];
+    const p = iso.split("-");
+    return Number(p[2]) + " " + M[Number(p[1]) - 1] + " " + p[0];
+  }
+  catPathOf(name) {
+    const cats = this.state.cats, parts = [];
+    for (let c = cats.find(x => x.name === name); c; c = c.parent == null ? null : cats.find(x => x.id === c.parent)) parts.unshift(c.name);
+    return parts.length ? parts.join(" › ") : name;
+  }
+  recurringVals() {
+    const st = this.state, list = st.recurring || [];
+    const freqLabel = f => (RC_FREQS.find(x => x[0] === f) || ["", f])[1];
+    const editing = list.find(r => r.id === st.rcId) || null;
+    const acc = st.accounts.some(a => a.name === st.rcAcc) ? st.rcAcc : (st.accounts[0] || {}).name || "";
+    const cats = st.cats.filter(c => c.kind === st.rcType)
+      .map(c => ({ key: String(c.id), value: c.name, label: this.catPathOf(c.name) }))
+      .sort((a, b) => a.label.localeCompare(b.label, "ru"));
+    const cat = cats.some(o => o.value === st.rcCat) ? st.rcCat : (cats[0] || {}).value || "";
+    const amount = this.num(st.rcAmount);
+    const start = st.rcStart || TODAY;
+    // сроки, по которым операции запишутся сразу: у нового правила — с даты начала,
+    // у изменяемого — после последней уже записанной
+    const from = editing && editing.last ? rcNextAfter(start, st.rcFreq, editing.last) : start;
+    const due = rcDue(start, st.rcFreq, from, TODAY, RC_MAX_CATCH_UP);
+    const upcoming = due.length ? rcNextAfter(start, st.rcFreq, due[due.length - 1]) : from;
+    const fill = r => this.setState({
+      rcId: r ? r.id : null, rcType: r ? r.type : "expense", rcAcc: r ? r.account : "", rcAmount: r ? groupDigits(plainNum(r.amount)) : "",
+      rcFreq: r ? r.freq : "month", rcCat: r ? r.category : "", rcTitle: r ? r.title : "", rcStart: r ? r.start : TODAY, rcMsg: ""
+    });
+    const save = () => {
+      if (!acc) { window.alert("Сначала заведите счёт в разделе «Счета»."); return; }
+      if (!(amount > 0)) { window.alert("Укажите сумму."); return; }
+      if (!cat) { window.alert("Выберите категорию."); return; }
+      if (due.length > RC_MAX_CATCH_UP) { window.alert("С такой даты пришлось бы записать больше " + RC_MAX_CATCH_UP + " операций — выберите дату позже."); return; }
+      const past = due.filter(d => d < TODAY);
+      if (past.length && !window.confirm("Сразу записать " + pluralRu(due.length, "операцию", "операции", "операций")
+        + " за " + (due.length === 1 ? this.longDate(due[0]) : "сроки с " + this.longDate(due[0]) + " по " + this.longDate(due[due.length - 1])) + "?")) return;
+      const body = { type: st.rcType, account: acc, amount, category: cat, title: String(st.rcTitle || "").trim(), freq: st.rcFreq, start };
+      const done = msg => { fill(null); this.set("rcMsg", msg); };
+      const msg = (editing ? "Сохранено." : "Добавлено.") + (due.length ? " Записано " + pluralRu(due.length, "операция", "операции", "операций") + "." : "");
+      if (st.online) {
+        this.api(editing ? "PUT" : "POST", editing ? "recurring/" + editing.id : "recurring", body).then(() => done(msg), () => {});
+        return;
+      }
+      // демо-режим: правило и операции за прошедшие сроки — только в памяти
+      const sign = st.rcType === "income" ? 1 : -1;
+      const ops = due.map(d => ({ d, t: body.title || cat, c: cat, a: acc, v: sign * amount }));
+      const rule = { id: editing ? editing.id : Date.now(), ...body, last: due.length ? due[due.length - 1] : editing ? editing.last : undefined, next: upcoming };
+      this.setState(s => ({
+        recurring: editing ? s.recurring.map(r => (r.id === editing.id ? rule : r)) : s.recurring.concat([rule]),
+        txs: ops.length ? ops.concat(s.txs).sort((a, b) => (a.d < b.d ? 1 : -1)) : s.txs,
+        accounts: s.accounts.map(a => (a.name === acc ? { ...a, balance: a.balance + sign * amount * ops.length } : a))
+      }));
+      done(msg);
+    };
+    return {
+      rcHas: list.length > 0,
+      rcRows: list.map(r => {
+        const c = st.cats.find(x => x.name === r.category);
+        return {
+          key: String(r.id),
+          icon: (c && c.icon) || "🔁",
+          title: r.title || this.catPathOf(r.category),
+          info: freqLabel(r.freq) + " · " + r.account + " · следующая " + this.longDate(r.next),
+          amount: (r.type === "income" ? "+" : "−") + this.fmt(r.amount, this.curOf(r.account)),
+          tone: r.type === "income" ? "good" : "",
+          editing: r.id === st.rcId ? "1" : "0",
+          edit: () => fill(r),
+          remove: () => {
+            if (!window.confirm("Удалить повторяющуюся операцию «" + (r.title || r.category) + "»? Уже записанные операции останутся.")) return;
+            if (st.rcId === r.id) fill(null);
+            if (st.online) { this.api("DELETE", "recurring/" + r.id).catch(() => {}); return; }
+            this.setState(s => ({ recurring: s.recurring.filter(x => x.id !== r.id) }));
+          }
+        };
+      }),
+      rcFormTitle: editing ? "Изменить «" + (editing.title || editing.category) + "»" : "Новая повторяющаяся операция",
+      rcExpOn: st.rcType === "expense" ? "1" : "0", rcIncOn: st.rcType === "income" ? "1" : "0",
+      rcSetExp: () => this.setState({ rcType: "expense", rcCat: "" }),
+      rcSetInc: () => this.setState({ rcType: "income", rcCat: "" }),
+      rcAcc: acc, onRcAcc: e => this.set("rcAcc", e.target.value),
+      rcAccOptions: st.accounts.map(a => ({ key: a.name, value: a.name, label: a.cur === "RUB" ? a.name : a.name + " · " + a.cur })),
+      rcSym: CUR[this.curOf(acc)] ? CUR[this.curOf(acc)].sym : this.curOf(acc),
+      rcAmount: st.rcAmount, onRcAmount: e => this.setNumber("rcAmount", e, false),
+      rcFreq: st.rcFreq, onRcFreq: e => this.set("rcFreq", e.target.value),
+      rcFreqOptions: RC_FREQS.map(([value, label]) => ({ key: value, value, label })),
+      rcCat: cat, onRcCat: e => this.set("rcCat", e.target.value), rcCatOptions: cats,
+      rcTitle: st.rcTitle, onRcTitle: e => this.set("rcTitle", e.target.value),
+      rcTitlePlaceholder: cat || "как в категории",
+      rcStart: start, onRcStart: e => this.set("rcStart", e.target.value || TODAY),
+      rcHint: due.length > RC_MAX_CATCH_UP ? "С такой даты пришлось бы записать больше " + RC_MAX_CATCH_UP + " операций — выберите дату позже."
+        : due.length === 1 && due[0] === TODAY ? "Первая операция запишется сразу, сегодня; следующая — " + this.longDate(upcoming) + "."
+        : due.length ? "Сразу запишется " + pluralRu(due.length, "операция", "операции", "операций") + " за прошедшие сроки"
+          + (due.length > 1 ? " — с " + this.longDate(due[0]) + " по " + this.longDate(due[due.length - 1]) : " — " + this.longDate(due[0]))
+          + ", следующая — " + this.longDate(upcoming) + "."
+        : editing && editing.last ? "Уже записанные операции не изменятся. Следующая запишется " + this.longDate(upcoming) + "."
+        : "Первая операция запишется " + this.longDate(upcoming) + ".",
+      rcSaveLabel: editing ? "Сохранить" : "Добавить",
+      rcSaveOpacity: acc && amount > 0 && cat ? "1" : ".45",
+      rcEditing: !!editing,
+      rcCancel: () => fill(null),
+      rcSave: save,
+      rcMsg: st.rcMsg
+    };
   }
 
   // ---- бекапы ----
@@ -4653,6 +4858,7 @@ class Component extends DCLogic {
       loadDemo: () => this.loadDemo(),
       wipeAll: () => this.wipeAll(),
       ...(st.screen === "settings" ? this.backupVals() : {}),
+      ...(st.screen === "settings" ? this.recurringVals() : {}),
       dataText: st.dataText, onDataText: e => this.set("dataText", e.target.value),
       onPickFile: e => {
         const file = e.target.files && e.target.files[0];

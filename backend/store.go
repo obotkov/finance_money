@@ -121,12 +121,13 @@ type Rate struct {
 
 // State is everything the page renders for one user.
 type State struct {
-	User     *User             `json:"user,omitempty"`
-	Accounts []Account         `json:"accounts"`
-	Cats     []Category        `json:"cats"`
-	Txs      []Tx              `json:"txs"`
-	Crypto   []CryptoPortfolio `json:"crypto"`
-	Backups  []BackupInfo      `json:"backups"`
+	User      *User             `json:"user,omitempty"`
+	Accounts  []Account         `json:"accounts"`
+	Cats      []Category        `json:"cats"`
+	Txs       []Tx              `json:"txs"`
+	Crypto    []CryptoPortfolio `json:"crypto"`
+	Backups   []BackupInfo      `json:"backups"`
+	Recurring []Recurring       `json:"recurring"`
 	// бекап, с которым данные сейчас совпадают; null — их меняли после сохранения
 	CurrentBackup *int64          `json:"currentBackup"`
 	Rates         map[string]Rate `json:"rates"`
@@ -292,6 +293,11 @@ func (s *Store) State(ctx context.Context, uid int64) (*State, error) {
 		return nil, err
 	}
 
+	st.Recurring, err = s.recurring(ctx, uid)
+	if err != nil {
+		return nil, err
+	}
+
 	st.Backups, err = s.Backups(ctx, uid)
 	if err != nil {
 		return nil, err
@@ -401,6 +407,10 @@ func (s *Store) DeleteAccount(ctx context.Context, uid, id, replace int64) error
 		}
 		if replace > 0 {
 			if err := moveTxs(ctx, tx, uid, id, replace, cur); err != nil {
+				return err
+			}
+			// повторяющиеся операции переезжают вместе с операциями
+			if _, err := tx.Exec(ctx, `UPDATE recurring SET account_id = $3 WHERE account_id = $2 AND user_id = $1`, uid, id, replace); err != nil {
 				return err
 			}
 		} else if err := undoTxs(ctx, tx, uid, id); err != nil {
