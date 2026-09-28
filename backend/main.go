@@ -43,14 +43,18 @@ func run(log *slog.Logger) error {
 
 	rates := NewRateUpdater(store, log)
 	go rates.Run(ctx, time.Hour)
-	go store.RunRecurring(ctx, log, 15*time.Minute)
 
 	cfg := Config{
 		PublicURL:          strings.TrimRight(getenv("PUBLIC_URL", "http://localhost"), "/"),
 		GoogleClientID:     os.Getenv("GOOGLE_CLIENT_ID"),
 		GoogleClientSecret: os.Getenv("GOOGLE_CLIENT_SECRET"),
 	}
-	api := NewAPI(store, rates, cfg, log)
+	push, err := NewPusher(ctx, store, cfg.PublicURL, log)
+	if err != nil {
+		return err
+	}
+	go store.RunRecurring(ctx, log, 15*time.Minute, func(uid int64) { push.CheckBudgets(uid) })
+	api := NewAPI(store, rates, push, cfg, log)
 	log.Info("config", "public_url", cfg.PublicURL, "google_sign_in", api.google != nil)
 
 	srv := &http.Server{

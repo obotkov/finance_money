@@ -262,7 +262,7 @@ func applyRecurring(ctx context.Context, tx pgx.Tx, uid, id int64, today time.Ti
 
 // ApplyDueRecurring создаёт операции всех правил, чей срок наступил. Каждое
 // правило — своей транзакцией: ошибка в одном не держит остальные.
-func (s *Store) ApplyDueRecurring(ctx context.Context, log *slog.Logger) {
+func (s *Store) ApplyDueRecurring(ctx context.Context, log *slog.Logger, after func(uid int64)) {
 	today := moscowToday()
 	rows, _ := s.db.Query(ctx, `SELECT id, user_id FROM recurring WHERE next_date <= $1 ORDER BY id`, today)
 	due, err := pgx.CollectRows(rows, pgx.RowToStructByPos[struct{ ID, UID int64 }])
@@ -285,12 +285,16 @@ func (s *Store) ApplyDueRecurring(ctx context.Context, log *slog.Logger) {
 			continue
 		}
 		log.Info("recurring: created operations", "id", r.ID, "user", r.UID, "count", n)
+		if n > 0 && after != nil {
+			after(r.UID)
+		}
 	}
 }
 
-// RunRecurring проверяет сроки при запуске и дальше с периодом every.
-func (s *Store) RunRecurring(ctx context.Context, log *slog.Logger, every time.Duration) {
-	s.ApplyDueRecurring(ctx, log)
+// RunRecurring проверяет сроки при запуске и дальше с периодом every; after
+// вызывается для пользователя, которому записаны операции.
+func (s *Store) RunRecurring(ctx context.Context, log *slog.Logger, every time.Duration, after func(uid int64)) {
+	s.ApplyDueRecurring(ctx, log, after)
 	t := time.NewTicker(every)
 	defer t.Stop()
 	for {
@@ -298,7 +302,7 @@ func (s *Store) RunRecurring(ctx context.Context, log *slog.Logger, every time.D
 		case <-ctx.Done():
 			return
 		case <-t.C:
-			s.ApplyDueRecurring(ctx, log)
+			s.ApplyDueRecurring(ctx, log, after)
 		}
 	}
 }

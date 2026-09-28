@@ -48,6 +48,12 @@ type backupFile struct {
 	Transactions []backupTx        `json:"transactions"`
 	Crypto       []backupPortfolio `json:"cryptoPortfolios"`
 	Recurring    []backupRecurring `json:"recurring"`
+	Budgets      []backupBudget    `json:"budgets"`
+}
+
+type backupBudget struct {
+	CategoryID int64  `json:"categoryId"`
+	Amount     string `json:"amount"`
 }
 
 type backupRecurring struct {
@@ -255,6 +261,11 @@ func parseBackup(raw []byte) (*backupFile, error) {
 			return nil, badRequest("В бекапе операция «" + t.Title + "» ссылается на счёт, которого нет")
 		}
 	}
+	for _, b := range f.Budgets {
+		if _, ok := parent[b.CategoryID]; !ok {
+			return nil, badRequest("В бекапе бюджет ссылается на категорию, которой нет")
+		}
+	}
 	for _, r := range f.Recurring {
 		if !accs[r.AccountID] {
 			return nil, badRequest("В бекапе повторяющаяся операция «" + r.Category + "» ссылается на счёт, которого нет")
@@ -373,6 +384,16 @@ func dumpBackup(ctx context.Context, tx pgx.Tx, uid int64) (*backupFile, error) 
 			return nil, err
 		}
 	}
+	rows, _ = tx.Query(ctx, `SELECT category_id, amount::text FROM budgets WHERE user_id = $1 ORDER BY id`, uid)
+	f.Budgets, err = pgx.CollectRows(rows, func(r pgx.CollectableRow) (backupBudget, error) {
+		var b backupBudget
+		err := r.Scan(&b.CategoryID, &b.Amount)
+		return b, err
+	})
+	if err != nil {
+		return nil, err
+	}
+
 	rows, _ = tx.Query(ctx, `
 		SELECT account_id, type, amount::text, category, title, freq, to_char(start_date, 'YYYY-MM-DD'),
 		       COALESCE(to_char(last_date, 'YYYY-MM-DD'), '')
@@ -463,6 +484,13 @@ func restore(ctx context.Context, tx pgx.Tx, uid int64, f *backupFile) error {
 			        $13::numeric, $14::date, COALESCE($15, now()))`,
 			uid, t.Date, clock, t.Title, t.Type, cat, t.CategoryName, accs[t.AccountID],
 			to, t.Amount, t.Received, t.Coin, t.ClosePrice, closeDate, at(t.CreatedAt)); err != nil {
+			return err
+		}
+	}
+
+	for _, b := range f.Budgets {
+		if _, err := tx.Exec(ctx, `INSERT INTO budgets (user_id, category_id, amount) VALUES ($1, $2, $3::numeric)`,
+			uid, cats[b.CategoryID], b.Amount); err != nil {
 			return err
 		}
 	}

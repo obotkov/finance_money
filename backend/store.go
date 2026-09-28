@@ -128,6 +128,11 @@ type State struct {
 	Crypto    []CryptoPortfolio `json:"crypto"`
 	Backups   []BackupInfo      `json:"backups"`
 	Recurring []Recurring       `json:"recurring"`
+	Budgets   []Budget          `json:"budgets"`
+	// уведомления о бюджетах и пуши: ключ для подписки браузера, сколько устройств подписано
+	BudgetAlert BudgetAlert `json:"budgetAlert"`
+	PushKey     string      `json:"pushKey,omitempty"`
+	PushDevices int         `json:"pushDevices"`
 	// бекап, с которым данные сейчас совпадают; null — их меняли после сохранения
 	CurrentBackup *int64          `json:"currentBackup"`
 	Rates         map[string]Rate `json:"rates"`
@@ -295,6 +300,15 @@ func (s *Store) State(ctx context.Context, uid int64) (*State, error) {
 
 	st.Recurring, err = s.recurring(ctx, uid)
 	if err != nil {
+		return nil, err
+	}
+	if st.Budgets, err = s.budgets(ctx, uid); err != nil {
+		return nil, err
+	}
+	if st.BudgetAlert, err = s.budgetAlert(ctx, uid); err != nil {
+		return nil, err
+	}
+	if st.PushDevices, err = s.pushDevices(ctx, uid); err != nil {
 		return nil, err
 	}
 

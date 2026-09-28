@@ -26,16 +26,18 @@ type Config struct {
 type API struct {
 	store  *Store
 	rates  *RateUpdater
+	push   *Pusher // nil — пуши не настроены (в тестах)
 	log    *slog.Logger
 	origin string         // the site's own origin: writes from other origins are refused
 	secure bool           // cookies only over HTTPS
 	google *oauth2.Config // nil when Google sign-in isn't configured
 }
 
-func NewAPI(store *Store, rates *RateUpdater, cfg Config, log *slog.Logger) *API {
+func NewAPI(store *Store, rates *RateUpdater, push *Pusher, cfg Config, log *slog.Logger) *API {
 	a := &API{
 		store:  store,
 		rates:  rates,
+		push:   push,
 		log:    log,
 		origin: cfg.PublicURL,
 		secure: strings.HasPrefix(cfg.PublicURL, "https://"),
@@ -104,6 +106,31 @@ func (a *API) Handler() http.Handler {
 	mux.HandleFunc("PUT /api/recurring/{id}", a.withData(withIDBody(s.UpdateRecurring)))
 	mux.HandleFunc("DELETE /api/recurring/{id}", a.withData(withID(s.DeleteRecurring)))
 
+	mux.HandleFunc("POST /api/budgets", a.withData(withBody(s.CreateBudget)))
+	mux.HandleFunc("PUT /api/budgets/{id}", a.withData(withIDBody(s.UpdateBudget)))
+	mux.HandleFunc("DELETE /api/budgets/{id}", a.withData(withID(s.DeleteBudget)))
+	mux.HandleFunc("PUT /api/budgets/alert", a.withState(func(r *http.Request, uid int64) error {
+		var in BudgetAlert
+		if err := decode(r, &in); err != nil {
+			return err
+		}
+		if err := s.SetBudgetAlert(r.Context(), uid, in); err != nil {
+			return err
+		}
+		a.checkBudgets(uid)
+		return nil
+	}))
+
+	mux.HandleFunc("POST /api/push/subscribe", a.withState(withBody(s.SavePushSubscription)))
+	mux.HandleFunc("POST /api/push/unsubscribe", a.withState(func(r *http.Request, uid int64) error {
+		var in PushSubscription
+		if err := decode(r, &in); err != nil {
+			return err
+		}
+		return s.DeletePushSubscription(r.Context(), uid, in.Endpoint)
+	}))
+	mux.HandleFunc("POST /api/push/test", a.pushTest)
+
 	mux.HandleFunc("POST /api/rates/refresh", a.withState(func(r *http.Request, _ int64) error {
 		if err := a.rates.Refresh(r.Context()); err != nil {
 			return &APIError{http.StatusBadGateway, "Не удалось обновить курсы: " + err.Error()}
@@ -171,8 +198,40 @@ func (a *API) withData(fn func(r *http.Request, uid int64) error) http.HandlerFu
 		if err := fn(r, uid); err != nil {
 			return err
 		}
+		a.checkBudgets(uid)
 		return a.store.DataChanged(r.Context(), uid)
 	})
+}
+
+// checkBudgets в фоне проверяет, не пора ли уведомить о бюджетах.
+func (a *API) checkBudgets(uid int64) {
+	if a.push != nil {
+		go a.push.CheckBudgets(uid)
+	}
+}
+
+// pushTest шлёт пробное уведомление на все устройства пользователя.
+func (a *API) pushTest(w http.ResponseWriter, r *http.Request) {
+	u, ok := a.requireUser(w, r)
+	if !ok {
+		return
+	}
+	if a.push == nil {
+		a.fail(w, r, &APIError{http.StatusServiceUnavailable, "Пуш-уведомления на сервере не настроены"})
+		return
+	}
+	n, err := a.push.Send(r.Context(), u.ID, pushMessage{
+		Title: "Penny", Body: "Уведомления работают — сюда придут предупреждения о бюджетах.", URL: "/?screen=budgets", Tag: "test",
+	})
+	if err != nil {
+		a.fail(w, r, err)
+		return
+	}
+	if n == 0 {
+		a.fail(w, r, badRequest("Ни одно устройство не приняло уведомление — включите уведомления заново"))
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]int{"sent": n})
 }
 
 func (a *API) state(ctx context.Context, u *User) (*State, error) {
@@ -181,6 +240,9 @@ func (a *API) state(ctx context.Context, u *User) (*State, error) {
 		return nil, err
 	}
 	st.User = u
+	if a.push != nil {
+		st.PushKey = a.push.PublicKey()
+	}
 	return st, nil
 }
 
@@ -198,6 +260,7 @@ func (a *API) importCSV(w http.ResponseWriter, r *http.Request) {
 	}
 	n, err := a.store.Import(r.Context(), u.ID, in.Text)
 	if err == nil {
+		a.checkBudgets(u.ID)
 		err = a.store.DataChanged(r.Context(), u.ID)
 	}
 	if err != nil {

@@ -27,6 +27,7 @@
 		-Server
 	}
 
-	@html path / /index.html
+	# страница и service worker проверяются при каждом открытии, чтобы выкат доходил сразу
+	@html path / /index.html /sw.js /manifest.webmanifest
 	header @html Cache-Control "no-cache"
 }
