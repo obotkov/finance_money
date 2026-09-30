@@ -2132,6 +2132,8 @@
             <div><span class="lbl">Количество</span><input class="inp" inputMode="decimal" value="{{ dealQty }}" onChange="{{ onDealQty }}" placeholder="0"></div>
             <div><span class="lbl">Цена за монету, {{ dealCurSym }}</span><input class="inp" inputMode="decimal" value="{{ dealPriceValue }}" onChange="{{ onDealPrice }}" placeholder="0"></div>
           </div>
+          <!-- из количества, цены и суммы вводятся два, третье считается -->
+          <div style="margin-top:14px"><span class="lbl">{{ dealSumLabel }}, {{ dealCurSym }}</span><input class="inp" inputMode="decimal" value="{{ dealSumValue }}" onChange="{{ onDealSum }}" placeholder="0"></div>
           <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:8px">
             <span style="font-size:12px;color:var(--ink3)">{{ dealPriceNote }}</span>
             <button class="btn btn-t" style="padding:0;font-size:12px" onClick="{{ dealUseMarket }}">{{ dealMarketBtn }}</button>
@@ -2735,7 +2737,7 @@ class Component extends DCLogic {
     expPreset: "all", expFrom: "", expTo: "", expTypes: { expense: true, income: true, transfer: true, trade: true }, expMsg: "",
     cats: [], accounts: [], txs: [], crypto: [], rates: {}, backups: [],
     delAccTo: "",
-    crHover: null, cumHover: null, worthHover: null, repHover: null, moversDays: 1, ratesTab: "fiat", closeTx: null, closePrice: "", closeAuto: true, closeDate: "", dealKind: "buy", dealEdit: null, dealAccName: null, crCoin: null, crSort: "value", crSortDir: -1, dealCoin: "BTC", dealQty: "", dealPrice: "", dealPriceAuto: true,
+    crHover: null, cumHover: null, worthHover: null, repHover: null, moversDays: 1, ratesTab: "fiat", closeTx: null, closePrice: "", closeAuto: true, closeDate: "", dealKind: "buy", dealEdit: null, dealAccName: null, crCoin: null, crSort: "value", crSortDir: -1, dealCoin: "BTC", dealQty: "", dealPrice: "", dealPriceAuto: true, dealSum: "", dealCalc: "sum",
     dealDate: TODAY, dealOther: "", dealOut: "", dealIn: "", dealInTouched: false,
     crOpen: null, crAccOpen: null, crPortId: null, crPortName: "", crPortPlace: "",
     crAssetId: null, crAssetPort: null, crAssetCoin: "BTC", crAssetAmount: "", crAssetInvested: "",
@@ -2806,8 +2808,9 @@ class Component extends DCLogic {
     this.setState({
       dialog: "crdeal", dealEdit: t, dealAccName: t.a, dealKind: t.type, dealCoin: t.gotCur,
       dealQty: groupDigits(plainNum(qty)),
-      dealPrice: qty > 0 ? groupDigits(plainNum(Number((Math.abs(t.v) / qty).toFixed(Math.abs(t.v) / qty < 1 ? 8 : 6)))) : "",
-      dealPriceAuto: false, dealDate: t.d, calY: y, calM: m - 1
+      // количество и сумма — как записаны, цена считается из них: так сумма не уплывает на округлении цены
+      dealSum: groupDigits(plainNum(Math.abs(t.v))), dealCalc: qty > 0 ? "price" : "sum",
+      dealPrice: "", dealPriceAuto: false, dealDate: t.d, calY: y, calM: m - 1
     });
   }
 
@@ -4973,9 +4976,15 @@ class Component extends DCLogic {
       : COINS.map(([code]) => code).filter(c => c !== dealCur);
     const dealCoin = dealCoins.indexOf(st.dealCoin) !== -1 ? st.dealCoin : dealCoins[0] || "";
     const dealMarket = dealCoin && this.coinRub(dealCur) > 0 ? this.coinRub(dealCoin) / this.coinRub(dealCur) : 0;
-    const dealPrice = st.dealPriceAuto ? dealMarket : this.num(st.dealPrice);
-    const dealQty = this.num(st.dealQty);
-    const dealSum = dealQty * dealPrice;
+    // Количество, цена и сумма: два вводятся, третье (dealCalc) считается из них.
+    const dealCalc = st.dealCalc || "sum";
+    const dealTypedPrice = st.dealPriceAuto ? dealMarket : this.num(st.dealPrice);
+    const dealTypedSum = this.num(st.dealSum);
+    const dealQty = dealCalc === "qty" ? (dealTypedPrice > 0 ? dealTypedSum / dealTypedPrice : 0) : this.num(st.dealQty);
+    const dealPrice = dealCalc === "price" ? (dealQty > 0 ? dealTypedSum / dealQty : 0) : dealTypedPrice;
+    const dealSum = dealCalc === "sum" ? dealQty * dealPrice : dealTypedSum;
+    // посчитанное поле показывается числом без лишних знаков
+    const dealShow = (n, digits) => (n > 0 ? groupDigits(plainNum(Number(n.toFixed(digits)))) : "");
     const dealHas = dealHeld.find(h => h.coin === dealCoin) || null;
     const dealCoinBalance = dealHas ? dealHas.amount : 0;
     // ввод и вывод: вторая сторона — любой другой счёт
@@ -5648,7 +5657,7 @@ class Component extends DCLogic {
             del: e => { e.stopPropagation(); this.deleteOp(t); }
           });
         }),
-      crAddDeal: () => this.setState({ dialog: "crdeal", dealEdit: null, dealAccName: null, dealKind: "buy", dealQty: "", dealPrice: "",
+      crAddDeal: () => this.setState({ dialog: "crdeal", dealEdit: null, dealAccName: null, dealKind: "buy", dealQty: "", dealPrice: "", dealSum: "", dealCalc: "sum",
         dealPriceAuto: true, dealDate: TODAY, calY: TODAY_Y, calM: TODAY_M, dealOut: "", dealIn: "", dealInTouched: false,
         ...(crCoinSel ? { dealCoin: crCoinSel } : {}) }),
       dealTitle: dealEdit ? "Сделка" : "Новая сделка",
@@ -5677,16 +5686,29 @@ class Component extends DCLogic {
         pick: () => this.set("dealCoin", h.coin)
       })),
       dealCurSym: CUR[dealCur] ? CUR[dealCur].sym : dealCur,
-      dealQty: st.dealQty, onDealQty: e => this.setNumber("dealQty", e),
-      dealPriceValue: st.dealPriceAuto ? groupDigits(plainNum(Number(dealMarket.toFixed(dealMarket < 1 ? 6 : 2)))) : st.dealPrice,
-      onDealPrice: e => this.setNumber("dealPrice", e, false, { dealPriceAuto: false }),
-      dealPriceNote: dealSum > 0
-        ? "сумма сделки " + this.money(dealSum, dealCur)
-          + (dealBuy ? " · на счёте " + this.money(dealAcc ? dealAcc.balance : 0, dealCur)
-             : " · на счёте " + this.coinAmount(dealCoinBalance, dealCoin))
-        : "цена берётся из курсов, её можно поменять",
-      dealMarketBtn: st.dealPriceAuto ? "по курсу" : "вернуть курс",
-      dealUseMarket: () => this.setState({ dealPriceAuto: true, dealPrice: "" }),
+      dealQty: dealCalc === "qty" ? dealShow(dealQty, 8) : st.dealQty,
+      // ввод количества: если оно считалось из суммы и цены, дальше из суммы считается цена
+      onDealQty: e => this.setNumber("dealQty", e, false, dealCalc === "qty" ? { dealCalc: "price", dealPriceAuto: false, dealPrice: "" } : {}),
+      dealPriceValue: dealCalc === "price" ? dealShow(dealPrice, dealPrice < 1 ? 8 : 6)
+        : st.dealPriceAuto ? groupDigits(plainNum(Number(dealMarket.toFixed(dealMarket < 1 ? 6 : 2)))) : st.dealPrice,
+      // ввод цены: если она считалась из суммы и количества, теперь считается сумма
+      onDealPrice: e => this.setNumber("dealPrice", e, false, { dealPriceAuto: false, ...(dealCalc === "price" ? { dealCalc: "sum", dealSum: "" } : {}) }),
+      dealSumLabel: dealBuy ? "Потрачено всего" : "Получено всего",
+      dealSumValue: dealCalc === "sum" ? dealShow(dealSum, CRYPTO_CURS.indexOf(dealCur) !== -1 && dealCur !== "USDT" && dealCur !== "USDC" ? 8 : 2) : st.dealSum,
+      // ввод суммы: есть количество — считается цена, иначе количество по цене
+      onDealSum: e => this.setNumber("dealSum", e, false, dealCalc === "sum"
+        ? (this.num(st.dealQty) > 0 ? { dealCalc: "price", dealPriceAuto: false, dealPrice: "" } : { dealCalc: "qty", dealQty: "" })
+        : {}),
+      dealPriceNote: (dealCalc === "price" ? "цена посчитана из суммы и количества"
+          : dealCalc === "qty" ? "количество посчитано из суммы и цены"
+          : dealSum > 0 ? "сумма посчитана из количества и цены" : "введите любые два поля — третье посчитается")
+        + (dealSum > 0 ? (dealBuy ? " · на счёте " + this.money(dealAcc ? dealAcc.balance : 0, dealCur)
+             : " · на счёте " + this.coinAmount(dealCoinBalance, dealCoin)) : ""),
+      dealMarketBtn: st.dealPriceAuto && dealCalc !== "price" ? "по курсу" : "цена по курсу",
+      // цена по курсу: считаться начинает сумма, а если количества нет — оно, из введённой суммы
+      dealUseMarket: () => this.setState(dealCalc === "price"
+        ? { dealPriceAuto: true, dealPrice: "", dealCalc: "sum", dealSum: "" }
+        : { dealPriceAuto: true, dealPrice: "" }),
       dealMoveAccLabel: dealIn ? "Деньги придут со счёта" : "Деньги уйдут на счёт",
       dealOther: dealOther ? dealOther.name : "",
       onDealOther: e => this.setState({ dealOther: e.target.value, dealInTouched: false }),
