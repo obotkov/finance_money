@@ -412,6 +412,17 @@
     .dlg > .card { padding: 18px !important; border-radius: 18px !important; max-height: calc(100vh - 20px) !important; }
   }
   .day:hover { background: var(--hover); }
+  /* выбор счетов в отчёте: строки с галочками, «только» — оставить один счёт */
+  .accpick[data-some="1"] { color: var(--accent); }
+  .accrow { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 10px; font-size: 14px; cursor: pointer; user-select: none; }
+  .accrow:hover { background: var(--hover); }
+  .chk { flex: none; width: 18px; height: 18px; border-radius: 5px; border: 1.5px solid var(--ink3); display: grid; place-items: center; }
+  .chk[data-on="1"], .chk[data-on="2"] { background: var(--accent); border-color: var(--accent); }
+  .chk[data-on="1"]::after { content: ""; width: 9px; height: 5px; border: 2px solid #fff; border-top: 0; border-right: 0; transform: translateY(-1px) rotate(-45deg); }
+  .chk[data-on="2"]::after { content: ""; width: 8px; height: 2px; border-radius: 1px; background: #fff; }
+  .acconly { padding: 2px 8px !important; font-size: 12px !important; visibility: hidden; }
+  .accrow:hover .acconly { visibility: visible; }
+  @media (hover: none) { .acconly { visibility: visible; } }
   /* глазик у «Всего»: прячет и показывает сумму */
   .eyebtn { display: inline-grid; place-items: center; width: 22px; height: 22px; padding: 0; border: 0; border-radius: 6px; background: none; color: var(--ink3); cursor: pointer; }
   .eyebtn:hover { background: var(--hover); color: var(--ink); }
@@ -1402,6 +1413,7 @@
                     <sc-for list="{{ repPresets }}" as="p" hint-placeholder-count="12"><option value="{{ p.value }}">{{ p.label }}</option></sc-for>
                   </select>
                 </div>
+                <button class="inp dfield accpick" data-open="{{ repAccOn }}" data-some="{{ repAccSomeFlag }}" onClick="{{ repAccOpen }}"><span>{{ repAccLabel }}</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"></path></svg></button>
                 <div class="seg" style="margin-left:auto">
                   <span class="segopt" data-on="{{ repBarsOn }}" onClick="{{ showRepBars }}">Столбцы</span>
                   <span class="segopt" data-on="{{ repDonutOn }}" onClick="{{ showRepDonut }}">Круг</span>
@@ -1484,6 +1496,7 @@
 
             <!-- по месяцам -->
             <sc-if value="{{ repMonths }}" hint-placeholder-val="{{ false }}">
+            <div style="margin-bottom:12px"><button class="inp dfield accpick" data-open="{{ repAccOn }}" data-some="{{ repAccSomeFlag }}" onClick="{{ repAccOpen }}"><span>{{ repAccLabel }}</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"></path></svg></button></div>
             <div class="card" style="padding:6px 18px 14px">
               <div class="num rgrid rhead" style="display:grid;grid-template-columns:minmax(0,1.4fr) repeat(4,minmax(0,1fr));gap:12px;padding:12px 0 10px;font-size:12px;color:var(--ink3);border-bottom:1px solid var(--line)">
                 <span style="font-variant-numeric:normal">Категория</span><span style="text-align:right">{{ reportHead1 }}</span><span style="text-align:right">{{ reportHead2 }}</span><span style="text-align:right">{{ reportHead3 }}</span><span style="text-align:right">Среднее</span>
@@ -2446,6 +2459,24 @@
     </div>
     </sc-if>
 
+    <!-- отчёт: выбор счетов, по умолчанию включены все -->
+    <sc-if value="{{ repAccPopOpen }}" hint-placeholder-val="{{ false }}">
+    <div style="position:fixed;inset:0;z-index:60" onClick="{{ repAccClose }}"></div>
+    <div class="dpop" style="top:{{ repAccTop }};bottom:{{ repAccBottom }};left:{{ repAccLeft }}px;padding:8px;max-height:calc(100vh - 24px);overflow-y:auto">
+      <div class="accrow" onClick="{{ repAccAll }}" style="font-weight:600;border-bottom:1px solid var(--line);border-radius:10px 10px 0 0;margin-bottom:4px">
+        <span class="chk" data-on="{{ repAccAllOn }}"></span><span style="flex:1">Все счета</span>
+      </div>
+      <sc-for list="{{ repAccList }}" as="a" hint-placeholder-count="6">
+        <div class="accrow" onClick="{{ a.toggle }}">
+          <span class="chk" data-on="{{ a.on }}"></span>
+          <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ a.name }}</span>
+          <span style="font-size:12px;color:var(--ink3)">{{ a.cur }}</span>
+          <button class="btn btn-t acconly" onClick="{{ a.only }}">только</button>
+        </div>
+      </sc-for>
+    </div>
+    </sc-if>
+
     <!-- всплывающий календарь полей дат: один на страницу, встаёт под нажатым полем -->
     <sc-if value="{{ dpOpen }}" hint-placeholder-val="{{ false }}">
     <div style="position:fixed;inset:0;z-index:60" onClick="{{ dpClose }}"></div>
@@ -2789,6 +2820,8 @@ class Component extends DCLogic {
     recurring: [], rcId: null, rcType: "expense", rcAcc: "", rcAmount: "", rcFreq: "month", rcCat: "", rcTitle: "", rcStart: TODAY, rcMsg: "",
     theme: initialTheme, cents: initialCents,
     repMode: "detail", repFrom: THIS_MONTH + "-01", repTo: TODAY, repPreset: "month", repView: "bars", repPath: [], repList: null,
+    // счета, выключенные в отчёте (по умолчанию в отчёт идут все, и новые счета тоже)
+    repOff: [], repAccPop: null,
     expPreset: "all", expFrom: "", expTo: "", expTypes: { expense: true, income: true, transfer: true, trade: true }, expMsg: "",
     cats: [], accounts: [], txs: [], crypto: [], rates: {}, backups: [],
     delAccTo: "",
@@ -2803,8 +2836,8 @@ class Component extends DCLogic {
   componentDidMount() {
     // a system theme change repaints the charts that pick their slots by theme
     if (window.matchMedia) matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => this.forceUpdate());
-    // всплывающий календарь стоит на месте поля — при прокрутке и смене размера закрывается
-    const closeDp = () => { if (this.state.dp) this.setState({ dp: null }); };
+    // всплывающий календарь и список счетов отчёта стоят на месте поля — при прокрутке и смене размера закрывается
+    const closeDp = () => { if (this.state.dp || this.state.repAccPop) this.setState({ dp: null, repAccPop: null }); };
     addEventListener("scroll", closeDp, true);
     addEventListener("resize", closeDp);
     addEventListener("keydown", e => { if (e.key === "Escape") closeDp(); });
@@ -3647,6 +3680,35 @@ class Component extends DCLogic {
 
   // ---- бекапы ----
 
+  // ---- отчёт: какие счета в нём учитываются ----
+  repAccVals() {
+    const st = this.state, names = st.accounts.map(a => a.name);
+    const on = names.filter(n => !st.repOff.includes(n));
+    const setOff = off => this.setState({ repOff: off, repPath: [], repList: null });
+    const pop = st.repAccPop;
+    return {
+      repAccLabel: on.length === names.length ? "Все счета" : on.length === 0 ? "Счета не выбраны"
+        : on.length === 1 ? on[0] : "Счета: " + on.length + " из " + names.length,
+      repAccOn: pop ? "1" : "0",
+      repAccSomeFlag: on.length < names.length ? "1" : "0",
+      repAccOpen: e => pop ? this.set("repAccPop", null) : this.set("repAccPop", this.popPos(e, 300, 64 + 42 * names.length)),
+      repAccPopOpen: !!pop, repAccTop: pop ? pop.top : "auto", repAccBottom: pop ? pop.bottom : "auto", repAccLeft: pop ? pop.left : 0,
+      repAccClose: () => this.set("repAccPop", null),
+      repAccAllOn: on.length === names.length ? "1" : on.length ? "2" : "0",
+      // «Все счета»: если включены все — выключить все, иначе включить все
+      repAccAll: () => setOff(on.length === names.length ? names.slice() : []),
+      repAccList: st.accounts.map(a => {
+        const off = st.repOff.includes(a.name);
+        return {
+          key: a.name, name: a.name, cur: a.cur === "RUB" ? "" : a.cur, on: off ? "0" : "1",
+          toggle: () => setOff(off ? st.repOff.filter(n => n !== a.name) : st.repOff.concat([a.name])),
+          only: e => { e.stopPropagation(); setOff(names.filter(n => n !== a.name)); this.set("repAccPop", null); }
+        };
+      }),
+      repAccReset: () => setOff([])
+    };
+  }
+
   // ---- поля дат: своя кнопка и всплывающий календарь вместо системного ----
   // У каждого поля — значение и что сделать при выборе дня; у концов периода
   // ещё from/to, чтобы подсветить дни между ними.
@@ -3666,16 +3728,21 @@ class Component extends DCLogic {
 
   openDatePicker(key, e) {
     if (this.state.dp && this.state.dp.key === key) return this.set("dp", null);
-    const r = e.currentTarget.getBoundingClientRect(), v = this.dateFields()[key].value || TODAY;
-    // под полем, а если снизу не хватает места — над ним; не дальше 12px от краёв экрана
-    const W = 300, H = 360, vw = window.innerWidth, vh = window.innerHeight;
-    const left = Math.max(12, Math.min(r.left, vw - W - 12));
+    const v = this.dateFields()[key].value || TODAY;
+    this.setState({ dp: { key, y: Number(v.slice(0, 4)), m: Number(v.slice(5, 7)) - 1, ...this.popPos(e, 300, 360) } });
+  }
+
+  // Где встать всплывающему окну шириной W и высотой около H: под нажатым полем,
+  // а если снизу не хватает места — над ним (держась нижним краем, какой бы
+  // высоты окно ни вышло); не ближе 12px к краям экрана.
+  popPos(e, W, H) {
+    const r = e.currentTarget.getBoundingClientRect(), vw = window.innerWidth, vh = window.innerHeight;
     const below = vh - r.bottom >= H + 8 || r.top < H + 8;
-    this.setState({ dp: {
-      key, y: Number(v.slice(0, 4)), m: Number(v.slice(5, 7)) - 1, left: Math.round(left),
-      // над полем календарь держится нижним краем, какой бы высоты ни был месяц
-      top: below ? Math.round(r.bottom + 6) + "px" : "auto", bottom: below ? "auto" : Math.round(vh - r.top + 6) + "px"
-    } });
+    return {
+      left: Math.round(Math.max(12, Math.min(r.left, vw - W - 12))),
+      top: below ? Math.round(r.bottom + 6) + "px" : "auto",
+      bottom: below ? "auto" : Math.round(vh - r.top + 6) + "px"
+    };
   }
 
   datePickerVals() {
@@ -4023,13 +4090,17 @@ class Component extends DCLogic {
       : ["var(--c1)", "var(--c2)", "var(--c3)", "var(--c4)", "var(--c5)"];
     const OTHER = "var(--c-other)", SLOTS = PALETTE.length;
     const go = (path, list) => () => this.setState({ repPath: path, repList: list || null });
-    const flow = st.txs.filter(t => this.isFlow(t) && (!st.repFrom || t.d >= st.repFrom) && (!st.repTo || t.d <= st.repTo));
+    const flow = st.txs.filter(t => this.isFlow(t) && !st.repOff.includes(t.a) && (!st.repFrom || t.d >= st.repFrom) && (!st.repTo || t.d <= st.repTo));
     const kindOf = t => (t.v > 0 ? "income" : "expense");
     const sum = list => list.reduce((s, t) => s + Math.abs(inRub(t)), 0);
     const opsWord = n => pluralRu(n, "операция", "операции", "операций");
     const dm = d => d.split("-").reverse().join(".");
-    const period = st.repFrom && st.repTo ? this.rangeLabel(st.repFrom, st.repTo)
+    let period = st.repFrom && st.repTo ? this.rangeLabel(st.repFrom, st.repTo)
       : st.repFrom ? "с " + dm(st.repFrom) : st.repTo ? "по " + dm(st.repTo) : "за всё время";
+    // выбраны не все счета — итог говорит, по каким он
+    const accOn = st.accounts.filter(a => !st.repOff.includes(a.name));
+    if (st.repOff.length && accOn.length < st.accounts.length)
+      period += accOn.length === 1 ? " · счёт «" + accOn[0].name + "»" : " · " + pluralRu(accOn.length, "счёт", "счёта", "счетов");
 
     const [kind, ...trail] = st.repPath;
     const ops = kind ? flow.filter(t => kindOf(t) === kind) : flow;
@@ -4076,7 +4147,7 @@ class Component extends DCLogic {
     items.forEach((it, i) => {
       it.amountLabel = this.money(it.total);
       it.pctLabel = total ? Math.round((it.total / total) * 100) + " %" : "";
-      it.width = max ? Math.max(1, Math.round((it.total / max) * 100)) + "%" : "0%";
+      it.width = max && it.total ? Math.max(1, Math.round((it.total / max) * 100)) + "%" : "0%";
       it.swatch = !kind ? it.color : (i < SLOTS ? PALETTE[i] : OTHER);
       if (!it.open) it.open = () => {};
     });
@@ -5326,6 +5397,7 @@ class Component extends DCLogic {
       anaSummary: "доходы " + this.money(anaIncome) + " · траты " + this.money(anaExpense) + " · разница " + this.money(anaIncome - anaExpense),
       noSpendDisplay: catBars.length ? "none" : "block",
       ...this.reportVals(inRub),
+      ...(st.screen === "reports" ? this.repAccVals() : {}),
       reportHead1: monthName(reportKeys[0]), reportHead2: monthName(reportKeys[1]), reportHead3: monthName(reportKeys[2]),
       reportRows: (() => {
         const keys = reportKeys;
@@ -5334,7 +5406,7 @@ class Component extends DCLogic {
         keys.forEach(k => { incomeM[k] = 0; totalM[k] = 0; });
         st.txs.forEach(t => {
           const k = t.d.slice(0, 7);
-          if (!this.isFlow(t) || keys.indexOf(k) === -1) return;
+          if (!this.isFlow(t) || st.repOff.includes(t.a) || keys.indexOf(k) === -1) return;
           const v = inRub(t);
           if (v > 0) { incomeM[k] += v; return; }
           const r = rootOf(t.c);
