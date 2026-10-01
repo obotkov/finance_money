@@ -234,22 +234,20 @@
     .cr-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; gap: 10px !important; }
     .acc-top { grid-template-columns: minmax(0, 1fr) !important; }
   }
-  /* a tap on a date field opens the picker anyway, so a touch screen gives the icon's room to the date */
-  @media (max-width: 760px) and (pointer: coarse) {
-    .period input[type="date"]::-webkit-calendar-picker-indicator { display: none; }
-  }
   @media (max-width: 760px) {
     .tick[data-minor="1"] { display: none; }
     /* the period picker shares one line: dates shrink evenly, the preset takes the rest */
     .period { flex: 1 1 100%; gap: 4px; }
     .period .inp { font-size: 13px !important; padding: 8px 6px !important; }
-    .period input[type="date"] { flex: 1 1 0; min-width: 0; }
+    .period .dfield { flex: 1 1 0; min-width: 0; }
+    .period .dfield svg { display: none; }
     .period > span { display: none; } /* the dash: two dates side by side read as a range anyway */
-    .period input[type="date"]::-webkit-calendar-picker-indicator { margin: 0; padding: 0; width: 11px; }
     .period select { flex: 0 1 auto; min-width: 0; max-width: 37%; }
     /* iPhone приближает страницу, когда фокус попадает в поле со шрифтом меньше 16px,
        и после этого интерфейс не влезает в экран */
     input, select, textarea, .inp, .period .inp { font-size: 16px !important; }
+    /* поле даты — кнопка, iPhone её не приближает: дата целиком влезает в треть строки */
+    .period .dfield { font-size: 14px !important; }
     /* три поля сделки в строку: узкие колонки, подписи в одну строку */
     .deal3 { gap: 6px !important; }
     .deal3 .inp { padding: 9px 8px; }
@@ -413,6 +411,19 @@
     .dlg > .card { padding: 18px !important; border-radius: 18px !important; max-height: calc(100vh - 20px) !important; }
   }
   .day:hover { background: var(--hover); }
+  /* поле даты: кнопка в виде поля ввода, по нажатию — календарь .dpop */
+  .dfield { width: auto; display: inline-flex; align-items: center; justify-content: space-between; gap: 10px; cursor: pointer; font-family: inherit; text-align: left; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .dfield span { overflow: hidden; text-overflow: ellipsis; }
+  .dfield svg { width: 16px; height: 16px; flex: none; color: var(--ink3); }
+  .dfield:hover { background: var(--hover); }
+  .dfield[data-open="1"] { background: var(--card); border-color: var(--accent); }
+  .dfield[data-open="1"] svg { color: var(--accent); }
+  .dpop { position: fixed; z-index: 61; width: 300px; padding: 12px 12px 10px; border-radius: 18px; background: var(--raised); border: 1px solid var(--line); box-shadow: 0 18px 48px rgba(0,0,0,.26); }
+  .dpday { text-align: center; font-size: 13px; padding: 8px 0; border-radius: 980px; }
+  .dpday:hover { background: var(--hover); }
+  .dpday[data-today="1"] { color: var(--accent); font-weight: 600; }
+  .dpday[data-in="1"] { background: var(--accent-soft); }
+  .dpday[data-on="1"] { background: var(--accent); color: #fff; font-weight: 600; }
   .day[data-on="1"] { background: var(--accent); color: #fff; }
 </style>
 </helmet>
@@ -1379,9 +1390,9 @@
             <div class="card" style="padding:18px 20px 20px;display:flex;flex-direction:column;gap:14px">
               <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
                 <div class="period">
-                  <input class="inp" type="date" style="width:auto" value="{{ repFrom }}" onChange="{{ onRepFrom }}">
+                  <button class="inp dfield" data-open="{{ repFromOn }}" style="color:{{ repFromColor }}" onClick="{{ repFromOpen }}"><span>{{ repFromLabel }}</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3.5" y="5" width="17" height="15.5" rx="3"></rect><path d="M3.5 10h17M8 3v4M16 3v4"></path></svg></button>
                   <span style="font-size:13px;color:var(--ink3)">—</span>
-                  <input class="inp" type="date" style="width:auto" value="{{ repTo }}" onChange="{{ onRepTo }}">
+                  <button class="inp dfield" data-open="{{ repToOn }}" style="color:{{ repToColor }}" onClick="{{ repToOpen }}"><span>{{ repToLabel }}</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3.5" y="5" width="17" height="15.5" rx="3"></rect><path d="M3.5 10h17M8 3v4M16 3v4"></path></svg></button>
                   <select class="inp" style="width:auto" value="{{ repPreset }}" onChange="{{ onRepPreset }}">
                     <sc-for list="{{ repPresets }}" as="p" hint-placeholder-count="12"><option value="{{ p.value }}">{{ p.label }}</option></sc-for>
                   </select>
@@ -1488,9 +1499,9 @@
           <div class="screen" style="padding:22px 28px 32px;display:flex;flex-direction:column;gap:16px">
             <div class="card" style="padding:14px 18px;display:flex;flex-wrap:wrap;align-items:center;gap:12px">
               <div class="period">
-                <input class="inp" type="date" style="width:auto" value="{{ anaFrom }}" onChange="{{ onAnaFrom }}">
+                <button class="inp dfield" data-open="{{ anaFromOn }}" style="color:{{ anaFromColor }}" onClick="{{ anaFromOpen }}"><span>{{ anaFromLabel }}</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3.5" y="5" width="17" height="15.5" rx="3"></rect><path d="M3.5 10h17M8 3v4M16 3v4"></path></svg></button>
                 <span style="font-size:13px;color:var(--ink3)">—</span>
-                <input class="inp" type="date" style="width:auto" value="{{ anaTo }}" onChange="{{ onAnaTo }}">
+                <button class="inp dfield" data-open="{{ anaToOn }}" style="color:{{ anaToColor }}" onClick="{{ anaToOpen }}"><span>{{ anaToLabel }}</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3.5" y="5" width="17" height="15.5" rx="3"></rect><path d="M3.5 10h17M8 3v4M16 3v4"></path></svg></button>
                 <select class="inp" style="width:auto" value="{{ anaPreset }}" onChange="{{ onAnaPreset }}">
                   <sc-for list="{{ periodPresets }}" as="p" hint-placeholder-count="11"><option value="{{ p.value }}">{{ p.label }}</option></sc-for>
                 </select>
@@ -1727,7 +1738,7 @@
                     </select>
                   </div>
                   <div><span class="lbl">Описание</span><input class="inp" value="{{ rcTitle }}" onChange="{{ onRcTitle }}" placeholder="{{ rcTitlePlaceholder }}"></div>
-                  <div><span class="lbl">Первый раз</span><input class="inp" type="date" value="{{ rcStart }}" onChange="{{ onRcStart }}"></div>
+                  <div><span class="lbl">Первый раз</span><button class="inp dfield" data-open="{{ rcStartOn }}" style="color:{{ rcStartColor }};width:100%" onClick="{{ rcStartOpen }}"><span>{{ rcStartLabel }}</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3.5" y="5" width="17" height="15.5" rx="3"></rect><path d="M3.5 10h17M8 3v4M16 3v4"></path></svg></button></div>
                 </div>
                 <div style="font-size:12px;color:var(--ink3)">{{ rcHint }}</div>
                 <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
@@ -1746,9 +1757,9 @@
               <div style="display:flex;flex-direction:column;gap:10px">
                 <span class="lbl" style="margin:0">Период</span>
                 <div class="period">
-                  <input class="inp" type="date" style="width:auto" value="{{ expFrom }}" onChange="{{ onExpFrom }}">
+                  <button class="inp dfield" data-open="{{ expFromOn }}" style="color:{{ expFromColor }}" onClick="{{ expFromOpen }}"><span>{{ expFromLabel }}</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3.5" y="5" width="17" height="15.5" rx="3"></rect><path d="M3.5 10h17M8 3v4M16 3v4"></path></svg></button>
                   <span style="font-size:13px;color:var(--ink3)">—</span>
-                  <input class="inp" type="date" style="width:auto" value="{{ expTo }}" onChange="{{ onExpTo }}">
+                  <button class="inp dfield" data-open="{{ expToOn }}" style="color:{{ expToColor }}" onClick="{{ expToOpen }}"><span>{{ expToLabel }}</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3.5" y="5" width="17" height="15.5" rx="3"></rect><path d="M3.5 10h17M8 3v4M16 3v4"></path></svg></button>
                   <select class="inp" style="width:auto" value="{{ expPreset }}" onChange="{{ onExpPreset }}">
                     <sc-for list="{{ expPresets }}" as="p" hint-placeholder-count="12"><option value="{{ p.value }}">{{ p.label }}</option></sc-for>
                   </select>
@@ -2430,6 +2441,30 @@
     </div>
     </sc-if>
 
+    <!-- всплывающий календарь полей дат: один на страницу, встаёт под нажатым полем -->
+    <sc-if value="{{ dpOpen }}" hint-placeholder-val="{{ false }}">
+    <div style="position:fixed;inset:0;z-index:60" onClick="{{ dpClose }}"></div>
+    <div class="dpop" style="top:{{ dpTop }};bottom:{{ dpBottom }};left:{{ dpLeft }}px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <button class="btn btn-t" onClick="{{ dpPrev }}">‹</button>
+        <span class="big" style="font-size:15px">{{ dpMonth }}</span>
+        <button class="btn btn-t" onClick="{{ dpNext }}">›</button>
+      </div>
+      <div class="num" style="display:grid;grid-template-columns:repeat(7,1fr);font-size:11px;color:var(--ink3);text-align:center;margin-bottom:4px">
+        <span>пн</span><span>вт</span><span>ср</span><span>чт</span><span>пт</span><span>сб</span><span>вс</span>
+      </div>
+      <div class="num" style="display:grid;grid-template-columns:repeat(7,1fr);row-gap:2px">
+        <sc-for list="{{ dpDays }}" as="d" hint-placeholder-count="35">
+          <span class="dpday" data-on="{{ d.on }}" data-in="{{ d.inRange }}" data-today="{{ d.today }}" onClick="{{ d.pick }}" style="cursor:{{ d.cursor }};border-radius:{{ d.radius }}">{{ d.label }}</span>
+        </sc-for>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px">
+        <span style="font-size:12px;color:var(--ink3)">{{ dpHint }}</span>
+        <button class="btn btn-t" style="padding:6px 10px" onClick="{{ dpToday }}">Сегодня</button>
+      </div>
+    </div>
+    </sc-if>
+
   </div>
 </div>
 </x-dc>
@@ -2752,13 +2787,18 @@ class Component extends DCLogic {
     dealDate: TODAY, dealOther: "", dealOut: "", dealIn: "", dealInTouched: false,
     crOpen: null, crAccOpen: null, crPortId: null, crPortName: "", crPortPlace: "",
     crAssetId: null, crAssetPort: null, crAssetCoin: "BTC", crAssetAmount: "", crAssetInvested: "",
-    online: false, busy: false, demo: false, donutHover: null,
+    online: false, busy: false, demo: false, donutHover: null, dp: null,
     user: null, needLogin: false, googleEnabled: false, authConfigured: false, authError: ""
   };
 
   componentDidMount() {
     // a system theme change repaints the charts that pick their slots by theme
     if (window.matchMedia) matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => this.forceUpdate());
+    // всплывающий календарь стоит на месте поля — при прокрутке и смене размера закрывается
+    const closeDp = () => { if (this.state.dp) this.setState({ dp: null }); };
+    addEventListener("scroll", closeDp, true);
+    addEventListener("resize", closeDp);
+    addEventListener("keydown", e => { if (e.key === "Escape") closeDp(); });
     // Google sign-in failures come back as ?auth_error=<message>
     const authError = new URLSearchParams(location.search).get("auth_error");
     if (authError) {
@@ -3579,7 +3619,7 @@ class Component extends DCLogic {
       rcCat: cat, onRcCat: e => this.set("rcCat", e.target.value), rcCatOptions: cats,
       rcTitle: st.rcTitle, onRcTitle: e => this.set("rcTitle", e.target.value),
       rcTitlePlaceholder: cat || "как в категории",
-      rcStart: start, onRcStart: e => this.set("rcStart", e.target.value || TODAY),
+      rcStart: start,
       rcHint: due.length > RC_MAX_CATCH_UP ? "С такой даты пришлось бы записать больше " + RC_MAX_CATCH_UP + " операций — выберите дату позже."
         : due.length === 1 && due[0] === TODAY ? "Первая операция запишется сразу, сегодня; следующая — " + this.longDate(upcoming) + "."
         : due.length ? "Сразу запишется " + pluralRu(due.length, "операция", "операции", "операций") + " за прошедшие сроки"
@@ -3597,6 +3637,81 @@ class Component extends DCLogic {
   }
 
   // ---- бекапы ----
+
+  // ---- поля дат: своя кнопка и всплывающий календарь вместо системного ----
+  // У каждого поля — значение и что сделать при выборе дня; у концов периода
+  // ещё from/to, чтобы подсветить дни между ними.
+  dateFields() {
+    const st = this.state;
+    const period = (from, to, preset, extra = {}) => ({
+      [from]: { value: st[from], from: st[from], to: st[to], set: v => this.setState({ [from]: v, [preset]: "custom", ...extra }) },
+      [to]: { value: st[to], from: st[from], to: st[to], set: v => this.setState({ [to]: v, [preset]: "custom", ...extra }) }
+    });
+    return {
+      ...period("repFrom", "repTo", "repPreset"),
+      ...period("anaFrom", "anaTo", "anaPreset"),
+      ...period("expFrom", "expTo", "expPreset", { expMsg: "" }),
+      rcStart: { value: st.rcStart || TODAY, set: v => this.set("rcStart", v) }
+    };
+  }
+
+  openDatePicker(key, e) {
+    if (this.state.dp && this.state.dp.key === key) return this.set("dp", null);
+    const r = e.currentTarget.getBoundingClientRect(), v = this.dateFields()[key].value || TODAY;
+    // под полем, а если снизу не хватает места — над ним; не дальше 12px от краёв экрана
+    const W = 300, H = 360, vw = window.innerWidth, vh = window.innerHeight;
+    const left = Math.max(12, Math.min(r.left, vw - W - 12));
+    const below = vh - r.bottom >= H + 8 || r.top < H + 8;
+    this.setState({ dp: {
+      key, y: Number(v.slice(0, 4)), m: Number(v.slice(5, 7)) - 1, left: Math.round(left),
+      // над полем календарь держится нижним краем, какой бы высоты ни был месяц
+      top: below ? Math.round(r.bottom + 6) + "px" : "auto", bottom: below ? "auto" : Math.round(vh - r.top + 6) + "px"
+    } });
+  }
+
+  datePickerVals() {
+    const st = this.state, fields = this.dateFields(), dp = st.dp;
+    const out = {};
+    for (const [key, f] of Object.entries(fields)) {
+      out[key + "Label"] = f.value ? f.value.slice(8, 10) + "." + f.value.slice(5, 7) + "." + f.value.slice(0, 4) : "дд.мм.гггг";
+      out[key + "Color"] = f.value ? "var(--ink)" : "var(--ink3)";
+      out[key + "On"] = dp && dp.key === key ? "1" : "0";
+      out[key + "Open"] = e => this.openDatePicker(key, e);
+    }
+    const f = dp && fields[dp.key];
+    if (!f) return { ...out, dpOpen: false, dpDays: [] };
+    const { y, m } = dp;
+    const lead = (new Date(y, m, 1).getDay() + 6) % 7, len = new Date(y, m + 1, 0).getDate();
+    const days = [];
+    for (let i = 0; i < lead; i++) days.push({ key: "b" + i, label: "", radius: "0", on: "0", inRange: "0", today: "0", cursor: "default", pick: null });
+    for (let d = 1; d <= len; d++) {
+      const iso = y + "-" + pad2(m + 1) + "-" + pad2(d), col = (lead + d - 1) % 7;
+      // период — сплошная полоса: скругляется на концах периода и на краях недели и месяца
+      const roundL = col === 0 || d === 1 || iso === f.from, roundR = col === 6 || d === len || iso === f.to;
+      days.push({
+        radius: iso === f.value ? "980px" : (roundL ? "980px" : "0") + " " + (roundR ? "980px 980px" : "0 0") + " " + (roundL ? "980px" : "0"),
+        key: iso, label: String(d), cursor: "pointer",
+        on: iso === f.value ? "1" : "0",
+        // другой конец периода и дни между концами
+        inRange: iso !== f.value && f.from && f.to && iso >= f.from && iso <= f.to ? "1" : "0",
+        today: iso === TODAY ? "1" : "0",
+        pick: () => { f.set(iso); this.set("dp", null); }
+      });
+    }
+    const shift = n => () => this.setState(s => {
+      const k = s.dp.y * 12 + s.dp.m + n;
+      return { dp: { ...s.dp, y: Math.floor(k / 12), m: k % 12 } };
+    });
+    const nDays = f.from && f.to && f.from <= f.to ? Math.round((new Date(f.to) - new Date(f.from)) / 864e5) + 1 : 0;
+    return {
+      ...out, dpOpen: true, dpDays: days, dpTop: dp.top, dpBottom: dp.bottom, dpLeft: dp.left,
+      dpMonth: MONTHS_NOM[m] + " " + y,
+      dpPrev: shift(-1), dpNext: shift(1),
+      dpHint: nDays ? "период — " + pluralRu(nDays, "день", "дня", "дней") : "",
+      dpToday: () => { f.set(TODAY); this.set("dp", null); },
+      dpClose: () => this.set("dp", null)
+    };
+  }
 
   // «28 сентября 2026, 23:48» — по часам браузера
   backupWhen(iso) {
@@ -4006,8 +4121,6 @@ class Component extends DCLogic {
         else if (p) this.setState({ repPreset: id, repFrom: p.from, repTo: p.to });
         else this.setState({ repPreset: "custom" });
       },
-      onRepFrom: e => this.setState({ repFrom: e.target.value, repPreset: "custom" }),
-      onRepTo: e => this.setState({ repTo: e.target.value, repPreset: "custom" }),
       repBarsOn: st.repView === "bars" ? "1" : "0", repDonutOn: st.repView === "donut" ? "1" : "0",
       showRepBars: () => this.set("repView", "bars"), showRepDonut: () => this.set("repView", "donut"),
       repCanBack: st.repPath.length > 0 || !!list,
@@ -5182,8 +5295,6 @@ class Component extends DCLogic {
       catBars, categories,
       ...this.anaCharts(inRub),
       anaFrom: st.anaFrom, anaTo: st.anaTo,
-      onAnaFrom: e => this.setState({ anaFrom: e.target.value, anaPreset: "custom" }),
-      onAnaTo: e => this.setState({ anaTo: e.target.value, anaPreset: "custom" }),
       anaPreset: st.anaPreset,
       periodPresets: this.presets().map(p => ({ key: p.id, value: p.id, label: p.label }))
         .concat([{ key: "custom", value: "custom", label: "Произвольно" }]),
@@ -5243,6 +5354,7 @@ class Component extends DCLogic {
       wipeAll: () => this.wipeAll(),
       ...(st.screen === "settings" ? this.backupVals() : {}),
       ...(st.screen === "settings" ? this.recurringVals() : {}),
+      ...this.datePickerVals(),
       dataText: st.dataText, onDataText: e => this.set("dataText", e.target.value),
       onPickFile: e => {
         const file = e.target.files && e.target.files[0];
@@ -5278,8 +5390,6 @@ class Component extends DCLogic {
             else this.setState({ expPreset: "custom" });
           },
           expFrom: st.expFrom, expTo: st.expTo,
-          onExpFrom: e => this.setState({ expFrom: e.target.value, expPreset: "custom", expMsg: "" }),
-          onExpTo: e => this.setState({ expTo: e.target.value, expPreset: "custom", expMsg: "" }),
           expKinds: [["expense", "Расходы"], ["income", "Доходы"], ["transfer", "Переводы"], ["trade", "Сделки"]].map(([k, label]) => ({
             key: k, label, on: st.expTypes[k] ? "1" : "0",
             // at least one kind stays selected
