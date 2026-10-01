@@ -384,7 +384,7 @@
     .cr-head { flex-wrap: wrap; }
     .cr-head > .cr-head-btns { flex: 1 1 100%; }
 
-    .acc-edit { display: none !important; } /* the whole row opens the account dialog */
+    .acc-edit { display: none !important; } /* the row opens the account; «Изменить» is on its page */
     .acc-head { display: none !important; }
     .acc-group { padding: 14px 16px 4px !important; }
     /* обычный счёт — название и баланс в одну строку; у крипто-счёта под названием три цифры с подписями */
@@ -412,6 +412,35 @@
     .dlg > .card { padding: 18px !important; border-radius: 18px !important; max-height: calc(100vh - 20px) !important; }
   }
   .day:hover { background: var(--hover); }
+  /* движение по счёту: итоги периода и выписка с остатком после каждой операции */
+  .av-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+  .av-cap { font-size: 12px; color: var(--ink3); }
+  .av-kpi { font-size: 19px; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .avgrid { display: grid; grid-template-columns: 92px minmax(0, 1.3fr) minmax(0, 1fr) minmax(110px, auto) minmax(110px, auto); gap: 14px; align-items: center; padding: 12px 14px; margin: 0 4px; border-radius: 12px; }
+  .av-head { padding: 10px 14px 8px; font-size: 12px; color: var(--ink3); border-bottom: 1px solid var(--line); border-radius: 0; }
+  .av-row[data-click="1"] { cursor: pointer; }
+  .av-row[data-click="0"]:hover { background: none; }
+  .av-date { font-size: 13px; color: var(--ink3); }
+  .av-what { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .av-kind { flex: none; font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 980px; background: var(--fill); color: var(--ink2); }
+  .av-kind[data-k="in"] { background: rgba(52,199,89,.14); color: var(--pos); }
+  .av-kind[data-k="out"] { background: rgba(255,59,48,.12); color: var(--neg); }
+  .av-kind[data-k="open"] { background: var(--accent-soft); color: var(--accent); }
+  .av-title { font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .av-note { font-size: 14px; color: var(--ink2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .av-amt { text-align: right; font-size: 15px; font-weight: 500; white-space: nowrap; }
+  .av-bal { text-align: right; font-size: 13px; color: var(--ink3); white-space: nowrap; }
+  @media (max-width: 760px) {
+    .av-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .av-kpi { font-size: 17px; }
+    .av-acc { flex: 1 1 100%; }
+    .av-head { display: none !important; }
+    /* строка: операция и сумма сверху, дата с комментарием и остаток снизу */
+    .avgrid { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "what amt" "date bal"; row-gap: 3px; column-gap: 10px; padding: 11px 10px; }
+    .av-what { grid-area: what; } .av-amt { grid-area: amt; } .av-date { grid-area: date; } .av-bal { grid-area: bal; }
+    .av-note { display: none; }
+    .av-edit { padding: 7px 11px !important; font-size: 14px !important; }
+  }
   /* выбор счетов в отчёте: строки с галочками, «только» — оставить один счёт */
   .accpick[data-some="1"] { color: var(--accent); }
   .accopt { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 10px; font-size: 14px; cursor: pointer; user-select: none; }
@@ -839,6 +868,71 @@
 
           <!-- Счета -->
           <sc-if value="{{ isAccounts }}" hint-placeholder-val="{{ false }}">
+          <!-- движение по одному счёту: период, выбор счёта и операции с остатком после каждой -->
+          <sc-if value="{{ accViewOn }}" hint-placeholder-val="{{ false }}">
+          <div class="screen" style="padding:22px 28px 32px;display:flex;flex-direction:column;gap:16px">
+            <div style="display:flex;align-items:center;gap:12px">
+              <button class="catback" style="width:36px;height:36px;font-size:22px" onClick="{{ accViewBack }}" title="Ко всем счетам" aria-label="Ко всем счетам">‹</button>
+              <span class="coin" data-len="{{ avIconLen }}" style="{{ avIconStyle }}">{{ avIcon }}</span>
+              <div style="min-width:0;flex:1">
+                <div class="big" style="font-size:18px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ avName }}</div>
+                <div style="font-size:12px;color:var(--ink3)">{{ avKind }}</div>
+              </div>
+              <div class="num" style="text-align:right">
+                <div class="big" style="font-size:19px;white-space:nowrap;color:{{ avBalColor }}">{{ avBalance }}</div>
+                <div style="font-size:12px;color:var(--ink3)">{{ avBalSub }}</div>
+              </div>
+              <button class="btn btn-s av-edit" onClick="{{ avEdit }}">Изменить</button>
+            </div>
+            <div class="card" style="padding:18px 20px 20px;display:flex;flex-direction:column;gap:16px">
+              <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                <div class="period">
+                  <button class="inp dfield" data-open="{{ avFromOn }}" style="color:{{ avFromColor }}" onClick="{{ avFromOpen }}"><span>{{ avFromLabel }}</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3.5" y="5" width="17" height="15.5" rx="3"></rect><path d="M3.5 10h17M8 3v4M16 3v4"></path></svg></button>
+                  <span style="font-size:13px;color:var(--ink3)">—</span>
+                  <button class="inp dfield" data-open="{{ avToOn }}" style="color:{{ avToColor }}" onClick="{{ avToOpen }}"><span>{{ avToLabel }}</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3.5" y="5" width="17" height="15.5" rx="3"></rect><path d="M3.5 10h17M8 3v4M16 3v4"></path></svg></button>
+                  <select class="inp" style="width:auto" value="{{ avPreset }}" onChange="{{ onAvPreset }}">
+                    <sc-for list="{{ avPresets }}" as="p" hint-placeholder-count="12"><option value="{{ p.value }}">{{ p.label }}</option></sc-for>
+                  </select>
+                </div>
+                <select class="inp av-acc" style="width:auto;max-width:100%" value="{{ avName }}" onChange="{{ onAvAcc }}">
+                  <sc-for list="{{ avAccOptions }}" as="o" hint-placeholder-count="6"><option value="{{ o.value }}">{{ o.label }}</option></sc-for>
+                </select>
+              </div>
+              <div class="av-kpis">
+                <div><div class="av-cap">Остаток на начало</div><div class="num big av-kpi">{{ avStart }}</div></div>
+                <div><div class="av-cap">Поступило</div><div class="num big av-kpi" style="color:var(--pos)">{{ avIn }}</div></div>
+                <div><div class="av-cap">Списано</div><div class="num big av-kpi">{{ avOut }}</div></div>
+                <div><div class="av-cap">Остаток на конец</div><div class="num big av-kpi">{{ avEnd }}</div></div>
+              </div>
+              <sc-if value="{{ avCoins }}" hint-placeholder-val="{{ false }}">
+                <div style="font-size:12px;color:var(--ink3);margin-top:-8px">Остатки — деньги на счёте без монет; монеты и их стоимость — в «Криптовалюте».</div>
+              </sc-if>
+              <div class="seg" style="align-self:flex-start">
+                <span class="segopt" data-on="{{ avfAll }}" onClick="{{ avSetAll }}">Все</span>
+                <span class="segopt" data-on="{{ avfIn }}" onClick="{{ avSetIn }}">Поступления</span>
+                <span class="segopt" data-on="{{ avfOut }}" onClick="{{ avSetOut }}">Списания</span>
+              </div>
+            </div>
+            <div class="card" style="padding:6px 4px" hidden="{{ avEmpty }}">
+              <div class="avgrid av-head">
+                <span>Дата</span><span>Операция</span><span>Комментарий</span><span style="text-align:right">Сумма</span><span style="text-align:right">Остаток</span>
+              </div>
+              <sc-for list="{{ avRows }}" as="r" hint-placeholder-count="8">
+                <div class="rowline avgrid av-row" data-click="{{ r.clickable }}" title="{{ r.hint }}" onClick="{{ r.edit }}">
+                  <span class="num av-date">{{ r.date }}</span>
+                  <span class="av-what"><span class="av-kind" data-k="{{ r.kind }}">{{ r.kindLabel }}</span><span class="av-title">{{ r.what }}</span></span>
+                  <span class="av-note">{{ r.note }}</span>
+                  <span class="num av-amt" style="color:{{ r.color }}">{{ r.amount }}</span>
+                  <span class="num av-bal">{{ r.after }}</span>
+                </div>
+              </sc-for>
+            </div>
+            <sc-if value="{{ avEmpty }}" hint-placeholder-val="{{ false }}">
+              <div style="padding:10px 4px;font-size:14px;color:var(--ink3)">{{ avEmptyText }}</div>
+            </sc-if>
+          </div>
+          </sc-if>
+          <sc-if value="{{ accListOn }}" hint-placeholder-val="{{ true }}">
           <div class="screen" style="padding:22px 28px 32px;display:flex;flex-direction:column;gap:16px">
             <!-- сверху две карточки одной высоты: где лежат деньги и чистый капитал -->
             <div class="acc-top">
@@ -913,7 +1007,7 @@
               </div>
               <sc-if value="{{ flat }}" hint-placeholder-val="{{ true }}">
               <sc-for list="{{ accounts }}" as="a" hint-placeholder-count="5">
-                <div class="rowline accrow acctr" data-crypto="{{ a.crypto }}" onClick="{{ a.edit }}">
+                <div class="rowline accrow acctr" data-crypto="{{ a.crypto }}" title="Движение по счёту" onClick="{{ a.open }}">
                   <span class="acc-name">
                     <span class="coin" data-len="{{ a.iconLen }}" style="{{ a.iconStyle }}">{{ a.icon }}</span>
                     <span style="min-width:0">
@@ -947,7 +1041,7 @@
                   <span class="num">{{ g.totalLabel }}</span>
                 </div>
                 <sc-for list="{{ g.items }}" as="a" hint-placeholder-count="2">
-                <div class="rowline accrow acctr" data-crypto="{{ a.crypto }}" onClick="{{ a.edit }}">
+                <div class="rowline accrow acctr" data-crypto="{{ a.crypto }}" title="Движение по счёту" onClick="{{ a.open }}">
                   <span class="acc-name">
                     <span class="coin" data-len="{{ a.iconLen }}" style="{{ a.iconStyle }}">{{ a.icon }}</span>
                     <span style="min-width:0">
@@ -991,6 +1085,7 @@
             </div>
             </sc-if>
           </div>
+          </sc-if>
           </sc-if>
 
           <!-- Криптовалюта -->
@@ -2823,6 +2918,8 @@ class Component extends DCLogic {
     repMode: "detail", repFrom: THIS_MONTH + "-01", repTo: TODAY, repPreset: "month", repView: "bars", repPath: [], repList: null,
     // счета, выключенные в отчёте (по умолчанию в отчёт идут все, и новые счета тоже)
     repOff: [], repAccPop: null,
+    // движение по счёту: какой счёт открыт (null — список счетов), период и фильтр
+    accView: null, avFrom: THIS_MONTH + "-01", avTo: TODAY, avPreset: "month", accFilter: "all",
     expPreset: "all", expFrom: "", expTo: "", expTypes: { expense: true, income: true, transfer: true, trade: true }, expMsg: "",
     cats: [], accounts: [], txs: [], crypto: [], rates: {}, backups: [],
     delAccTo: "",
@@ -3682,6 +3779,119 @@ class Component extends DCLogic {
 
   // ---- бекапы ----
 
+  // ---- движение по счёту ----
+  editAcc(i) {
+    const a = this.state.accounts[i];
+    this.setState({ dialog: "acc", editIndex: i, accName: a.name, accKind: a.kind, accCur: a.cur || "RUB" });
+  }
+  openAccView(name) {
+    this.setState({ accView: name, accFilter: "all" });
+    if (isNarrow()) window.scrollTo(0, 0);
+    else document.querySelector(".content")?.scrollTo(0, 0);
+  }
+
+  // События счёта, от новых к старым: доходы и расходы, переводы в обе стороны,
+  // сделки (закрытая покупка — двумя строками: покупка и закрытие) и открытие
+  // счёта с начальным остатком. v — как событие изменило остаток счёта в его
+  // валюте; монеты на крипто-счёте здесь не считаются, только деньги.
+  accEvents(name) {
+    const st = this.state, acc = st.accounts.find(a => a.name === name);
+    if (!acc) return [];
+    const cur = acc.cur || "RUB", ev = [];
+    const coin = t => this.coinAmount(Math.abs(t.got || 0), t.gotCur);
+    st.txs.forEach(t => {
+      if (t.type === "transfer") {
+        if (t.a === name) ev.push({ t, d: t.d, tm: t.tm, v: -t.v, kind: "out", kindLabel: "Перевод", what: "→ " + t.to, note: t.t === "Перевод" ? "" : t.t });
+        if (t.to === name) ev.push({ t, d: t.d, tm: t.tm, v: t.got != null ? t.got : t.v, kind: "in", kindLabel: "Перевод", what: "← " + t.a, note: t.t === "Перевод" ? "" : t.t });
+        return;
+      }
+      if (t.a !== name) return;
+      if (this.isTrade(t)) {
+        const buy = t.type === "buy";
+        ev.push({ t, d: t.d, tm: t.tm, v: t.v, kind: "trade", kindLabel: buy ? "Покупка" : "Продажа", what: (buy ? "+" : "−") + coin(t), note: "" });
+        if (this.isClosed(t))
+          ev.push({ t, d: t.closeD, tm: "", v: this.closeProceeds(t), kind: "trade", kindLabel: "Закрытие", what: "−" + coin(t), note: "сделка от " + this.dayLabel(t.d) });
+        return;
+      }
+      ev.push({ t, d: t.d, tm: t.tm, v: t.v, kind: t.v > 0 ? "in" : "out", kindLabel: t.v > 0 ? "Доход" : "Расход", what: this.catPathOf(t.c), note: t.t === t.c ? "" : t.t });
+    });
+    // начальный остаток: то, что было на счёте до первой операции
+    const opening = acc.balance - ev.reduce((s, e) => s + e.v, 0);
+    const firstD = ev.reduce((m, e) => (e.d < m ? e.d : m), "9999");
+    const openD = [acc.createdAt, firstD === "9999" ? "" : firstD].filter(Boolean).sort()[0] || TODAY;
+    const when = e => e.d + " " + (e.tm || "");
+    ev.sort((x, y) => (when(x) < when(y) ? 1 : when(x) > when(y) ? -1 : 0));
+    // открытие — самое раннее событие, после него в тот же день идут операции
+    ev.push({ t: null, d: openD, v: opening, kind: "open", kindLabel: "Открытие", what: "начальный остаток", note: "" });
+    // остаток после каждого события: от текущего назад
+    let bal = acc.balance;
+    ev.forEach(e => { e.after = bal; bal -= e.v; });
+    return ev.map(e => Object.assign(e, { cur }));
+  }
+
+  catPathOf(name) {
+    const st = this.state, parts = [];
+    for (let c = st.cats.find(x => x.name === name); c; c = c.parent == null ? null : st.cats.find(x => x.id === c.parent)) parts.unshift(c.name);
+    return parts.length ? parts.join(" › ") : name;
+  }
+
+  accViewVals() {
+    const st = this.state;
+    const i = st.accView == null ? -1 : st.accounts.findIndex(a => a.name === st.accView);
+    if (i < 0) return { accViewOn: false, accListOn: true, avRows: [], avAccOptions: [] };
+    const a = st.accounts[i], cur = a.cur || "RUB";
+    const all = this.accEvents(a.name);
+    const inside = e => (!st.avFrom || e.d >= st.avFrom) && (!st.avTo || e.d <= st.avTo);
+    const period = all.filter(inside);
+    // остаток на конец — после последнего события по конец периода (до открытия — 0);
+    // открытие счёта — не поступление, поэтому на начало = конец минус движение за период
+    const last = all.find(e => !st.avTo || e.d <= st.avTo);
+    const endBal = last ? last.after : 0;
+    const moves = period.filter(e => e.kind !== "open");
+    const plus = moves.filter(e => e.v > 0).reduce((s, e) => s + e.v, 0);
+    const minus = moves.filter(e => e.v < 0).reduce((s, e) => s - e.v, 0);
+    const startBal = endBal - plus + minus;
+    const shown = period.filter(e => st.accFilter === "all" || (e.kind !== "open" && (st.accFilter === "in" ? e.v > 0 : e.v < 0)));
+    const worth = this.accWorth(a), badge = curBadge(cur);
+    const dm = d => d.split("-").reverse().join(".");
+    return {
+      accViewOn: true, accListOn: false,
+      accViewBack: () => this.set("accView", null),
+      avIcon: badge.icon, avIconLen: badge.iconLen, avIconStyle: badge.iconStyle,
+      avName: a.name, avKind: cur === "RUB" ? a.kind : a.kind + " · " + cur,
+      avBalance: this.money(worth, cur), avBalColor: worth < 0 ? "var(--neg)" : "var(--ink)",
+      avBalSub: cur === "RUB" ? "сейчас" : "≈ " + this.money(this.accRub(a)),
+      avEdit: () => this.editAcc(i),
+      avCoins: a.kind === "Криптокошелёк" && all.some(e => e.kind === "trade"),
+      avAccOptions: st.accounts.map(x => ({ key: x.name, value: x.name, label: x.cur === "RUB" ? x.name : x.name + " · " + x.cur })),
+      onAvAcc: e => this.setState({ accView: e.target.value }),
+      avPreset: st.avPreset,
+      avPresets: [{ key: "all", value: "all", label: "Всё время" }]
+        .concat(this.presets().map(p => ({ key: p.id, value: p.id, label: p.label })))
+        .concat([{ key: "custom", value: "custom", label: "Произвольно" }]),
+      onAvPreset: e => {
+        const id = e.target.value, p = this.presets().find(x => x.id === id);
+        if (id === "all") this.setState({ avPreset: id, avFrom: "", avTo: "" });
+        else if (p) this.setState({ avPreset: id, avFrom: p.from, avTo: p.to });
+        else this.setState({ avPreset: "custom" });
+      },
+      avStart: this.money(startBal, cur), avEnd: this.money(endBal, cur),
+      avIn: "+" + this.fmt(plus, cur), avOut: (minus ? "−" : "") + this.fmt(minus, cur),
+      avfAll: st.accFilter === "all" ? "1" : "0", avfIn: st.accFilter === "in" ? "1" : "0", avfOut: st.accFilter === "out" ? "1" : "0",
+      avSetAll: () => this.set("accFilter", "all"), avSetIn: () => this.set("accFilter", "in"), avSetOut: () => this.set("accFilter", "out"),
+      avEmpty: !shown.length,
+      avEmptyText: period.length ? "Таких движений за период нет." : "За выбранный период движений по счёту нет.",
+      avRows: shown.map((e, k) => ({
+        key: e.d + k + e.kind, date: dm(e.d), kind: e.kind, kindLabel: e.kindLabel, what: e.what, note: e.note,
+        amount: e.v === 0 ? this.fmt(0, cur) : this.signed(e.v, cur),
+        color: e.kind === "open" ? "var(--ink2)" : e.v > 0 ? "var(--pos)" : e.v < 0 ? "var(--neg)" : "var(--ink3)",
+        after: this.money(e.after, cur),
+        clickable: e.t ? "1" : "0", hint: e.t ? "Изменить операцию" : "",
+        edit: e.t ? () => this.editOp(e.t) : () => {}
+      }))
+    };
+  }
+
   // ---- отчёт: какие счета в нём учитываются ----
   repAccVals() {
     const st = this.state, names = st.accounts.map(a => a.name);
@@ -3725,6 +3935,7 @@ class Component extends DCLogic {
       ...period("repFrom", "repTo", "repPreset"),
       ...period("anaFrom", "anaTo", "anaPreset"),
       ...period("expFrom", "expTo", "expPreset", { expMsg: "" }),
+      ...period("avFrom", "avTo", "avPreset"),
       rcStart: { value: st.rcStart || TODAY, set: v => this.set("rcStart", v) }
     };
   }
@@ -4453,7 +4664,7 @@ class Component extends DCLogic {
     try { localStorage.setItem("hideTotal", v ? "1" : "0"); } catch (_) { /* storage off: the choice lasts until reload */ }
   }
   goScreen(id) {
-    this.setState({ screen: id, moreOpen: false, opsCalOpen: false });
+    this.setState({ screen: id, moreOpen: false, opsCalOpen: false, accView: null });
     try { localStorage.setItem("screen", id); } catch (_) { /* storage off: the section lasts until reload */ }
     if (isNarrow()) window.scrollTo(0, 0);
     else document.querySelector(".content")?.scrollTo(0, 0);
@@ -4754,7 +4965,9 @@ class Component extends DCLogic {
     const titles = {
       summary: ["Сводка", monthNow + " · прошло " + pluralRu(TODAY_D, "день", "дня", "дней")],
       ops: ["Операции", monthNow],
-      accounts: ["Счета и активы", st.accounts.length + " счетов · рубли, валюта и крипто"],
+      accounts: st.accView && st.accounts.some(a => a.name === st.accView)
+        ? ["Счета и активы", "движение по счёту — доходы, расходы, переводы и сделки"]
+        : ["Счета и активы", st.accounts.length + " счетов · рубли, валюта и крипто"],
       crypto: ["Криптовалюта", ""],
       budgets: ["Бюджеты и лимиты", monthNow],
       reports: ["Отчёт по тратам и доходам", st.repMode === "months"
@@ -4814,7 +5027,9 @@ class Component extends DCLogic {
         pnlLabel: hasInvested ? this.usdt(p.pnl, true) : "—",
         pnlSub: hasInvested ? (p.invested > 0 ? this.pctLabel(p.pnl, p.invested) : "") : "",
         pnlColor: !hasInvested ? "var(--ink3)" : p.pnl > 0.005 ? "var(--pos)" : p.pnl < -0.005 ? "var(--neg)" : "var(--ink2)",
-        edit: () => this.setState({ dialog: "acc", editIndex: i, accName: a.name, accKind: a.kind, accCur: a.cur || "RUB" })
+        // строка открывает движение по счёту, «Изменить» — окно счёта
+        open: () => this.openAccView(a.name),
+        edit: e => { e.stopPropagation(); this.editAcc(i); }
       });
     });
     // итог по P&L и вложенному — только по крипто-счетам, где вложенное есть
@@ -5404,6 +5619,7 @@ class Component extends DCLogic {
       noSpendDisplay: catBars.length ? "none" : "block",
       ...this.reportVals(inRub),
       ...(st.screen === "reports" ? this.repAccVals() : {}),
+      ...this.accViewVals(),
       reportHead1: monthName(reportKeys[0]), reportHead2: monthName(reportKeys[1]), reportHead3: monthName(reportKeys[2]),
       reportRows: (() => {
         const keys = reportKeys;
@@ -6152,12 +6368,14 @@ class Component extends DCLogic {
         // открытый крипто-счёт остаётся открытым после переименования
         const renaming = st.editIndex !== null && st.accounts[st.editIndex].name === st.crAccOpen;
         const crAccOpen = !renaming ? st.crAccOpen : st.accKind === "Криптокошелёк" ? name : null;
+        // и движение по счёту тоже остаётся на нём
+        const accView = st.editIndex !== null && st.accounts[st.editIndex].name === st.accView ? name : st.accView;
         if (st.online) {
           const body = { name, kind: st.accKind, balance, cur: st.accCur };
           const req = st.editIndex === null
             ? this.api("POST", "accounts", body)
             : this.api("PUT", "accounts/" + st.accounts[st.editIndex].id, body);
-          req.then(() => this.setState({ dialog: null, crAccOpen }), () => {});
+          req.then(() => this.setState({ dialog: null, crAccOpen, accView }), () => {});
           return;
         }
         const accounts = st.accounts.slice();
@@ -6168,7 +6386,7 @@ class Component extends DCLogic {
         const txs = was === null || was === name ? st.txs
           : st.txs.map(t => (t.a !== was && t.to !== was ? t
             : { ...t, a: t.a === was ? name : t.a, to: t.to === was ? name : t.to }));
-        this.setState({ accounts, txs, dialog: null, crAccOpen });
+        this.setState({ accounts, txs, dialog: null, crAccOpen, accView });
       }
     };
   }
