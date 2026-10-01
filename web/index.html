@@ -247,6 +247,9 @@
     .period > span { display: none; } /* the dash: two dates side by side read as a range anyway */
     .period input[type="date"]::-webkit-calendar-picker-indicator { margin: 0; padding: 0; width: 11px; }
     .period select { flex: 0 1 auto; min-width: 0; max-width: 37%; }
+    /* iPhone приближает страницу, когда фокус попадает в поле со шрифтом меньше 16px,
+       и после этого интерфейс не влезает в экран */
+    input, select, textarea, .inp, .period .inp { font-size: 16px !important; }
     .page { padding: 0 0 28px !important; }
     .appcard { border-radius: 0 !important; box-shadow: none !important; min-height: 100vh; }
 
@@ -1976,6 +1979,24 @@
           <span class="segopt" data-on="{{ incOn }}" onClick="{{ setIncome }}">Доход</span>
           <span class="segopt" data-on="{{ trOn }}" onClick="{{ setTransfer }}">Перевод</span>
         </div>
+        <!-- дата первой: операцию чаще вносят не в тот день, когда она была -->
+        <div style="margin-top:16px"><span class="lbl">Дата — {{ dateLabel }}</span>
+          <div style="background:var(--fill);border-radius:16px;padding:12px">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+              <button class="btn btn-t" onClick="{{ prevMonth }}">‹</button>
+              <span class="big" style="font-size:15px">{{ monthLabel }}</span>
+              <button class="btn btn-t" onClick="{{ nextMonth }}">›</button>
+            </div>
+            <div class="num" style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;font-size:11px;color:var(--ink3);text-align:center;margin-bottom:4px">
+              <span>пн</span><span>вт</span><span>ср</span><span>чт</span><span>пт</span><span>сб</span><span>вс</span>
+            </div>
+            <div class="num" style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px">
+              <sc-for list="{{ days }}" as="d" hint-placeholder-count="35">
+                <span class="day" data-on="{{ d.on }}" onClick="{{ d.pick }}" style="text-align:center;font-size:13px;padding:7px 0;border-radius:980px;cursor:{{ d.cursor }}">{{ d.label }}</span>
+              </sc-for>
+            </div>
+          </div>
+        </div>
         <sc-if value="{{ isTransfer }}" hint-placeholder-val="{{ false }}">
           <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px;margin-top:16px">
             <div><span class="lbl">Списать, {{ fromSym }}</span><input class="inp" inputMode="decimal" value="{{ amount }}" onChange="{{ onAmount }}" placeholder="0"></div>
@@ -2021,23 +2042,6 @@
           </div>
         </div>
         </sc-if>
-        <div style="margin-top:16px"><span class="lbl">Дата — {{ dateLabel }}</span>
-          <div style="background:var(--fill);border-radius:16px;padding:12px">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-              <button class="btn btn-t" onClick="{{ prevMonth }}">‹</button>
-              <span class="big" style="font-size:15px">{{ monthLabel }}</span>
-              <button class="btn btn-t" onClick="{{ nextMonth }}">›</button>
-            </div>
-            <div class="num" style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;font-size:11px;color:var(--ink3);text-align:center;margin-bottom:4px">
-              <span>пн</span><span>вт</span><span>ср</span><span>чт</span><span>пт</span><span>сб</span><span>вс</span>
-            </div>
-            <div class="num" style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px">
-              <sc-for list="{{ days }}" as="d" hint-placeholder-count="35">
-                <span class="day" data-on="{{ d.on }}" onClick="{{ d.pick }}" style="text-align:center;font-size:13px;padding:7px 0;border-radius:980px;cursor:{{ d.cursor }}">{{ d.label }}</span>
-              </sc-for>
-            </div>
-          </div>
-        </div>
         <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px">
           <sc-if value="{{ editing }}" hint-placeholder-val="{{ false }}">
             <button class="btn btn-t" style="margin-right:auto;color:var(--neg)" onClick="{{ delEdited }}">Удалить</button>
