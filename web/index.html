@@ -441,6 +441,9 @@
     .av-note { display: none; }
     .av-edit { padding: 7px 11px !important; font-size: 14px !important; }
   }
+  /* «Добавить монету» — последняя строка списка криптовалют в «Курсах» */
+  .coin-addrow { display: flex; align-items: center; gap: 10px; width: calc(100% - 8px); margin: 4px 4px 0; padding: 11px 14px; border: 0; border-radius: 12px; background: none; font: inherit; font-size: 15px; color: var(--accent); cursor: pointer; text-align: left; }
+  .coin-addplus { width: 28px; height: 28px; flex: none; display: grid; place-items: center; border-radius: 50%; border: 1.5px dashed var(--accent); font-size: 18px; line-height: 1; }
   /* выбор счетов в отчёте: строки с галочками, «только» — оставить один счёт */
   .accpick[data-some="1"] { color: var(--accent); }
   .accopt { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 10px; font-size: 14px; cursor: pointer; user-select: none; }
@@ -1392,9 +1395,6 @@
               <div class="seg">
                 <sc-for list="{{ ratesTabs }}" as="t" hint-placeholder-count="3"><span class="segopt" data-on="{{ t.on }}" onClick="{{ t.pick }}">{{ t.label }}</span></sc-for>
               </div>
-              <sc-if value="{{ ratesCrypto }}" hint-placeholder-val="{{ false }}">
-                <button class="btn btn-s" onClick="{{ openCoinAdd }}">+ Добавить монету</button>
-              </sc-if>
               <sc-if value="{{ ratesCanRefresh }}" hint-placeholder-val="{{ false }}">
                 <button class="btn btn-t" style="margin-left:auto" onClick="{{ refreshRates }}">Обновить</button>
               </sc-if>
@@ -1426,6 +1426,12 @@
                   </span>
                 </div>
               </sc-for>
+              <!-- монеты не из списка — найти в CoinGecko и добавить последней строкой -->
+              <sc-if value="{{ ratesCrypto }}" hint-placeholder-val="{{ false }}">
+                <button class="rowline coin-addrow" onClick="{{ openCoinAdd }}">
+                  <span class="coin-addplus">+</span>Добавить монету<span style="margin-left:auto;font-size:12px;color:var(--ink3)">поиск по CoinGecko</span>
+                </button>
+              </sc-if>
             </div>
             <div style="font-size:12px;color:var(--ink3);padding:0 4px">{{ ratesSource }} {{ ratesNote }}</div>
           </div>
@@ -2571,7 +2577,11 @@
               <img src="{{ c.thumb }}" alt="" width="28" height="28" style="flex:none;border-radius:50%;background:var(--fill)">
               <span style="flex:1;min-width:0">
                 <span style="display:block;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ c.name }}</span>
-                <span class="num" style="display:block;font-size:12px;color:var(--ink3)">{{ c.code }} <span style="margin-left:6px">{{ c.rank }}</span></span>
+                <span class="num" style="display:block;font-size:12px;color:var(--ink3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ c.code }} <span style="margin-left:6px">{{ c.rank }}</span></span>
+              </span>
+              <span class="num" style="text-align:right;white-space:nowrap">
+                <span style="display:block;font-size:15px">{{ c.usd }}</span>
+                <span style="display:block;font-size:12px;color:var(--ink3)">{{ c.rubPrice }}</span>
               </span>
               <sc-if value="{{ c.canAdd }}" hint-placeholder-val="{{ true }}">
                 <button class="btn btn-p" style="padding:6px 14px;font-size:14px" onClick="{{ c.add }}">Добавить</button>
@@ -3882,7 +3892,9 @@ class Component extends DCLogic {
           .map((c, i, all) => {
             const first = all.findIndex(x => x.code === c.code) === i;
             return { ...c, status: COIN[c.code] ? (first ? "tracked" : "taken") : CUR[c.code] ? "taken" : "" };
-          }));
+          }))
+          .then(list => !list.length ? list : fetch("https://api.coingecko.com/api/v3/simple/price?vs_currencies=usd,rub&ids=" + list.map(c => encodeURIComponent(c.id)).join(","))
+            .then(r => r.json()).then(p => list.map(c => ({ ...c, usd: (p[c.id] || {}).usd || 0, rub: (p[c.id] || {}).rub || 0 })), () => list));
     req.then(list => done(list, list.length ? "" : "Ничего не нашлось"), err => done([], (err && err.message) || "Поиск сейчас не отвечает — попробуйте через минуту"));
   }
   // после добавления монета сразу выбирается там, откуда открыли поиск
@@ -3932,6 +3944,9 @@ class Component extends DCLogic {
       coinFoundList: st.coinFound.map(c => ({
         key: c.id, name: c.name, code: c.code, thumb: c.thumb || "",
         rank: c.rank ? "#" + c.rank : "",
+        // цена — чтобы по ней отличить монету от тёзок
+        usd: c.usd > 0 ? "$" + c.usd.toLocaleString("ru-RU", { maximumSignificantDigits: c.usd >= 1 ? undefined : 4, maximumFractionDigits: c.usd >= 1 ? 2 : undefined }).replace(/\u00a0/g, " ") : "",
+        rubPrice: c.rub > 0 ? c.rub.toLocaleString("ru-RU", { maximumSignificantDigits: c.rub >= 100 ? undefined : 4, maximumFractionDigits: c.rub >= 100 ? 0 : undefined }).replace(/\u00a0/g, " ") + " ₽" : "",
         canAdd: !c.status, cantAdd: !!c.status,
         statusLabel: STATUS[c.status] || "",
         statusTitle: c.status === "taken" ? "Тикер " + c.code + " уже у другой монеты" + (c.takenBy ? ": " + c.takenBy : "") : "",

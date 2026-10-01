@@ -22,6 +22,8 @@ import (
 const (
 	coingeckoSearchURL  = "https://api.coingecko.com/api/v3/search?query=%s"
 	coingeckoMarketsURL = "https://api.coingecko.com/api/v3/coins/markets?vs_currency=rub&ids=%s"
+	// цены найденных монет — чтобы по цене было видно, та ли это монета
+	coingeckoSearchPriceURL = "https://api.coingecko.com/api/v3/simple/price?vs_currencies=usd,rub&ids=%s"
 	// сколько своих монет может быть на сервере: каждая — ещё один курс в каждом обновлении
 	maxExtraCoins = 300
 	// поиск CoinGecko без ключа — несколько запросов в минуту, поэтому ответы запоминаются
@@ -98,12 +100,15 @@ func (s *Store) userCoins(ctx context.Context, uid int64) ([]Coin, error) {
 // FoundCoin — монета из поиска; Status: builtin — встроенная, tracked — уже в
 // списке пользователя, taken — тикер занят другой монетой, "" — можно добавить.
 type FoundCoin struct {
-	ID     string `json:"id"`
-	Code   string `json:"code"`
-	Name   string `json:"name"`
-	Thumb  string `json:"thumb"`
-	Rank   int    `json:"rank"`
-	Status string `json:"status"`
+	ID    string `json:"id"`
+	Code  string `json:"code"`
+	Name  string `json:"name"`
+	Thumb string `json:"thumb"`
+	Rank  int    `json:"rank"`
+	// цена сейчас; 0 — CoinGecko её не знает (или не ответил)
+	Usd    float64 `json:"usd"`
+	Rub    float64 `json:"rub"`
+	Status string  `json:"status"`
 	// для taken — какая монета занимает тикер
 	TakenBy string `json:"takenBy,omitempty"`
 }
@@ -152,6 +157,7 @@ func (u *RateUpdater) SearchCoins(ctx context.Context, q string) ([]FoundCoin, e
 		if err != nil {
 			return nil, err
 		}
+		u.priceFound(ctx, coins)
 		e = searchEntry{at: time.Now(), coins: coins}
 		searchCache.Lock()
 		if len(searchCache.m) > 500 {
@@ -161,6 +167,30 @@ func (u *RateUpdater) SearchCoins(ctx context.Context, q string) ([]FoundCoin, e
 		searchCache.Unlock()
 	}
 	return slices.Clone(e.coins), nil
+}
+
+// priceFound дописывает найденным монетам цену. Без цены поиск всё равно
+// полезен, поэтому ошибка только пишется в лог.
+func (u *RateUpdater) priceFound(ctx context.Context, coins []FoundCoin) {
+	if len(coins) == 0 {
+		return
+	}
+	ids := make([]string, len(coins))
+	for i, c := range coins {
+		ids[i] = url.QueryEscape(c.ID)
+	}
+	body, err := u.get(ctx, fmt.Sprintf(coingeckoSearchPriceURL, strings.Join(ids, ",")))
+	var prices map[string]map[string]float64
+	if err == nil {
+		err = json.Unmarshal(body, &prices)
+	}
+	if err != nil {
+		u.log.Warn("coin search prices", "err", err)
+		return
+	}
+	for i := range coins {
+		coins[i].Usd, coins[i].Rub = prices[coins[i].ID]["usd"], prices[coins[i].ID]["rub"]
+	}
 }
 
 func parseCoinGeckoSearch(body []byte) ([]FoundCoin, error) {
