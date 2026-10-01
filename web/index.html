@@ -1630,6 +1630,63 @@
               </div>
               <span class="num" style="margin-left:auto;font-size:13px;color:var(--ink2)">{{ anaSummary }}</span>
             </div>
+            <div class="card" style="padding:20px 22px">
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+                <div class="big" style="font-size:17px">Категории по периодам</div>
+                <div class="seg">
+                  <sc-for list="{{ catGrans }}" as="g" hint-placeholder-count="3"><span class="segopt" data-on="{{ g.on }}" onClick="{{ g.pick }}">{{ g.label }}</span></sc-for>
+                </div>
+              </div>
+              <div style="font-size:12px;color:var(--ink3);margin-top:2px">{{ catCaption }}</div>
+              <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:12px">
+                <sc-for list="{{ catSeries }}" as="s" hint-placeholder-count="3">
+                  <span style="display:inline-flex;align-items:center;gap:8px;padding:4px 4px 4px 12px;border-radius:980px;background:var(--fill);font-size:13px;max-width:100%">
+                    <span style="width:10px;height:10px;border-radius:3px;flex:none;background:{{ s.color }}"></span>
+                    <span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ s.name }}</span>
+                    <button class="btn btn-t" style="padding:2px 8px;font-size:15px;line-height:1;color:var(--ink3)" title="Убрать" aria-label="{{ s.removeAria }}" onClick="{{ s.remove }}">×</button>
+                  </span>
+                </sc-for>
+                <sc-if value="{{ catCanAdd }}" hint-placeholder-val="{{ true }}">
+                  <select class="inp" style="width:auto;max-width:100%" value="" onChange="{{ onCatAdd }}" aria-label="Добавить категорию на график">
+                    <option value="">+ категория</option>
+                    <optgroup label="Расходы">
+                      <sc-for list="{{ catAddExpense }}" as="o" hint-placeholder-count="6"><option value="{{ o.value }}" disabled="{{ o.disabled }}">{{ o.label }}</option></sc-for>
+                    </optgroup>
+                    <optgroup label="Доходы">
+                      <sc-for list="{{ catAddIncome }}" as="o" hint-placeholder-count="2"><option value="{{ o.value }}" disabled="{{ o.disabled }}">{{ o.label }}</option></sc-for>
+                    </optgroup>
+                  </select>
+                </sc-if>
+                <span style="font-size:12px;color:var(--ink3);display:{{ catLimitDisplay }}">не больше пяти категорий</span>
+              </div>
+              <sc-if value="{{ catHasSeries }}" hint-placeholder-val="{{ true }}">
+                <div style="position:relative;margin-top:14px">
+                  <svg viewBox="0 0 620 210" style="display:block;width:100%;height:auto" role="img" aria-label="{{ catAria }}" onMouseLeave="{{ catLeave }}">
+                    <sc-for list="{{ catHits }}" as="h" hint-placeholder-count="6"><rect x="{{ h.x }}" y="24" width="{{ h.w }}" height="176" rx="4" style="fill:{{ h.fill }}" onMouseEnter="{{ h.enter }}" onClick="{{ h.enter }}"></rect></sc-for>
+                    <line x1="16" y1="40" x2="604" y2="40" style="stroke:var(--grid);stroke-dasharray:3 4;pointer-events:none"></line>
+                    <sc-for list="{{ catBarsP }}" as="b" hint-placeholder-count="12"><rect x="{{ b.x }}" y="{{ b.y }}" width="{{ b.w }}" height="{{ b.h }}" rx="{{ b.rx }}" style="fill:{{ b.color }};pointer-events:none"></rect></sc-for>
+                    <line x1="16" y1="200" x2="604" y2="200" style="stroke:var(--grid);pointer-events:none"></line>
+                  </svg>
+                  <span class="num" style="position:absolute;left:0;top:19%;transform:translateY(-115%);font-size:11px;color:var(--ink3);pointer-events:none">{{ catMaxLabel }}</span>
+                <sc-if value="{{ catTip }}" hint-placeholder-val="{{ false }}">
+                  <div style="position:absolute;top:6%;left:{{ catTipL }};right:{{ catTipR }};width:max-content;min-width:min(150px,40%);max-width:40%;padding:10px 12px;border-radius:12px;background:var(--raised);border:1px solid var(--line);box-shadow:0 8px 24px rgba(0,0,0,.22);font-size:12px;pointer-events:none;z-index:2">
+                    <div style="font-size:13px;font-weight:600;margin-bottom:6px">{{ catTipTitle }}</div>
+                    <sc-for list="{{ catTipRows }}" as="r" hint-placeholder-count="3">
+                      <div style="display:flex;align-items:center;gap:8px;padding:3px 0;font-weight:{{ r.weight }};border-top:{{ r.border }}">
+                        <span style="width:8px;height:8px;border-radius:2px;flex:none;background:{{ r.color }}"></span>
+                        <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink2)">{{ r.label }}</span>
+                        <span class="num" style="white-space:nowrap;margin-left:8px">{{ r.value }}</span>
+                      </div>
+                    </sc-for>
+                  </div>
+                </sc-if>
+                </div>
+                <div style="position:relative;height:16px;margin-top:4px">
+                  <sc-for list="{{ catTicks }}" as="t" hint-placeholder-count="6"><span class="tick" data-minor="{{ t.minor }}" style="position:absolute;left:{{ t.left }};transform:translateX(-50%);font-size:11px;color:var(--ink3);white-space:nowrap">{{ t.label }}</span></sc-for>
+                </div>
+              </sc-if>
+              <p style="margin:10px 0 0;font-size:13px;color:var(--ink2);max-width:60ch">{{ catNote }}</p>
+            </div>
             <div class="cols" style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:16px;align-items:start">
             <div class="card" style="padding:20px 22px">
               <div class="big" style="font-size:17px">Траты по категориям</div>
@@ -1696,64 +1753,6 @@
               </div>
               <p style="margin:10px 0 0;font-size:13px;color:var(--ink2);max-width:52ch">{{ anaNote }}</p>
             </div>
-            </div>
-
-            <div class="card" style="padding:20px 22px">
-              <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
-                <div class="big" style="font-size:17px">Категории по периодам</div>
-                <div class="seg">
-                  <sc-for list="{{ catGrans }}" as="g" hint-placeholder-count="3"><span class="segopt" data-on="{{ g.on }}" onClick="{{ g.pick }}">{{ g.label }}</span></sc-for>
-                </div>
-              </div>
-              <div style="font-size:12px;color:var(--ink3);margin-top:2px">{{ catCaption }}</div>
-              <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:12px">
-                <sc-for list="{{ catSeries }}" as="s" hint-placeholder-count="3">
-                  <span style="display:inline-flex;align-items:center;gap:8px;padding:4px 4px 4px 12px;border-radius:980px;background:var(--fill);font-size:13px;max-width:100%">
-                    <span style="width:10px;height:10px;border-radius:3px;flex:none;background:{{ s.color }}"></span>
-                    <span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ s.name }}</span>
-                    <button class="btn btn-t" style="padding:2px 8px;font-size:15px;line-height:1;color:var(--ink3)" title="Убрать" aria-label="{{ s.removeAria }}" onClick="{{ s.remove }}">×</button>
-                  </span>
-                </sc-for>
-                <sc-if value="{{ catCanAdd }}" hint-placeholder-val="{{ true }}">
-                  <select class="inp" style="width:auto;max-width:100%" value="" onChange="{{ onCatAdd }}" aria-label="Добавить категорию на график">
-                    <option value="">+ категория</option>
-                    <optgroup label="Расходы">
-                      <sc-for list="{{ catAddExpense }}" as="o" hint-placeholder-count="6"><option value="{{ o.value }}" disabled="{{ o.disabled }}">{{ o.label }}</option></sc-for>
-                    </optgroup>
-                    <optgroup label="Доходы">
-                      <sc-for list="{{ catAddIncome }}" as="o" hint-placeholder-count="2"><option value="{{ o.value }}" disabled="{{ o.disabled }}">{{ o.label }}</option></sc-for>
-                    </optgroup>
-                  </select>
-                </sc-if>
-                <span style="font-size:12px;color:var(--ink3);display:{{ catLimitDisplay }}">не больше пяти категорий</span>
-              </div>
-              <sc-if value="{{ catHasSeries }}" hint-placeholder-val="{{ true }}">
-                <div style="position:relative;margin-top:14px">
-                  <svg viewBox="0 0 620 210" style="display:block;width:100%;height:auto" role="img" aria-label="{{ catAria }}" onMouseLeave="{{ catLeave }}">
-                    <sc-for list="{{ catHits }}" as="h" hint-placeholder-count="6"><rect x="{{ h.x }}" y="24" width="{{ h.w }}" height="176" rx="4" style="fill:{{ h.fill }}" onMouseEnter="{{ h.enter }}" onClick="{{ h.enter }}"></rect></sc-for>
-                    <line x1="16" y1="40" x2="604" y2="40" style="stroke:var(--grid);stroke-dasharray:3 4;pointer-events:none"></line>
-                    <sc-for list="{{ catBarsP }}" as="b" hint-placeholder-count="12"><rect x="{{ b.x }}" y="{{ b.y }}" width="{{ b.w }}" height="{{ b.h }}" rx="{{ b.rx }}" style="fill:{{ b.color }};pointer-events:none"></rect></sc-for>
-                    <line x1="16" y1="200" x2="604" y2="200" style="stroke:var(--grid);pointer-events:none"></line>
-                  </svg>
-                  <span class="num" style="position:absolute;left:0;top:19%;transform:translateY(-115%);font-size:11px;color:var(--ink3);pointer-events:none">{{ catMaxLabel }}</span>
-                <sc-if value="{{ catTip }}" hint-placeholder-val="{{ false }}">
-                  <div style="position:absolute;top:6%;left:{{ catTipL }};right:{{ catTipR }};width:max-content;min-width:min(150px,40%);max-width:40%;padding:10px 12px;border-radius:12px;background:var(--raised);border:1px solid var(--line);box-shadow:0 8px 24px rgba(0,0,0,.22);font-size:12px;pointer-events:none;z-index:2">
-                    <div style="font-size:13px;font-weight:600;margin-bottom:6px">{{ catTipTitle }}</div>
-                    <sc-for list="{{ catTipRows }}" as="r" hint-placeholder-count="3">
-                      <div style="display:flex;align-items:center;gap:8px;padding:3px 0;font-weight:{{ r.weight }};border-top:{{ r.border }}">
-                        <span style="width:8px;height:8px;border-radius:2px;flex:none;background:{{ r.color }}"></span>
-                        <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink2)">{{ r.label }}</span>
-                        <span class="num" style="white-space:nowrap;margin-left:8px">{{ r.value }}</span>
-                      </div>
-                    </sc-for>
-                  </div>
-                </sc-if>
-                </div>
-                <div style="position:relative;height:16px;margin-top:4px">
-                  <sc-for list="{{ catTicks }}" as="t" hint-placeholder-count="6"><span class="tick" data-minor="{{ t.minor }}" style="position:absolute;left:{{ t.left }};transform:translateX(-50%);font-size:11px;color:var(--ink3);white-space:nowrap">{{ t.label }}</span></sc-for>
-                </div>
-              </sc-if>
-              <p style="margin:10px 0 0;font-size:13px;color:var(--ink2);max-width:60ch">{{ catNote }}</p>
             </div>
           </div>
           </sc-if>
