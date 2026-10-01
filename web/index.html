@@ -414,14 +414,14 @@
   .day:hover { background: var(--hover); }
   /* выбор счетов в отчёте: строки с галочками, «только» — оставить один счёт */
   .accpick[data-some="1"] { color: var(--accent); }
-  .accrow { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 10px; font-size: 14px; cursor: pointer; user-select: none; }
-  .accrow:hover { background: var(--hover); }
+  .accopt { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 10px; font-size: 14px; cursor: pointer; user-select: none; }
+  .accopt:hover { background: var(--hover); }
   .chk { flex: none; width: 18px; height: 18px; border-radius: 5px; border: 1.5px solid var(--ink3); display: grid; place-items: center; }
   .chk[data-on="1"], .chk[data-on="2"] { background: var(--accent); border-color: var(--accent); }
   .chk[data-on="1"]::after { content: ""; width: 9px; height: 5px; border: 2px solid #fff; border-top: 0; border-right: 0; transform: translateY(-1px) rotate(-45deg); }
   .chk[data-on="2"]::after { content: ""; width: 8px; height: 2px; border-radius: 1px; background: #fff; }
   .acconly { padding: 2px 8px !important; font-size: 12px !important; visibility: hidden; }
-  .accrow:hover .acconly { visibility: visible; }
+  .accopt:hover .acconly { visibility: visible; }
   @media (hover: none) { .acconly { visibility: visible; } }
   /* глазик у «Всего»: прячет и показывает сумму */
   .eyebtn { display: inline-grid; place-items: center; width: 22px; height: 22px; padding: 0; border: 0; border-radius: 6px; background: none; color: var(--ink3); cursor: pointer; }
@@ -2464,11 +2464,11 @@
     <div style="position:fixed;inset:0;z-index:60" onClick="{{ repAccClose }}"></div>
     <div class="dpop" style="top:{{ repAccTop }};bottom:{{ repAccBottom }};left:{{ repAccLeft }}px;padding:0 8px 8px;max-height:{{ repAccMaxH }};overflow-y:auto;overscroll-behavior:contain">
       <!-- «Все счета» остаётся наверху, пока список прокручивается -->
-      <div class="accrow" onClick="{{ repAccAll }}" style="position:sticky;top:0;z-index:1;background:var(--raised);font-weight:600;border-bottom:1px solid var(--line);border-radius:0;margin:0 -8px 4px;padding:17px 18px 13px">
+      <div class="accopt" onClick="{{ repAccAll }}" style="position:sticky;top:0;z-index:1;background:var(--raised);font-weight:600;border-bottom:1px solid var(--line);border-radius:0;margin:0 -8px 4px;padding:17px 18px 13px">
         <span class="chk" data-on="{{ repAccAllOn }}"></span><span style="flex:1">Все счета</span>
       </div>
       <sc-for list="{{ repAccList }}" as="a" hint-placeholder-count="6">
-        <div class="accrow" onClick="{{ a.toggle }}">
+        <div class="accopt" onClick="{{ a.toggle }}">
           <span class="chk" data-on="{{ a.on }}"></span>
           <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ a.name }}</span>
           <span style="font-size:12px;color:var(--ink3)">{{ a.cur }}</span>
