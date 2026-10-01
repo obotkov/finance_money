@@ -248,6 +248,7 @@
     input, select, textarea, .inp, .period .inp { font-size: 16px !important; }
     /* поле даты — кнопка, iPhone её не приближает: дата целиком влезает в треть строки */
     .period .dfield { font-size: 14px !important; }
+    .eyebtn { width: 32px; height: 32px; margin: -6px 0; }
     /* три поля сделки в строку: узкие колонки, подписи в одну строку */
     .deal3 { gap: 6px !important; }
     .deal3 .inp { padding: 9px 8px; }
@@ -411,6 +412,10 @@
     .dlg > .card { padding: 18px !important; border-radius: 18px !important; max-height: calc(100vh - 20px) !important; }
   }
   .day:hover { background: var(--hover); }
+  /* глазик у «Всего»: прячет и показывает сумму */
+  .eyebtn { display: inline-grid; place-items: center; width: 22px; height: 22px; padding: 0; border: 0; border-radius: 6px; background: none; color: var(--ink3); cursor: pointer; }
+  .eyebtn:hover { background: var(--hover); color: var(--ink); }
+  .eyebtn svg { width: 15px; height: 15px; }
   /* поле даты: кнопка в виде поля ввода, по нажатию — календарь .dpop */
   .dfield { width: auto; display: inline-flex; align-items: center; justify-content: space-between; gap: 10px; cursor: pointer; font-family: inherit; text-align: left; font-variant-numeric: tabular-nums; white-space: nowrap; }
   .dfield span { overflow: hidden; text-overflow: ellipsis; }
@@ -461,8 +466,8 @@
             </sc-for>
           </div>
           <div class="sidefoot" style="margin-top:auto;padding:14px 10px 0;border-top:1px solid var(--line)">
-            <div style="font-size:12px;color:var(--ink3)">Всего</div>
-            <div class="num big" style="font-size:22px;margin-top:2px">{{ totalLabel }}</div>
+            <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ink3)">Всего<button class="eyebtn" title="{{ totalEyeTitle }}" onClick="{{ toggleTotal }}"><sc-if value="{{ totalShown }}" hint-placeholder-val="{{ true }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"></path><circle cx="12" cy="12" r="3"></circle></svg></sc-if><sc-if value="{{ totalHidden }}" hint-placeholder-val="{{ false }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10.6 5.6A9.6 9.6 0 0 1 12 5.5c6 0 9.5 6.5 9.5 6.5a16 16 0 0 1-2.6 3.4M6.4 6.9C3.9 8.5 2.5 12 2.5 12S6 18.5 12 18.5c1.7 0 3.2-.5 4.5-1.2"></path><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2M3.5 3.5l17 17"></path></svg></sc-if></button></div>
+            <div class="num big" style="font-size:22px;margin-top:2px">{{ sideTotal }}</div>
             <sc-if value="{{ hasUser }}" hint-placeholder-val="{{ false }}">
               <div style="margin-top:14px;font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="{{ userEmail }}">{{ userLabel }}</div>
               <a href="#" style="font-size:13px" onClick="{{ logout }}">Выйти</a>
@@ -1898,8 +1903,8 @@
         </sc-for>
         <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:12px;border-top:1px solid var(--line);margin-top:8px;padding:12px 12px 0">
           <div>
-            <div style="font-size:12px;color:var(--ink3)">Всего</div>
-            <div class="num big" style="font-size:20px">{{ totalLabel }}</div>
+            <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ink3)">Всего<button class="eyebtn" title="{{ totalEyeTitle }}" onClick="{{ toggleTotal }}"><sc-if value="{{ totalShown }}" hint-placeholder-val="{{ true }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"></path><circle cx="12" cy="12" r="3"></circle></svg></sc-if><sc-if value="{{ totalHidden }}" hint-placeholder-val="{{ false }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10.6 5.6A9.6 9.6 0 0 1 12 5.5c6 0 9.5 6.5 9.5 6.5a16 16 0 0 1-2.6 3.4M6.4 6.9C3.9 8.5 2.5 12 2.5 12S6 18.5 12 18.5c1.7 0 3.2-.5 4.5-1.2"></path><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2M3.5 3.5l17 17"></path></svg></sc-if></button></div>
+            <div class="num big" style="font-size:20px">{{ sideTotal }}</div>
           </div>
           <sc-if value="{{ hasUser }}" hint-placeholder-val="{{ false }}">
             <div style="min-width:0;text-align:right">
@@ -2581,6 +2586,10 @@ const applyTheme = t => {
 const initialCents = (() => {
   try { return localStorage.getItem("cents") === "1"; } catch (_) { return false; }
 })();
+// «Всего» в боковой панели можно спрятать глазиком — выбор помнит браузер
+const initialHideTotal = (() => {
+  try { return localStorage.getItem("hideTotal") === "1"; } catch (_) { return false; }
+})();
 // the open section survives a reload; an unknown or missing value opens the summary
 const SCREENS = ["summary", "ops", "accounts", "crypto", "rates", "budgets", "reports", "charts", "categories", "settings"];
 const initialScreen = (() => {
@@ -2787,7 +2796,7 @@ class Component extends DCLogic {
     dealDate: TODAY, dealOther: "", dealOut: "", dealIn: "", dealInTouched: false,
     crOpen: null, crAccOpen: null, crPortId: null, crPortName: "", crPortPlace: "",
     crAssetId: null, crAssetPort: null, crAssetCoin: "BTC", crAssetAmount: "", crAssetInvested: "",
-    online: false, busy: false, demo: false, donutHover: null, dp: null,
+    online: false, busy: false, demo: false, donutHover: null, dp: null, hideTotal: initialHideTotal,
     user: null, needLogin: false, googleEnabled: false, authConfigured: false, authError: ""
   };
 
@@ -4361,6 +4370,11 @@ class Component extends DCLogic {
     this.setState({ cents: v });
     try { localStorage.setItem("cents", v ? "1" : "0"); } catch (_) { /* storage off: the choice lasts until reload */ }
   }
+  toggleTotal() {
+    const v = !this.state.hideTotal;
+    this.setState({ hideTotal: v });
+    try { localStorage.setItem("hideTotal", v ? "1" : "0"); } catch (_) { /* storage off: the choice lasts until reload */ }
+  }
   goScreen(id) {
     this.setState({ screen: id, moreOpen: false, opsCalOpen: false });
     try { localStorage.setItem("screen", id); } catch (_) { /* storage off: the section lasts until reload */ }
@@ -5220,6 +5234,10 @@ class Component extends DCLogic {
       accSumPnlColor: accSumPnlUsdt > 0.005 ? "var(--pos)" : accSumPnlUsdt < -0.005 ? "var(--neg)" : "var(--ink3)",
       accounts, accountShares, accountNames: st.accounts.map(a => a.name),
       totalLabel: this.money(total), freeLabel: this.money(free),
+      sideTotal: st.hideTotal ? "••• ••• ₽" : this.money(total),
+      totalShown: !st.hideTotal, totalHidden: st.hideTotal,
+      totalEyeTitle: st.hideTotal ? "Показать сумму" : "Скрыть сумму",
+      toggleTotal: e => { e.preventDefault(); e.stopPropagation(); this.toggleTotal(); },
       incomeLabel: this.money(income), expenseLabel: this.money(expense),
       savedLabel: "отложено " + this.money(income - expense),
       recent: st.txs.slice().sort((a, b) => (a.d < b.d ? 1 : -1)).slice(0, 6).map(shapeTx),
