@@ -1392,6 +1392,9 @@
               <div class="seg">
                 <sc-for list="{{ ratesTabs }}" as="t" hint-placeholder-count="3"><span class="segopt" data-on="{{ t.on }}" onClick="{{ t.pick }}">{{ t.label }}</span></sc-for>
               </div>
+              <sc-if value="{{ ratesCrypto }}" hint-placeholder-val="{{ false }}">
+                <button class="btn btn-s" onClick="{{ openCoinAdd }}">+ Добавить монету</button>
+              </sc-if>
               <sc-if value="{{ ratesCanRefresh }}" hint-placeholder-val="{{ false }}">
                 <button class="btn btn-t" style="margin-left:auto" onClick="{{ refreshRates }}">Обновить</button>
               </sc-if>
@@ -2554,6 +2557,51 @@
     </div>
     </sc-if>
 
+    <!-- поиск монеты в CoinGecko: поверх окна сделки или монеты, если открыт оттуда -->
+    <sc-if value="{{ coinAddOpen }}" hint-placeholder-val="{{ false }}">
+    <div class="dlg" style="position:fixed;inset:0;z-index:70;display:grid;place-items:center;padding:24px;overflow:auto;background:var(--overlay);backdrop-filter:blur(6px)" onClick="{{ coinAddClose }}">
+      <div class="card" style="width:min(480px,100%);max-height:calc(100vh - 48px);overflow-y:auto;padding:24px;border-radius:22px;box-shadow:0 24px 60px rgba(0,0,0,.22)" onClick="{{ stop }}">
+        <div class="big" style="font-size:21px">Добавить монету</div>
+        <div style="font-size:13px;color:var(--ink3);margin-top:2px">Поиск по CoinGecko — монета появится в курсах, сделках и портфелях</div>
+        <input class="inp coin-q" style="margin-top:16px" placeholder="Поиск монеты" value="{{ coinQ }}" onChange="{{ onCoinQ }}" autoComplete="off">
+        <div style="font-size:12px;color:var(--ink3);margin-top:8px;min-height:16px">{{ coinHint }}</div>
+        <div style="display:flex;flex-direction:column;gap:2px;margin-top:6px">
+          <sc-for list="{{ coinFoundList }}" as="c" hint-placeholder-count="5">
+            <div class="rowline" style="display:flex;align-items:center;gap:12px;padding:9px 10px;border-radius:12px">
+              <img src="{{ c.thumb }}" alt="" width="28" height="28" style="flex:none;border-radius:50%;background:var(--fill)">
+              <span style="flex:1;min-width:0">
+                <span style="display:block;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ c.name }}</span>
+                <span class="num" style="display:block;font-size:12px;color:var(--ink3)">{{ c.code }} <span style="margin-left:6px">{{ c.rank }}</span></span>
+              </span>
+              <sc-if value="{{ c.canAdd }}" hint-placeholder-val="{{ true }}">
+                <button class="btn btn-p" style="padding:6px 14px;font-size:14px" onClick="{{ c.add }}">Добавить</button>
+              </sc-if>
+              <sc-if value="{{ c.cantAdd }}" hint-placeholder-val="{{ false }}">
+                <span style="font-size:13px;color:var(--ink3);white-space:nowrap" title="{{ c.statusTitle }}">{{ c.statusLabel }}</span>
+              </sc-if>
+            </div>
+          </sc-for>
+        </div>
+        <sc-if value="{{ hasMyCoins }}" hint-placeholder-val="{{ false }}">
+          <div style="margin-top:18px;border-top:1px solid var(--line);padding-top:14px">
+            <span class="lbl">Ваши монеты</span>
+            <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:4px">
+              <sc-for list="{{ myCoins }}" as="m" hint-placeholder-count="3">
+                <span style="display:inline-flex;align-items:center;gap:8px;padding:5px 6px 5px 6px;border-radius:980px;background:var(--fill);font-size:14px" title="{{ m.name }}">
+                  <span class="coin" data-len="{{ m.iconLen }}" style="{{ m.iconStyle }};width:22px;height:22px;font-size:8px">{{ m.icon }}</span>{{ m.code }}
+                  <button class="btn btn-t" style="padding:0 6px;font-size:16px;line-height:1;color:var(--ink3)" title="Убрать из списка" onClick="{{ m.remove }}">×</button>
+                </span>
+              </sc-for>
+            </div>
+          </div>
+        </sc-if>
+        <div style="display:flex;justify-content:flex-end;margin-top:20px">
+          <button class="btn btn-s" onClick="{{ coinAddClose }}">Готово</button>
+        </div>
+      </div>
+    </div>
+    </sc-if>
+
     <!-- отчёт: выбор счетов, по умолчанию включены все -->
     <sc-if value="{{ repAccPopOpen }}" hint-placeholder-val="{{ false }}">
     <div style="position:fixed;inset:0;z-index:60" onClick="{{ repAccClose }}"></div>
@@ -2650,9 +2698,12 @@ const COIN_COLOR = {
 // Положили новый svg — допишите сюда код монеты, и значок подхватится во всех списках.
 const COIN_LOGO = ["BTC", "ETH", "USDT", "USDC", "TON", "SOL", "BNB", "XRP", "ADA",
   "DOGE", "TRX", "AVAX", "LINK", "DOT", "LTC", "SUI", "MATIC"];
+// Логотипы своих монет (найденных в CoinGecko) — ссылки на картинки CoinGecko.
+const COIN_IMG = {};
 // Значок валюты для строки списка: логотип монеты, а без файла — кружок её цвета с тикером.
 const curBadge = code => {
   const bg = COIN_COLOR[code] || "#8b8b8b";
+  if (COIN_IMG[code]) return { icon: "", iconLen: "1", iconStyle: "background:" + bg + " url(" + COIN_IMG[code] + ") center/cover no-repeat" };
   if (COIN_LOGO.indexOf(code) >= 0) {
     return { icon: "", iconLen: "1", iconStyle: "background:" + bg + " url(coins/" + code.toLowerCase() + ".svg) center/cover no-repeat" };
   }
@@ -2664,6 +2715,27 @@ COINS.forEach(([code, name, rub]) => { if (!CUR[code]) CUR[code] = { sym: code, 
 // Валюты счетов, которые считаются криптой: у них больше знаков после запятой,
 // и на них переключается счёт типа «Криптокошелёк».
 const CRYPTO_CURS = COINS.map(([code]) => code);
+// Свои монеты пользователя (с сервера или найденные в демо) встают в те же списки,
+// что и встроенные; убранная из списка — уходит из них.
+const BUILTIN_COINS = COINS.map(([code]) => code);
+const registerCoins = list => {
+  const keep = new Set(list.map(c => c.code));
+  for (let i = COINS.length - 1; i >= 0; i--) {
+    const code = COINS[i][0];
+    if (BUILTIN_COINS.indexOf(code) === -1 && !keep.has(code)) {
+      COINS.splice(i, 1); CRYPTO_CURS.splice(CRYPTO_CURS.indexOf(code), 1);
+      delete COIN[code]; delete CUR[code]; delete COIN_IMG[code];
+    }
+  }
+  list.forEach(c => {
+    if (BUILTIN_COINS.indexOf(c.code) !== -1) return;
+    if (!COIN[c.code]) { COINS.push([c.code, c.name, 0]); CRYPTO_CURS.push(c.code); }
+    COIN[c.code] = { name: c.name, rub: 0 };
+    if (!CUR[c.code]) CUR[c.code] = { sym: c.code, rate: 0, label: c.name + " · " + c.code };
+    // в style идёт как url(...) — берём только обычные https-ссылки
+    if (/^https:\/\/[^\s"'()\\]+$/.test(c.image || "")) COIN_IMG[c.code] = c.image;
+  });
+};
 
 // Monthly limits per category (not editable yet)
 const BUDGET_LIMITS = [["Продукты",25000],["Кафе и доставка",12000],["Транспорт",5000],["Жильё и связь",32000],["Здоровье",6000],["Подписки",2500]];
@@ -2918,6 +2990,8 @@ class Component extends DCLogic {
     repMode: "detail", repFrom: THIS_MONTH + "-01", repTo: TODAY, repPreset: "month", repView: "bars", repPath: [], repList: null,
     // счета, выключенные в отчёте (по умолчанию в отчёт идут все, и новые счета тоже)
     repOff: [], repAccPop: null,
+    // свои монеты: список пользователя и окно поиска (откуда открыто: rates, deal, asset)
+    coins: [], coinAdd: null, coinQ: "", coinFound: [], coinBusy: false, coinMsg: "",
     // движение по счёту: какой счёт открыт (null — список счетов), период и фильтр
     accView: null, avFrom: THIS_MONTH + "-01", avTo: TODAY, avPreset: "month", accFilter: "all",
     expPreset: "all", expFrom: "", expTo: "", expTypes: { expense: true, income: true, transfer: true, trade: true }, expMsg: "",
@@ -3349,6 +3423,8 @@ class Component extends DCLogic {
       ratesNote: !st.online || !last ? "Демо-режим: курсы примерные."
         : "Обновлено " + last.toLocaleString("ru-RU", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })
           + ", дальше — раз в час. Изменение — к вчерашнему дню.",
+      ratesCrypto: tab === "crypto",
+      openCoinAdd: () => this.openCoinAdd("rates"),
       refreshRates: () => { if (st.online) this.api("POST", "rates/refresh", {}).catch(() => {}); },
       ratesCanRefresh: st.online
     };
@@ -3364,6 +3440,7 @@ class Component extends DCLogic {
   }
 
   applyServer(data, extra) {
+    registerCoins(data.coins || []);
     const rates = data.rates || {};
     Object.keys(rates).forEach(k => { if (CUR[k]) CUR[k].rate = rates[k].rub; });
     const accounts = data.accounts || [], cats = data.cats || [];
@@ -3375,7 +3452,7 @@ class Component extends DCLogic {
       const cat = cats.some(c => c.name === s.cat && c.kind === kind) ? s.cat : this.firstLeaf(kind, cats);
       return Object.assign({ user: data.user || null, accounts, cats, txs: data.txs || [],
         crypto: data.crypto || [], rates, history: data.history || {}, backups: data.backups || [], recurring: data.recurring || [],
-        budgets: data.budgets || [], budgetAlert: data.budgetAlert || { on: true, pct: 90 }, pushKey: data.pushKey || "", pushDevices: data.pushDevices || 0,
+        budgets: data.budgets || [], coins: data.coins || [], budgetAlert: data.budgetAlert || { on: true, pct: 90 }, pushKey: data.pushKey || "", pushDevices: data.pushDevices || 0,
         currentBackup: data.currentBackup || null, acc, accTo, cat }, extra);
     });
   }
@@ -3778,6 +3855,95 @@ class Component extends DCLogic {
   }
 
   // ---- бекапы ----
+
+  // ---- свои монеты: поиск в CoinGecko и список на отслеживание ----
+  openCoinAdd(from) {
+    this.setState({ coinAdd: from, coinQ: "", coinFound: [], coinBusy: false, coinMsg: "" });
+    setTimeout(() => document.querySelector(".coin-q")?.focus(), 50);
+  }
+  onCoinQ(q) {
+    this.setState({ coinQ: q, coinMsg: "" });
+    clearTimeout(this.coinTimer);
+    // CoinGecko без ключа отвечает на несколько запросов в минуту — ищем, когда ввод замер
+    this.coinTimer = setTimeout(() => this.searchCoins(q), 500);
+  }
+  searchCoins(q) {
+    q = q.trim();
+    if (q.length < 2) { this.setState({ coinFound: [], coinBusy: false }); return; }
+    this.setState({ coinBusy: true });
+    const done = (list, msg) => { if (this.state.coinQ.trim() === q) this.setState({ coinFound: list, coinBusy: false, coinMsg: msg || "" }); };
+    const req = this.state.online
+      ? fetch(API + "coins/search?q=" + encodeURIComponent(q)).then(r => r.json().then(d => { if (!r.ok) throw new Error(d.error); return d.coins || []; }))
+      // демо: сервера нет — спрашиваем CoinGecko прямо из браузера и помечаем по тикеру
+      : fetch("https://api.coingecko.com/api/v3/search?query=" + encodeURIComponent(q)).then(r => r.json()).then(d => (d.coins || [])
+          .map(c => ({ id: c.id, code: String(c.symbol || "").trim().toUpperCase(), name: c.name, thumb: c.thumb, rank: c.market_cap_rank || 0 }))
+          .filter(c => c.id && /^[A-Z0-9]{1,12}$/.test(c.code)).slice(0, 12)
+          // CoinGecko отдаёт по капитализации: первая монета с тикером из списка — та самая, остальные — тёзки
+          .map((c, i, all) => {
+            const first = all.findIndex(x => x.code === c.code) === i;
+            return { ...c, status: COIN[c.code] ? (first ? "tracked" : "taken") : CUR[c.code] ? "taken" : "" };
+          }));
+    req.then(list => done(list, list.length ? "" : "Ничего не нашлось"), err => done([], (err && err.message) || "Поиск сейчас не отвечает — попробуйте через минуту"));
+  }
+  // после добавления монета сразу выбирается там, откуда открыли поиск
+  coinAdded(code) {
+    const from = this.state.coinAdd;
+    this.setState({ coinAdd: null, ...(from === "deal" ? { dealCoin: code } : from === "asset" ? { crAssetCoin: code } : {}) });
+  }
+  addCoin(c) {
+    if (this.state.online) {
+      this.setState({ coinMsg: "Добавляю " + c.code + "…" });
+      this.api("POST", "coins", { id: c.id }).then(() => this.coinAdded(c.code), () => this.set("coinMsg", ""));
+      return;
+    }
+    fetch("https://api.coingecko.com/api/v3/coins/markets?vs_currency=rub&ids=" + encodeURIComponent(c.id))
+      .then(r => r.json())
+      .then(list => {
+        const m = (list || []).find(x => x.id === c.id);
+        if (!m || !(m.current_price > 0)) throw new Error();
+        const coins = this.state.coins.concat([{ code: c.code, name: m.name, image: m.image }]);
+        registerCoins(coins);
+        CUR[c.code].rate = m.current_price;
+        this.setState(s => ({ coins, rates: { ...s.rates, [c.code]: { rub: m.current_price, source: "coingecko", updatedAt: new Date().toISOString() } } }),
+          () => this.coinAdded(c.code));
+      })
+      .catch(() => this.set("coinMsg", "CoinGecko не ответил — попробуйте через минуту"));
+  }
+  removeCoin(code) {
+    if (this.state.online) { this.api("DELETE", "coins/" + encodeURIComponent(code)).catch(() => {}); return; }
+    const st = this.state;
+    if (st.accounts.some(a => a.cur === code) || st.txs.some(t => t.gotCur === code) || st.crypto.some(p => (p.assets || []).some(a => a.coin === code))) {
+      window.alert(code + " используется — сначала уберите её из счетов, сделок и портфелей.");
+      return;
+    }
+    const coins = st.coins.filter(c => c.code !== code);
+    registerCoins(coins);
+    this.setState({ coins });
+  }
+  coinAddVals() {
+    const st = this.state;
+    if (!st.coinAdd) return { coinAddOpen: false, coinFoundList: [], myCoins: [] };
+    const STATUS = { builtin: "Уже в списке", tracked: "Уже в списке", taken: "Тикер занят" };
+    return {
+      coinAddOpen: true,
+      coinQ: st.coinQ, onCoinQ: e => this.onCoinQ(e.target.value),
+      coinAddClose: () => this.set("coinAdd", null),
+      coinHint: st.coinBusy ? "Ищу…" : st.coinMsg || (st.coinQ.trim().length < 2 ? "Название или тикер, например hype или Hyperliquid" : ""),
+      coinFoundList: st.coinFound.map(c => ({
+        key: c.id, name: c.name, code: c.code, thumb: c.thumb || "",
+        rank: c.rank ? "#" + c.rank : "",
+        canAdd: !c.status, cantAdd: !!c.status,
+        statusLabel: STATUS[c.status] || "",
+        statusTitle: c.status === "taken" ? "Тикер " + c.code + " уже у другой монеты" + (c.takenBy ? ": " + c.takenBy : "") : "",
+        add: () => this.addCoin(c)
+      })),
+      hasMyCoins: st.coins.length > 0,
+      myCoins: st.coins.map(c => Object.assign(curBadge(c.code), {
+        key: c.code, code: c.code, name: c.name,
+        remove: () => { if (window.confirm("Убрать " + c.code + " из списка?")) this.removeCoin(c.code); }
+      }))
+    };
+  }
 
   // ---- движение по счёту ----
   editAcc(i) {
@@ -5620,6 +5786,7 @@ class Component extends DCLogic {
       ...this.reportVals(inRub),
       ...(st.screen === "reports" ? this.repAccVals() : {}),
       ...this.accViewVals(),
+      ...this.coinAddVals(),
       reportHead1: monthName(reportKeys[0]), reportHead2: monthName(reportKeys[1]), reportHead3: monthName(reportKeys[2]),
       reportRows: (() => {
         const keys = reportKeys;
@@ -6110,8 +6277,10 @@ class Component extends DCLogic {
       dealIsTrade: dealTrade, dealIsMove: !dealTrade,
       dealHasCoins: dealTrade && !!dealCoin, dealNoCoins: dealTrade && !dealCoin,
       dealReady: !dealTrade || !!dealCoin,
-      dealCoin, onDealCoin: e => this.set("dealCoin", e.target.value),
-      dealCoinOptions: dealCoins.map(c => ({ key: c, value: c, label: c + (COIN[c] ? " · " + COIN[c].name : "") })),
+      dealCoin, onDealCoin: e => (e.target.value === "+" ? this.openCoinAdd("deal") : this.set("dealCoin", e.target.value)),
+      dealCoinOptions: dealCoins.map(c => ({ key: c, value: c, label: c + (COIN[c] ? " · " + COIN[c].name : "") }))
+        // покупать можно и монету не из списка: найти её в CoinGecko
+        .concat(dealBuy ? [{ key: "+", value: "+", label: "+ Другая монета…" }] : []),
       dealHasChips: dealHeld.length > 0,
       dealChips: dealHeld.slice(0, 6).map(h => Object.assign(curBadge(h.coin), {
         key: "c" + h.coin, label: this.coinAmount(h.amount, h.coin),
@@ -6252,8 +6421,9 @@ class Component extends DCLogic {
         const p = st.crypto.find(x => x.id === st.crAssetPort);
         return p ? "портфель «" + p.name + "»" : "";
       })(),
-      coinOptions: COINS.map(([code, name]) => ({ key: code, value: code, label: code + " · " + name })),
-      crAssetCoin: st.crAssetCoin, onCrAssetCoin: e => this.set("crAssetCoin", e.target.value),
+      coinOptions: COINS.map(([code, name]) => ({ key: code, value: code, label: code + " · " + name }))
+        .concat([{ key: "+", value: "+", label: "+ Другая монета…" }]),
+      crAssetCoin: st.crAssetCoin, onCrAssetCoin: e => (e.target.value === "+" ? this.openCoinAdd("asset") : this.set("crAssetCoin", e.target.value)),
       crAssetAmount: st.crAssetAmount, onCrAssetAmount: e => this.setNumber("crAssetAmount", e),
       crAssetInvested: st.crAssetInvested, onCrAssetInvested: e => this.setNumber("crAssetInvested", e),
       crAssetCanDelete: st.crAssetId !== null,

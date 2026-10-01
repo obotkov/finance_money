@@ -41,6 +41,10 @@ func run(log *slog.Logger) error {
 	}
 	defer store.Close()
 
+	// свои монеты — до первого обновления курсов, чтобы оно их уже знало
+	if err := store.LoadCoins(ctx); err != nil {
+		return err
+	}
 	rates := NewRateUpdater(store, log)
 	go rates.Run(ctx, time.Hour)
 

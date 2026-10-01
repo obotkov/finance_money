@@ -131,6 +131,13 @@ func (a *API) Handler() http.Handler {
 	}))
 	mux.HandleFunc("POST /api/push/test", a.pushTest)
 
+	// свои монеты: поиск в CoinGecko, добавление в список и удаление из него
+	mux.HandleFunc("GET /api/coins/search", a.searchCoins)
+	mux.HandleFunc("POST /api/coins", a.withState(withBody(a.AddCoin)))
+	mux.HandleFunc("DELETE /api/coins/{code}", a.withState(func(r *http.Request, uid int64) error {
+		return s.RemoveCoin(r.Context(), uid, r.PathValue("code"))
+	}))
+
 	mux.HandleFunc("POST /api/rates/refresh", a.withState(func(r *http.Request, _ int64) error {
 		if err := a.rates.Refresh(r.Context()); err != nil {
 			return &APIError{http.StatusBadGateway, "Не удалось обновить курсы: " + err.Error()}
@@ -232,6 +239,25 @@ func (a *API) pushTest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]int{"sent": n})
+}
+
+// searchCoins ищет монеты в CoinGecko и помечает, какие можно добавить.
+func (a *API) searchCoins(w http.ResponseWriter, r *http.Request) {
+	u, ok := a.requireUser(w, r)
+	if !ok {
+		return
+	}
+	found, err := a.rates.SearchCoins(r.Context(), r.URL.Query().Get("q"))
+	if err != nil {
+		a.log.Warn("coin search", "err", err)
+		a.fail(w, r, &APIError{http.StatusBadGateway, "Поиск CoinGecko сейчас не отвечает — попробуйте через минуту"})
+		return
+	}
+	if err := a.store.MarkFound(r.Context(), u.ID, found); err != nil {
+		a.fail(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"coins": found})
 }
 
 func (a *API) state(ctx context.Context, u *User) (*State, error) {

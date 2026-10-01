@@ -30,8 +30,8 @@ const (
 )
 
 // Fiat comes from the Bank of Russia, crypto from CoinGecko (by coin id).
-// coinIDs is also the list of coins a crypto portfolio may hold; coreCoins are
-// the ones an account can be kept in, so a refresh without them is a failure.
+// coinIDs — встроенные монеты; к ним добавляются свои, найденные в CoinGecko
+// (coins.go, allCoinIDs). coreCoins без цены означают неудачное обновление.
 // historyDays — сколько дней курсов отдаётся странице для графиков.
 const historyDays = 31
 
@@ -64,10 +64,11 @@ var (
 )
 
 type RateUpdater struct {
-	store *Store
-	log   *slog.Logger
-	http  *http.Client
-	mu    sync.Mutex // one refresh at a time
+	store    *Store
+	log      *slog.Logger
+	http     *http.Client
+	mu       sync.Mutex // one refresh at a time
+	backfill sync.Mutex // и одна догрузка истории: CoinGecko без ключа отвечает на несколько запросов в минуту
 }
 
 func NewRateUpdater(store *Store, log *slog.Logger) *RateUpdater {
@@ -97,13 +98,18 @@ func (u *RateUpdater) Run(ctx context.Context, every time.Duration) {
 // allows a few calls a minute, so the calls are spaced out and a refusal
 // stops the round — the next one picks up the rest.
 func (u *RateUpdater) Backfill(ctx context.Context) {
+	if !u.backfill.TryLock() {
+		return // уже идёт — она подхватит и новые монеты в следующий раз
+	}
+	defer u.backfill.Unlock()
+	ids := allCoinIDs()
 	have, err := u.store.HistoryDays(ctx)
 	if err != nil {
 		u.log.Warn("rate history", "err", err)
 		return
 	}
-	codes := make([]string, 0, len(coinIDs))
-	for code := range coinIDs {
+	codes := make([]string, 0, len(ids))
+	for code := range ids {
 		if have[code] < historyDays-2 {
 			codes = append(codes, code)
 		}
@@ -117,7 +123,7 @@ func (u *RateUpdater) Backfill(ctx context.Context) {
 			case <-time.After(15 * time.Second):
 			}
 		}
-		body, err := u.get(ctx, fmt.Sprintf(coingeckoChartURL, coinIDs[code], historyDays))
+		body, err := u.get(ctx, fmt.Sprintf(coingeckoChartURL, ids[code], historyDays))
 		if err == nil {
 			var days map[string]float64
 			if days, err = parseCoinGeckoChart(body); err == nil {
@@ -196,8 +202,9 @@ func (u *RateUpdater) fetchCBR(ctx context.Context) (map[string]float64, error) 
 }
 
 func (u *RateUpdater) fetchCoinGecko(ctx context.Context) (map[string]float64, error) {
-	ids := make([]string, 0, len(coinIDs))
-	for _, id := range coinIDs {
+	coins := allCoinIDs()
+	ids := make([]string, 0, len(coins))
+	for _, id := range coins {
 		ids = append(ids, id)
 	}
 	slices.Sort(ids)
@@ -315,7 +322,7 @@ func parseCoinGecko(body []byte) (map[string]float64, error) {
 		return nil, fmt.Errorf("parse CoinGecko JSON: %w", err)
 	}
 	out := map[string]float64{}
-	for code, id := range coinIDs {
+	for code, id := range allCoinIDs() {
 		rub := resp[id]["rub"]
 		if rub <= 0 {
 			if slices.Contains(coreCoins, code) {

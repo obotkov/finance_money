@@ -28,17 +28,9 @@ const cryptoKind = "Криптокошелёк"
 // maxCategoryDepth limits nesting to four levels (depth 0..3), as the page does.
 const maxCategoryDepth = 3
 
-// Валюта счёта: рубли, доллары, евро и любая монета из coinIDs. Купленные
-// монеты лежат на самом крипто-счёте сделками, отдельного счёта им не нужно.
-var currencies = accountCurrencies()
-
-func accountCurrencies() map[string]bool {
-	out := map[string]bool{"RUB": true, "USD": true, "EUR": true}
-	for code := range coinIDs {
-		out[code] = true
-	}
-	return out
-}
+// Валюта счёта: рубли, доллары, евро и любая монета — встроенная или своя
+// (isCurrency в coins.go). Купленные монеты лежат на самом крипто-счёте
+// сделками, отдельного счёта им не нужно.
 
 // defaultCategories are copied to every new user.
 var defaultCategories = []struct{ name, kind, icon string }{
@@ -129,6 +121,8 @@ type State struct {
 	Backups   []BackupInfo      `json:"backups"`
 	Recurring []Recurring       `json:"recurring"`
 	Budgets   []Budget          `json:"budgets"`
+	// свои монеты пользователя сверх встроенного списка
+	Coins []Coin `json:"coins"`
 	// уведомления о бюджетах и пуши: ключ для подписки браузера, сколько устройств подписано
 	BudgetAlert BudgetAlert `json:"budgetAlert"`
 	PushKey     string      `json:"pushKey,omitempty"`
@@ -305,6 +299,9 @@ func (s *Store) State(ctx context.Context, uid int64) (*State, error) {
 	if st.Budgets, err = s.budgets(ctx, uid); err != nil {
 		return nil, err
 	}
+	if st.Coins, err = s.userCoins(ctx, uid); err != nil {
+		return nil, err
+	}
 	if st.BudgetAlert, err = s.budgetAlert(ctx, uid); err != nil {
 		return nil, err
 	}
@@ -373,7 +370,7 @@ func (in *AccountInput) validate() error {
 	if in.Cur == "" {
 		in.Cur = "RUB"
 	}
-	if !currencies[in.Cur] {
+	if !isCurrency(in.Cur) {
 		return badRequest("Неизвестная валюта " + in.Cur)
 	}
 	return nil
@@ -553,7 +550,7 @@ func (in *TxInput) validate() error {
 		}
 	case "buy", "sell":
 		in.Coin = strings.ToUpper(strings.TrimSpace(in.Coin))
-		if coinIDs[in.Coin] == "" {
+		if coinID(in.Coin) == "" {
 			return badRequest("Неизвестная монета")
 		}
 		if in.Received == nil || !(*in.Received > 0) {
@@ -876,7 +873,7 @@ type CryptoAssetInput struct {
 
 func (in *CryptoAssetInput) validate() error {
 	in.Coin = strings.ToUpper(strings.TrimSpace(in.Coin))
-	if coinIDs[in.Coin] == "" {
+	if coinID(in.Coin) == "" {
 		return badRequest("Неизвестная монета " + in.Coin)
 	}
 	if in.Amount < 0 || in.Invested < 0 {

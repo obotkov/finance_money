@@ -236,7 +236,7 @@ func parseBackup(raw []byte) (*backupFile, error) {
 		if strings.TrimSpace(a.Name) == "" {
 			return nil, badRequest("В бекапе счёт без названия")
 		}
-		if !currencies[a.Currency] {
+		if !isCurrency(a.Currency) {
 			return nil, badRequest("В бекапе неизвестная валюта " + a.Currency)
 		}
 		accs[a.ID] = true
