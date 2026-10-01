@@ -2462,8 +2462,9 @@
     <!-- отчёт: выбор счетов, по умолчанию включены все -->
     <sc-if value="{{ repAccPopOpen }}" hint-placeholder-val="{{ false }}">
     <div style="position:fixed;inset:0;z-index:60" onClick="{{ repAccClose }}"></div>
-    <div class="dpop" style="top:{{ repAccTop }};bottom:{{ repAccBottom }};left:{{ repAccLeft }}px;padding:8px;max-height:calc(100vh - 24px);overflow-y:auto">
-      <div class="accrow" onClick="{{ repAccAll }}" style="font-weight:600;border-bottom:1px solid var(--line);border-radius:10px 10px 0 0;margin-bottom:4px">
+    <div class="dpop" style="top:{{ repAccTop }};bottom:{{ repAccBottom }};left:{{ repAccLeft }}px;padding:0 8px 8px;max-height:{{ repAccMaxH }};overflow-y:auto;overscroll-behavior:contain">
+      <!-- «Все счета» остаётся наверху, пока список прокручивается -->
+      <div class="accrow" onClick="{{ repAccAll }}" style="position:sticky;top:0;z-index:1;background:var(--raised);font-weight:600;border-bottom:1px solid var(--line);border-radius:0;margin:0 -8px 4px;padding:17px 18px 13px">
         <span class="chk" data-on="{{ repAccAllOn }}"></span><span style="flex:1">Все счета</span>
       </div>
       <sc-for list="{{ repAccList }}" as="a" hint-placeholder-count="6">
@@ -2838,7 +2839,8 @@ class Component extends DCLogic {
     if (window.matchMedia) matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => this.forceUpdate());
     // всплывающий календарь и список счетов отчёта стоят на месте поля — при прокрутке и смене размера закрывается
     const closeDp = () => { if (this.state.dp || this.state.repAccPop) this.setState({ dp: null, repAccPop: null }); };
-    addEventListener("scroll", closeDp, true);
+    // прокрутка внутри самого окна (длинный список счетов) его не закрывает
+    addEventListener("scroll", e => { if (!(e.target instanceof Element && e.target.closest(".dpop"))) closeDp(); }, true);
     addEventListener("resize", closeDp);
     addEventListener("keydown", e => { if (e.key === "Escape") closeDp(); });
     // Google sign-in failures come back as ?auth_error=<message>
@@ -3693,6 +3695,7 @@ class Component extends DCLogic {
       repAccSomeFlag: on.length < names.length ? "1" : "0",
       repAccOpen: e => pop ? this.set("repAccPop", null) : this.set("repAccPop", this.popPos(e, 300, 64 + 42 * names.length)),
       repAccPopOpen: !!pop, repAccTop: pop ? pop.top : "auto", repAccBottom: pop ? pop.bottom : "auto", repAccLeft: pop ? pop.left : 0,
+      repAccMaxH: pop ? pop.maxH : "none",
       repAccClose: () => this.set("repAccPop", null),
       repAccAllOn: on.length === names.length ? "1" : on.length ? "2" : "0",
       // «Все счета»: если включены все — выключить все, иначе включить все
@@ -3734,14 +3737,17 @@ class Component extends DCLogic {
 
   // Где встать всплывающему окну шириной W и высотой около H: под нажатым полем,
   // а если снизу не хватает места — над ним (держась нижним краем, какой бы
-  // высоты окно ни вышло); не ближе 12px к краям экрана.
+  // высоты окно ни вышло); не ближе 12px к краям экрана. Не влезает ни туда,
+  // ни туда — встаёт, где места больше, и прокручивается внутри (maxH).
   popPos(e, W, H) {
     const r = e.currentTarget.getBoundingClientRect(), vw = window.innerWidth, vh = window.innerHeight;
-    const below = vh - r.bottom >= H + 8 || r.top < H + 8;
+    const spaceBelow = vh - r.bottom - 18, spaceAbove = r.top - 18;
+    const below = spaceBelow >= H || (spaceAbove < H && spaceBelow >= spaceAbove);
     return {
       left: Math.round(Math.max(12, Math.min(r.left, vw - W - 12))),
       top: below ? Math.round(r.bottom + 6) + "px" : "auto",
-      bottom: below ? "auto" : Math.round(vh - r.top + 6) + "px"
+      bottom: below ? "auto" : Math.round(vh - r.top + 6) + "px",
+      maxH: Math.round(below ? spaceBelow : spaceAbove) + "px"
     };
   }
 
