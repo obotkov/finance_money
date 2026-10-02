@@ -94,6 +94,8 @@ type CryptoPortfolio struct {
 	Name   string        `json:"name"`
 	Place  string        `json:"place"`
 	Assets []CryptoAsset `json:"assets"`
+	// позиции в пулах ликвидности (pools.go)
+	Pools []Pool `json:"pools"`
 }
 
 // CryptoAsset is one coin in a portfolio: how much of it there is and how much
@@ -818,7 +820,7 @@ func (in *CategoryInput) validate() error {
 func (s *Store) cryptoPortfolios(ctx context.Context, uid int64) ([]CryptoPortfolio, error) {
 	rows, _ := s.db.Query(ctx, `SELECT id, name, place FROM crypto_portfolios WHERE user_id = $1 ORDER BY id`, uid)
 	ports, err := pgx.CollectRows(rows, func(r pgx.CollectableRow) (CryptoPortfolio, error) {
-		p := CryptoPortfolio{Assets: []CryptoAsset{}}
+		p := CryptoPortfolio{Assets: []CryptoAsset{}, Pools: []Pool{}}
 		err := r.Scan(&p.ID, &p.Name, &p.Place)
 		return p, err
 	})
@@ -846,7 +848,19 @@ func (s *Store) cryptoPortfolios(ctx context.Context, uid int64) ([]CryptoPortfo
 	if ports == nil {
 		ports = []CryptoPortfolio{}
 	}
-	return ports, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	pools, err := s.poolsOf(ctx, uid)
+	if err != nil {
+		return nil, err
+	}
+	for i := range ports {
+		if list := pools[ports[i].ID]; list != nil {
+			ports[i].Pools = list
+		}
+	}
+	return ports, nil
 }
 
 type CryptoPortfolioInput struct {

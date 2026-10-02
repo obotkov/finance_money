@@ -359,6 +359,7 @@ func (s *Store) RemoveCoin(ctx context.Context, uid int64, code string) error {
 			WHEN EXISTS (SELECT 1 FROM accounts WHERE user_id = $1 AND currency = $2) THEN 'валюта счёта'
 			WHEN EXISTS (SELECT 1 FROM transactions WHERE user_id = $1 AND coin = $2) THEN 'сделки'
 			WHEN EXISTS (SELECT 1 FROM crypto_assets WHERE user_id = $1 AND coin = $2) THEN 'портфели'
+			WHEN EXISTS (SELECT 1 FROM lp_positions WHERE user_id = $1 AND $2 IN (coin_a, coin_b)) THEN 'пулы'
 			ELSE '' END`, uid, code).Scan(&used)
 	if err != nil {
 		return err

@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 	"time"
 
@@ -107,6 +108,35 @@ type backupPortfolio struct {
 	Place     string        `json:"place"`
 	CreatedAt time.Time     `json:"createdAt"`
 	Assets    []backupAsset `json:"assets"`
+	// пулы ликвидности; в бекапах до них поля нет
+	Pools []backupPool `json:"pools,omitempty"`
+}
+
+type backupPool struct {
+	CoinA     string            `json:"coinA"`
+	CoinB     string            `json:"coinB"`
+	Min       string            `json:"min"`
+	Max       string            `json:"max"`
+	Place     string            `json:"place"`
+	CreatedAt time.Time         `json:"createdAt"`
+	Events    []backupPoolEvent `json:"events"`
+}
+
+// backupPoolEvent хранит и то, что событие сделало с монетами портфеля, —
+// чтобы после восстановления его можно было так же отменить.
+type backupPoolEvent struct {
+	Kind      string    `json:"kind"`
+	Date      string    `json:"date"`
+	Price     string    `json:"price"`
+	AmountA   string    `json:"amountA"`
+	AmountB   string    `json:"amountB"`
+	Liquidity float64   `json:"liquidity"`
+	Invested  string    `json:"invested"`
+	AssetA    string    `json:"assetA"`
+	AssetB    string    `json:"assetB"`
+	AssetInvA string    `json:"assetInvA"`
+	AssetInvB string    `json:"assetInvB"`
+	CreatedAt time.Time `json:"createdAt"`
 }
 
 type backupAsset struct {
@@ -282,6 +312,26 @@ func parseBackup(raw []byte) (*backupFile, error) {
 			}
 		}
 	}
+	for _, p := range f.Crypto {
+		for _, pl := range p.Pools {
+			if coinID(pl.CoinA) == "" || coinID(pl.CoinB) == "" || pl.CoinA == pl.CoinB {
+				return nil, badRequest("В бекапе пул с неизвестной монетой " + pl.CoinA + "/" + pl.CoinB)
+			}
+			lo, errLo := strconv.ParseFloat(pl.Min, 64)
+			hi, errHi := strconv.ParseFloat(pl.Max, 64)
+			if errLo != nil || errHi != nil || !(lo > 0) || !(hi > lo) {
+				return nil, badRequest("В бекапе у пула " + pl.CoinA + "/" + pl.CoinB + " неверный интервал")
+			}
+			for _, e := range pl.Events {
+				if e.Kind != "deposit" && e.Kind != "withdraw" && e.Kind != "fees" {
+					return nil, badRequest("В бекапе неизвестное событие пула " + e.Kind)
+				}
+				if _, err := time.Parse(time.DateOnly, e.Date); err != nil {
+					return nil, badRequest("В бекапе неверная дата события пула " + e.Date)
+				}
+			}
+		}
+	}
 	return &f, nil
 }
 
@@ -381,6 +431,9 @@ func dumpBackup(ctx context.Context, tx pgx.Tx, uid int64) (*backupFile, error) 
 			return a, err
 		})
 		if err != nil {
+			return nil, err
+		}
+		if f.Crypto[i].Pools, err = dumpPools(ctx, tx, uid, id); err != nil {
 			return nil, err
 		}
 	}
@@ -534,8 +587,61 @@ func restore(ctx context.Context, tx pgx.Tx, uid int64, f *backupFile) error {
 				return err
 			}
 		}
+		for _, pl := range p.Pools {
+			var pid int64
+			if err := tx.QueryRow(ctx, `
+				INSERT INTO lp_positions (user_id, portfolio_id, coin_a, coin_b, price_min, price_max, place, created_at)
+				VALUES ($1, $2, $3, $4, $5::numeric, $6::numeric, $7, COALESCE($8, now())) RETURNING id`,
+				uid, id, pl.CoinA, pl.CoinB, pl.Min, pl.Max, pl.Place, at(pl.CreatedAt)).Scan(&pid); err != nil {
+				return err
+			}
+			for _, e := range pl.Events {
+				if _, err := tx.Exec(ctx, `
+					INSERT INTO lp_events (user_id, position_id, kind, day, price, amount_a, amount_b, liquidity, invested,
+					                       asset_a, asset_b, asset_inv_a, asset_inv_b, created_at)
+					VALUES ($1, $2, $3, $4::date, $5::numeric, $6::numeric, $7::numeric, $8, $9::numeric,
+					        $10::numeric, $11::numeric, $12::numeric, $13::numeric, COALESCE($14, now()))`,
+					uid, pid, e.Kind, e.Date, e.Price, e.AmountA, e.AmountB, e.Liquidity, e.Invested,
+					e.AssetA, e.AssetB, e.AssetInvA, e.AssetInvB, at(e.CreatedAt)); err != nil {
+					return err
+				}
+			}
+		}
 	}
 	return nil
+}
+
+func dumpPools(ctx context.Context, tx pgx.Tx, uid, portfolio int64) ([]backupPool, error) {
+	rows, _ := tx.Query(ctx, `
+		SELECT id, coin_a, coin_b, price_min::text, price_max::text, place, created_at
+		FROM lp_positions WHERE user_id = $1 AND portfolio_id = $2 ORDER BY id`, uid, portfolio)
+	var ids []int64
+	pools, err := pgx.CollectRows(rows, func(r pgx.CollectableRow) (backupPool, error) {
+		var p backupPool
+		var id int64
+		err := r.Scan(&id, &p.CoinA, &p.CoinB, &p.Min, &p.Max, &p.Place, &p.CreatedAt)
+		ids = append(ids, id)
+		return p, err
+	})
+	if err != nil {
+		return nil, err
+	}
+	for i, id := range ids {
+		rows, _ = tx.Query(ctx, `
+			SELECT kind, to_char(day, 'YYYY-MM-DD'), price::text, amount_a::text, amount_b::text, liquidity, invested::text,
+			       asset_a::text, asset_b::text, asset_inv_a::text, asset_inv_b::text, created_at
+			FROM lp_events WHERE position_id = $1 ORDER BY day, id`, id)
+		pools[i].Events, err = pgx.CollectRows(rows, func(r pgx.CollectableRow) (backupPoolEvent, error) {
+			var e backupPoolEvent
+			err := r.Scan(&e.Kind, &e.Date, &e.Price, &e.AmountA, &e.AmountB, &e.Liquidity, &e.Invested,
+				&e.AssetA, &e.AssetB, &e.AssetInvA, &e.AssetInvB, &e.CreatedAt)
+			return e, err
+		})
+		if err != nil {
+			return nil, err
+		}
+	}
+	return pools, nil
 }
 
 func gunzip(data []byte) ([]byte, error) {

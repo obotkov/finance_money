@@ -102,6 +102,23 @@ func (a *API) Handler() http.Handler {
 	mux.HandleFunc("PUT /api/crypto/assets/{id}", a.withData(withIDBody(s.UpdateCryptoAsset)))
 	mux.HandleFunc("DELETE /api/crypto/assets/{id}", a.withData(withID(s.DeleteCryptoAsset)))
 
+	// пулы ликвидности в крипто-портфеле: позиция с первым внесением, события, удаление
+	mux.HandleFunc("POST /api/pools", a.withData(withBody(s.CreatePool)))
+	mux.HandleFunc("PUT /api/pools/{id}", a.withData(withIDBody(s.UpdatePool)))
+	mux.HandleFunc("DELETE /api/pools/{id}", a.withData(withID(s.DeletePool)))
+	mux.HandleFunc("POST /api/pools/{id}/events", a.withData(withIDBody(s.AddPoolEvent)))
+	mux.HandleFunc("DELETE /api/pools/{id}/events/{event}", a.withData(func(r *http.Request, uid int64) error {
+		id, err := pathID(r)
+		if err != nil {
+			return err
+		}
+		event, err := strconv.ParseInt(r.PathValue("event"), 10, 64)
+		if err != nil {
+			return notFound("Не найдено")
+		}
+		return s.DeletePoolEvent(r.Context(), uid, id, event)
+	}))
+
 	mux.HandleFunc("POST /api/recurring", a.withData(withBody(s.CreateRecurring)))
 	mux.HandleFunc("PUT /api/recurring/{id}", a.withData(withIDBody(s.UpdateRecurring)))
 	mux.HandleFunc("DELETE /api/recurring/{id}", a.withData(withID(s.DeleteRecurring)))

@@ -382,7 +382,10 @@
     .crcoin .d-only { display: none !important; }
     .crcoin .m-only { display: block !important; }
     .cr-head { flex-wrap: wrap; }
-    .cr-head > .cr-head-btns { flex: 1 1 100%; }
+    .cr-head > .cr-head-btns { flex: 1 1 100%; flex-wrap: wrap; gap: 8px !important; }
+    /* три кнопки портфеля: «Изменить» и «Добавить пул» в строку, «Добавить монету» под ними на всю ширину */
+    .cr-head-btns > .btn { flex: 1 1 auto; padding-left: 10px; padding-right: 10px; }
+    .cr-head-btns > .btn-p { flex-basis: 100%; }
 
     .acc-edit { display: none !important; } /* the row opens the account; «Изменить» is on its page */
     .acc-head { display: none !important; }
@@ -440,6 +443,25 @@
     .av-what { grid-area: what; } .av-amt { grid-area: amt; } .av-date { grid-area: date; } .av-bal { grid-area: bal; }
     .av-note { display: none; }
     .av-edit { padding: 7px 11px !important; font-size: 14px !important; }
+  }
+  /* пул ликвидности: шкала интервала с ценой, итоги и история */
+  .pool-card { padding: 18px 20px; }
+  .pool-status { flex: none; font-size: 12px; padding: 4px 10px; border-radius: 980px; background: var(--fill); color: var(--ink2); white-space: nowrap; }
+  .pool-status[data-tone="good"] { background: rgba(52,199,89,.14); color: var(--pos); }
+  .pool-status[data-tone="warn"] { background: var(--warn-soft); color: var(--warn); }
+  .pool-bar { position: relative; height: 26px; margin: 8px 0 6px; }
+  .pool-track { position: absolute; left: 0; right: 0; top: 11px; height: 4px; border-radius: 2px; background: var(--fill); }
+  .pool-band { position: absolute; top: 8px; height: 10px; border-radius: 5px; background: var(--accent-soft); border: 1px solid var(--accent); box-sizing: border-box; }
+  .pool-mark { position: absolute; top: 1px; width: 3px; height: 24px; margin-left: -1.5px; border-radius: 2px; background: var(--ink); }
+  .pool-kpis { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 10px; }
+  .pool-ev { display: grid; grid-template-columns: 86px minmax(0, 1fr) auto 22px; gap: 10px; align-items: center; padding: 9px 0; font-size: 14px; border-bottom: 1px solid var(--line); }
+  .pool-ev:last-child { border-bottom: 0; }
+  @media (max-width: 760px) {
+    .pool-card { padding: 16px !important; }
+    .pool-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .pool-kpis > :first-child { grid-column: 1 / -1; display: flex; gap: 6px 14px; flex-wrap: wrap; align-items: baseline; }
+    .pool-ev { grid-template-columns: 72px minmax(0, 1fr) 22px; font-size: 13px; }
+    .pool-ev > :nth-child(3) { grid-column: 2; grid-row: 2; text-align: left !important; }
   }
   /* «Добавить монету» — последняя строка списка криптовалют в «Курсах» */
   .coin-addrow { display: flex; align-items: center; gap: 10px; width: calc(100% - 8px); margin: 4px 4px 0; padding: 11px 14px; border: 0; border-radius: 12px; background: none; font: inherit; font-size: 15px; color: var(--accent); cursor: pointer; text-align: left; }
@@ -1114,6 +1136,7 @@
               <sc-if value="{{ crInsidePort }}" hint-placeholder-val="{{ true }}">
               <div class="cr-head-btns" style="margin-left:auto;display:flex;gap:10px;flex:none">
                 <button class="btn btn-s" onClick="{{ crEditPort }}">Изменить</button>
+                <button class="btn btn-s" onClick="{{ crAddPool }}">Добавить пул</button>
                 <button class="btn btn-p" onClick="{{ crAddAsset }}">Добавить монету</button>
               </div>
               </sc-if>
@@ -1294,8 +1317,72 @@
             </sc-if>
             <sc-if value="{{ crNoAssets }}" hint-placeholder-val="{{ false }}">
             <div class="card" style="padding:24px 22px;display:flex;flex-direction:column;align-items:flex-start;gap:12px">
-              <div style="font-size:14px;color:var(--ink2)">В портфеле пока нет монет.</div>
-              <button class="btn btn-p" onClick="{{ crAddAsset }}">Добавить монету</button>
+              <div style="font-size:14px;color:var(--ink2)">В портфеле пока нет монет. Монеты можно внести и сразу в пул ликвидности.</div>
+              <div style="display:flex;gap:10px;flex-wrap:wrap">
+                <button class="btn btn-p" onClick="{{ crAddAsset }}">Добавить монету</button>
+                <button class="btn btn-s" onClick="{{ crAddPool }}">Добавить пул</button>
+              </div>
+            </div>
+            </sc-if>
+
+            <!-- пулы ликвидности портфеля: монеты в позиции считаются по курсу и интервалу -->
+            <sc-if value="{{ crHasPools }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;flex-direction:column;gap:12px">
+              <div class="big" style="font-size:17px;padding:4px 4px 0">Пулы ликвидности</div>
+              <sc-for list="{{ crPools }}" as="pl" hint-placeholder-count="1">
+                <div class="card pool-card">
+                  <div style="display:flex;align-items:center;gap:12px">
+                    <span style="display:flex;flex:none">
+                      <span class="coin" data-len="{{ pl.iconALen }}" style="{{ pl.iconAStyle }}">{{ pl.iconA }}</span>
+                      <span class="coin" data-len="{{ pl.iconBLen }}" style="{{ pl.iconBStyle }};margin-left:-8px">{{ pl.iconB }}</span>
+                    </span>
+                    <span style="flex:1;min-width:0">
+                      <span style="display:block;font-size:16px;font-weight:600">{{ pl.pair }}</span>
+                      <span style="display:block;font-size:12px;color:var(--ink3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ pl.place }}</span>
+                    </span>
+                    <span class="pool-status" data-tone="{{ pl.tone }}">{{ pl.statusLabel }}</span>
+                  </div>
+                  <div class="num" style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:13px;color:var(--ink2);margin-top:14px">
+                    <span>{{ pl.rangeLabel }}</span><span>{{ pl.priceLabel }}</span>
+                  </div>
+                  <div class="pool-bar">
+                    <span class="pool-track"></span>
+                    <span class="pool-band" style="left:{{ pl.bandL }};width:{{ pl.bandW }}"></span>
+                    <sc-if value="{{ pl.markOn }}" hint-placeholder-val="{{ true }}"><span class="pool-mark" style="left:{{ pl.markL }}"></span></sc-if>
+                  </div>
+                  <div class="pool-kpis">
+                    <div><div class="av-cap">В позиции</div><div class="num" style="font-size:15px;margin-top:2px">{{ pl.amountA }}</div><div class="num" style="font-size:15px">{{ pl.amountB }}</div></div>
+                    <div><div class="av-cap">Стоимость</div><div class="num big" style="font-size:19px;margin-top:2px">{{ pl.valueLabel }}</div><div class="num" style="font-size:12px;color:var(--ink3)">{{ pl.valueRub }}</div></div>
+                    <div><div class="av-cap">Прибыль</div><div class="num" style="font-size:16px;font-weight:500;margin-top:2px;color:{{ pl.pnlColor }}">{{ pl.pnlLabel }}</div><div class="num" style="font-size:12px;color:var(--ink3)">{{ pl.investedLabel }}</div></div>
+                  </div>
+                  <div class="num" style="display:flex;gap:6px 16px;flex-wrap:wrap;font-size:12px;color:var(--ink3);margin-top:10px">
+                    <span>{{ pl.feesLabel }}</span><span style="color:{{ pl.hodlColor }}">{{ pl.hodlLabel }}</span>
+                  </div>
+                  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">
+                    <button class="btn btn-s" onClick="{{ pl.deposit }}">Внести</button>
+                    <sc-if value="{{ pl.isOpen }}" hint-placeholder-val="{{ true }}">
+                      <button class="btn btn-s" onClick="{{ pl.withdraw }}">Вывести</button>
+                      <button class="btn btn-s" onClick="{{ pl.fees }}">Комиссии</button>
+                      <button class="btn btn-t" onClick="{{ pl.rerange }}">Изменить интервал</button>
+                    </sc-if>
+                    <button class="btn btn-t" style="margin-left:auto" onClick="{{ pl.toggleHist }}">{{ pl.histLabel }}</button>
+                    <button class="btn btn-t" style="color:var(--neg)" onClick="{{ pl.remove }}">Удалить</button>
+                  </div>
+                  <sc-if value="{{ pl.histOpen }}" hint-placeholder-val="{{ false }}">
+                    <div style="border-top:1px solid var(--line);margin-top:12px;padding-top:4px">
+                      <sc-for list="{{ pl.events }}" as="e" hint-placeholder-count="2">
+                        <div class="pool-ev">
+                          <span class="num" style="color:var(--ink3)">{{ e.date }}</span>
+                          <span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ e.what }}</span>
+                          <span class="num" style="text-align:right;white-space:nowrap;color:{{ e.tone }}">{{ e.amounts }}</span>
+                          <sc-if value="{{ e.canDel }}" hint-placeholder-val="{{ false }}"><button class="btn btn-t" style="padding:0 4px;color:var(--ink3);font-size:17px;line-height:1" title="Отменить событие" onClick="{{ e.del }}">×</button></sc-if>
+                          <sc-if value="{{ e.noDel }}" hint-placeholder-val="{{ true }}"><span></span></sc-if>
+                        </div>
+                      </sc-for>
+                    </div>
+                  </sc-if>
+                </div>
+              </sc-for>
             </div>
             </sc-if>
 
@@ -2562,6 +2649,76 @@
     </div>
     </sc-if>
 
+    <!-- пул ликвидности: новая позиция или внесение / вывод / комиссии -->
+    <sc-if value="{{ poolDialog }}" hint-placeholder-val="{{ false }}">
+    <div class="dlg" style="position:fixed;inset:0;display:grid;place-items:center;padding:24px;overflow:auto;background:var(--overlay);backdrop-filter:blur(6px)" onClick="{{ close }}">
+      <div class="card" style="width:min(520px,100%);max-height:calc(100vh - 48px);overflow-y:auto;padding:24px;border-radius:22px;box-shadow:0 24px 60px rgba(0,0,0,.22)" onClick="{{ stop }}">
+        <div class="big" style="font-size:21px">{{ poolTitle }}</div>
+        <div style="font-size:13px;color:var(--ink3);margin-top:2px">{{ poolSub }}</div>
+        <sc-if value="{{ poolIsEvent }}" hint-placeholder-val="{{ false }}">
+          <div class="seg" style="margin-top:14px">
+            <sc-for list="{{ poolModes }}" as="m" hint-placeholder-count="3"><span class="segopt" data-on="{{ m.on }}" onClick="{{ m.pick }}">{{ m.label }}</span></sc-for>
+          </div>
+        </sc-if>
+        <div style="margin-top:16px"><span class="lbl">Дата</span>
+          <button class="inp dfield" data-open="{{ plDateOn }}" style="color:{{ plDateColor }};width:100%" onClick="{{ plDateOpen }}"><span>{{ plDateLabel }}</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3.5" y="5" width="17" height="15.5" rx="3"></rect><path d="M3.5 10h17M8 3v4M16 3v4"></path></svg></button>
+        </div>
+        <sc-if value="{{ poolIsNew }}" hint-placeholder-val="{{ true }}">
+          <div class="deal3" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:14px">
+            <div><span class="lbl">Монета A</span>
+              <select class="inp" value="{{ plCoinA }}" onChange="{{ onPlCoinA }}"><sc-for list="{{ poolCoinOptions }}" as="o" hint-placeholder-count="10"><option value="{{ o.value }}">{{ o.label }}</option></sc-for></select>
+            </div>
+            <div><span class="lbl">Монета B</span>
+              <select class="inp" value="{{ plCoinB }}" onChange="{{ onPlCoinB }}"><sc-for list="{{ poolCoinOptions }}" as="o" hint-placeholder-count="10"><option value="{{ o.value }}">{{ o.label }}</option></sc-for></select>
+            </div>
+          </div>
+          <div style="margin-top:14px"><span class="lbl">Протокол или площадка</span><input class="inp" value="{{ plPlace }}" onChange="{{ onPlPlace }}" placeholder="Uniswap v3"></div>
+          <div class="deal3" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:14px">
+            <div><span class="lbl">Нижняя цена</span><input class="inp" inputMode="decimal" value="{{ plMin }}" onChange="{{ onPlMin }}" placeholder="0"></div>
+            <div><span class="lbl">Верхняя цена</span><input class="inp" inputMode="decimal" value="{{ plMax }}" onChange="{{ onPlMax }}" placeholder="0"></div>
+          </div>
+          <div style="font-size:12px;color:var(--ink3);margin-top:4px">Интервал — в {{ poolPairUnit }}; после открытия он не меняется</div>
+        </sc-if>
+        <sc-if value="{{ poolHasPrice }}" hint-placeholder-val="{{ true }}">
+          <div style="margin-top:14px"><span class="lbl">Цена, {{ poolPairUnit }}</span>
+            <div style="display:flex;gap:8px;align-items:center">
+              <input class="inp" inputMode="decimal" value="{{ plPriceValue }}" onChange="{{ onPlPrice }}" placeholder="0">
+              <button class="btn btn-t" style="white-space:nowrap" onClick="{{ poolPriceAuto }}">по курсу</button>
+            </div>
+            <div style="font-size:12px;color:var(--ink3);margin-top:4px">{{ poolPriceHint }}</div>
+          </div>
+        </sc-if>
+        <sc-if value="{{ poolBarOn }}" hint-placeholder-val="{{ false }}">
+          <div class="pool-bar">
+            <span class="pool-track"></span>
+            <span class="pool-band" style="left:{{ poolBandL }};width:{{ poolBandW }}"></span>
+            <span class="pool-mark" style="left:{{ poolMarkL }}"></span>
+          </div>
+          <div style="font-size:12px;color:var(--warn)">{{ poolRegion }}</div>
+        </sc-if>
+        <sc-if value="{{ poolHasAmounts }}" hint-placeholder-val="{{ true }}">
+          <div class="deal3" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:14px">
+            <div><span class="lbl">{{ plCoinA }}</span><input class="inp" inputMode="decimal" value="{{ plA }}" onChange="{{ onPlA }}" placeholder="0"></div>
+            <div><span class="lbl">{{ plCoinB }}</span><input class="inp" inputMode="decimal" value="{{ plB }}" onChange="{{ onPlB }}" placeholder="0"></div>
+          </div>
+        </sc-if>
+        <sc-if value="{{ poolIsWithdraw }}" hint-placeholder-val="{{ false }}">
+          <div style="margin-top:14px"><span class="lbl">Сколько вывести, %</span>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+              <div class="seg"><sc-for list="{{ poolPcts }}" as="c" hint-placeholder-count="4"><span class="segopt" data-on="{{ c.on }}" onClick="{{ c.pick }}">{{ c.label }}</span></sc-for></div>
+              <input class="inp" inputMode="decimal" style="width:90px" value="{{ plPct }}" onChange="{{ onPlPct }}">
+            </div>
+          </div>
+        </sc-if>
+        <div style="font-size:13px;color:var(--ink2);margin-top:12px;line-height:1.45">{{ poolHint }}</div>
+        <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px">
+          <button class="btn btn-s" onClick="{{ close }}">Отмена</button>
+          <button class="btn btn-p" onClick="{{ savePool }}">{{ poolSaveLabel }}</button>
+        </div>
+      </div>
+    </div>
+    </sc-if>
+
     <!-- поиск монеты в CoinGecko: поверх окна сделки или монеты, если открыт оттуда -->
     <sc-if value="{{ coinAddOpen }}" hint-placeholder-val="{{ false }}">
     <div class="dlg" style="position:fixed;inset:0;z-index:70;display:grid;place-items:center;padding:24px;overflow:auto;background:var(--overlay);backdrop-filter:blur(6px)" onClick="{{ coinAddClose }}">
@@ -2724,6 +2881,20 @@ COINS.forEach(([code, name, rub]) => { if (!CUR[code]) CUR[code] = { sym: code, 
 // Валюты счетов, которые считаются криптой: у них больше знаков после запятой,
 // и на них переключается счёт типа «Криптокошелёк».
 const CRYPTO_CURS = COINS.map(([code]) => code);
+// Пулы ликвидности: те же формулы, что poolAmounts/poolLiquidity в backend/pools.go.
+// Цена — сколько монеты B за одну A; ниже интервала всё в A, выше — в B.
+const poolAmounts = (L, p, lo, hi) => {
+  const sp = Math.sqrt(Math.min(Math.max(p, lo), hi));
+  return [L * (1 / sp - 1 / Math.sqrt(hi)), L * (sp - Math.sqrt(lo))];
+};
+// ликвидность внесения — меньшая из двух, лишнее одной монеты в позицию не идёт
+const poolLiquidity = (a, b, p, lo, hi) => {
+  const sp = Math.sqrt(Math.min(Math.max(p, lo), hi)), sl = Math.sqrt(lo), sh = Math.sqrt(hi);
+  let L = Infinity;
+  if (sp < sh) { if (!(a > 0)) return 0; L = Math.min(L, a / (1 / sp - 1 / sh)); }
+  if (sp > sl) { if (!(b > 0)) return 0; L = Math.min(L, b / (sp - sl)); }
+  return isFinite(L) ? L : 0;
+};
 // Свои монеты пользователя (с сервера или найденные в демо) встают в те же списки,
 // что и встроенные; убранная из списка — уходит из них.
 const BUILTIN_COINS = COINS.map(([code]) => code);
@@ -2952,6 +3123,13 @@ const DEMO = {
       { id: 2, name: "Ledger", place: "холодный кошелёк", assets: [
         { id: 21, coin: "BTC", amount: 0.081, invested: 2700 },
         { id: 22, coin: "USDT", amount: 1500, invested: 1500 }
+      ], pools: [
+        // позиция ETH/USDC: внесена 12.09 по 3 050, комиссии, четверть выведена 28.09
+        { id: 201, coinA: "ETH", coinB: "USDC", min: 2800, max: 3600, place: "Uniswap v3", events: [
+          { id: 2011, kind: "deposit", date: "2026-09-12", price: 3050, amountA: 1, amountB: 1604.8642, liquidity: 694.2118, invested: 4654.86 },
+          { id: 2012, kind: "fees", date: "2026-09-20", price: 3120, amountA: 0.004, amountB: 12.5, liquidity: 0, invested: 0 },
+          { id: 2013, kind: "withdraw", date: "2026-09-28", price: 3150, amountA: 0.199716, amountB: 557.0763, liquidity: -173.55295, invested: -1163.715 }
+        ] }
       ] },
       { id: 3, name: "Tonkeeper", place: "кошелёк", assets: [
         { id: 31, coin: "TON", amount: 640, invested: 2100 },
@@ -3000,6 +3178,9 @@ class Component extends DCLogic {
     // счета, выключенные в отчёте (по умолчанию в отчёт идут все, и новые счета тоже)
     repOff: [], repAccPop: null,
     // свои монеты: список пользователя и окно поиска (откуда открыто: rates, deal, asset)
+    // пулы: окно (новая позиция или событие) и открытая история
+    plMode: "new", plId: null, plPort: null, plCoinA: "ETH", plCoinB: "USDT", plPlace: "", plMin: "", plMax: "",
+    plDate: TODAY, plPrice: "", plAuto: true, plA: "", plB: "", plLast: "a", plPct: "100", poolHist: null,
     coins: [], coinAdd: null, coinQ: "", coinFound: [], coinBusy: false, coinMsg: "",
     // движение по счёту: какой счёт открыт (null — список счетов), период и фильтр
     accView: null, avFrom: THIS_MONTH + "-01", avTo: TODAY, avPreset: "month", accFilter: "all",
@@ -3276,7 +3457,26 @@ class Component extends DCLogic {
     });
     return days.map(day => {
       let rub = 0;
-      ports.forEach(p => p.assets.forEach(a => { rub += a.amount * this.rubOn(a.coin, day); }));
+      ports.forEach(p => {
+        // монеты, которые после этого дня ушли в пул или пришли из него, в тот день лежали на месте
+        const later = {};
+        (p.pools || []).forEach(pool => pool.events.forEach(e => {
+          if (e.date <= day) return;
+          later[pool.coinA] = (later[pool.coinA] || 0) + (e.assetA || 0);
+          later[pool.coinB] = (later[pool.coinB] || 0) + (e.assetB || 0);
+        }));
+        const amounts = {};
+        p.assets.forEach(a => { amounts[a.coin] = (amounts[a.coin] || 0) + a.amount; });
+        Object.keys(later).forEach(c => { amounts[c] = (amounts[c] || 0) - later[c]; });
+        Object.keys(amounts).forEach(c => { if (amounts[c] > 0) rub += amounts[c] * this.rubOn(c, day); });
+      });
+      // пул — по ликвидности на тот день и ценам того дня
+      ports.forEach(p => (p.pools || []).forEach(pool => {
+        const L = pool.events.reduce((sum, e) => sum + (e.date <= day ? e.liquidity : 0), 0);
+        if (!(L > 1e-12)) return;
+        const [a, b] = poolAmounts(L, this.poolPrice(pool, day), pool.min, pool.max);
+        rub += a * this.rubOn(pool.coinA, day) + b * this.rubOn(pool.coinB, day);
+      }));
       events.forEach(({ acc, list }) => {
         let bal = acc.balance;
         const held = {};
@@ -3304,6 +3504,10 @@ class Component extends DCLogic {
       held[coin] = (held[coin] || 0) + amount;
     };
     st.crypto.forEach(p => p.assets.forEach(a => add(a.coin, a.amount)));
+    st.crypto.forEach(p => (p.pools || []).forEach(pool => {
+      const c = this.poolCalc(pool, this.poolPrice(pool));
+      add(pool.coinA, c.a); add(pool.coinB, c.b);
+    }));
     st.accounts.filter(a => a.kind === "Криптокошелёк").forEach(a => {
       add(a.cur, a.balance);
       this.holdings(a).forEach(h => add(h.coin, h.amount));
@@ -3865,6 +4069,302 @@ class Component extends DCLogic {
 
   // ---- бекапы ----
 
+  // ---- пулы ликвидности в крипто-портфеле ----
+  // Цена пары — сколько монеты B за одну A: по рублёвым курсам обеих (на день day или сейчас).
+  poolPrice(pool, day) {
+    const ra = day ? this.rubOn(pool.coinA, day) : this.coinRub(pool.coinA);
+    const rb = day ? this.rubOn(pool.coinB, day) : this.coinRub(pool.coinB);
+    return rb > 0 ? ra / rb : 0;
+  }
+  // Позиция при цене price: ликвидность и вложенное — суммы событий, монеты —
+  // по формуле. hold — те же внесённые монеты, если бы их просто держали: выводы
+  // уменьшают их в той же доле, что и ликвидность. pct у вывода — его доля.
+  poolCalc(pool, price) {
+    let L = 0, invested = 0, holdA = 0, holdB = 0, feeA = 0, feeB = 0;
+    const pcts = {};
+    pool.events.forEach(e => {
+      if (e.kind === "deposit") { holdA += e.amountA; holdB += e.amountB; }
+      if (e.kind === "withdraw" && L > 0) {
+        const k = Math.min(1, -e.liquidity / L);
+        pcts[e.id] = k * 100; holdA *= 1 - k; holdB *= 1 - k;
+      }
+      if (e.kind === "fees") { feeA += e.amountA; feeB += e.amountB; }
+      L += e.liquidity; invested += e.invested;
+    });
+    if (L < 1e-12) L = 0;
+    const [a, b] = L && price > 0 ? poolAmounts(L, price, pool.min, pool.max) : [0, 0];
+    return { L, invested: L ? invested : 0, a, b, holdA, holdB, feeA, feeB, pcts,
+      status: !L ? "closed" : price <= pool.min ? "below" : price >= pool.max ? "above" : "in" };
+  }
+  // стоимость позиции сейчас, в USDT
+  poolValue(pool) {
+    const c = this.poolCalc(pool, this.poolPrice(pool));
+    return c.a * this.coinUsdt(pool.coinA) + c.b * this.coinUsdt(pool.coinB);
+  }
+  poolNeed(pool, price) {
+    return price <= pool.min ? "Цена ниже интервала — вносится только " + pool.coinA
+      : price >= pool.max ? "Цена выше интервала — вносится только " + pool.coinB
+      : "Цена внутри интервала — внесите обе монеты, " + pool.coinA + " и " + pool.coinB;
+  }
+
+  // Демо: то же, что делает сервер (backend/pools.go), над состоянием страницы.
+  poolDemo(fn) {
+    const crypto = JSON.parse(JSON.stringify(this.state.crypto));
+    try { fn(crypto); } catch (err) { window.alert(err.message); return false; }
+    crypto.forEach(p => (p.pools || []).forEach(pool => pool.events.sort((x, y) => (x.date < y.date ? -1 : x.date > y.date ? 1 : x.id - y.id))));
+    this.setState({ crypto, dialog: null });
+    return true;
+  }
+  demoMove(port, coin, da, dInv) {
+    if (!da && !dInv) return;
+    const a = port.assets.find(x => x.coin === coin);
+    if (!a) {
+      if (da < -1e-12) throw new Error("В портфеле нет " + coin + ", чтобы списать их");
+      port.assets.push({ id: Date.now() + Math.random(), coin, amount: Math.max(da, 0), invested: Math.max(dInv, 0) });
+      return;
+    }
+    if (a.amount + da < -1e-9) throw new Error("В портфеле уже меньше " + coin + ", чем нужно вернуть — сначала поправьте монету");
+    a.amount = Math.max(a.amount + da, 0); a.invested = Math.max(a.invested + dInv, 0);
+    if (a.amount < 1e-12 && a.invested < 1e-6) port.assets.splice(port.assets.indexOf(a), 1);
+  }
+  demoPoolEvent(port, pool, kind, date, price, a, b, pct) {
+    const last = pool.events.reduce((m, e) => (e.date > m ? e.date : m), "");
+    if (last && date < last) throw new Error("Дата не раньше последнего события позиции — " + last.split("-").reverse().join("."));
+    const ev = { id: Date.now(), kind, date, price, amountA: a, amountB: b, liquidity: 0, invested: 0, assetA: 0, assetB: 0, assetInvA: 0, assetInvB: 0 };
+    if (kind === "deposit") {
+      const L = poolLiquidity(a, b, price, pool.min, pool.max);
+      if (!(L > 0)) throw new Error(this.poolNeed(pool, price));
+      const [ua, ub] = poolAmounts(L, price, pool.min, pool.max).map((q, i) => Math.min(q, i ? b : a));
+      Object.assign(ev, { amountA: ua, amountB: ub, liquidity: L });
+      [[pool.coinA, ua, "A"], [pool.coinB, ub, "B"]].forEach(([coin, q, side]) => {
+        if (!(q > 0)) return;
+        const have = port.assets.find(x => x.coin === coin), take = have ? Math.min(q, have.amount) : 0;
+        if (take > 0) {
+          const inv = have.invested * take / have.amount;
+          this.demoMove(port, coin, -take, -inv);
+          ev["asset" + side] = -take; ev["assetInv" + side] = -inv; ev.invested += inv;
+        }
+        const u = this.rubOn("USDT", date);
+        if (q - take > 1e-12 && u > 0) ev.invested += (q - take) * this.rubOn(coin, date) / u;
+      });
+    } else if (kind === "withdraw") {
+      const c = this.poolCalc(pool, price);
+      if (!c.L) throw new Error("Позиция уже закрыта — выводить нечего");
+      const lw = pct >= 100 ? c.L : c.L * pct / 100, iw = pct >= 100 ? c.invested : c.invested * pct / 100;
+      const va = a * price, invA = va + b > 0 ? iw * va / (va + b) : iw;
+      this.demoMove(port, pool.coinA, a, invA); this.demoMove(port, pool.coinB, b, iw - invA);
+      Object.assign(ev, { liquidity: -lw, invested: -iw, assetA: a, assetB: b, assetInvA: invA, assetInvB: iw - invA });
+    } else {
+      if (!(a > 0) && !(b > 0)) throw new Error("Укажите, сколько монет пришло комиссиями");
+      this.demoMove(port, pool.coinA, a, 0); this.demoMove(port, pool.coinB, b, 0);
+      Object.assign(ev, { assetA: a, assetB: b });
+    }
+    pool.events.push(ev);
+  }
+  demoRevert(port, pool, ev) {
+    pool.events.splice(pool.events.indexOf(ev), 1);
+    this.demoMove(port, pool.coinA, -(ev.assetA || 0), -(ev.assetInvA || 0));
+    this.demoMove(port, pool.coinB, -(ev.assetB || 0), -(ev.assetInvB || 0));
+  }
+
+  openPoolNew(port, preset) {
+    const coins = port.assets.map(a => a.coin);
+    const coinA = (preset && preset.coinA) || coins.find(c => c !== "USDT" && c !== "USDC") || "ETH";
+    const coinB = (preset && preset.coinB) || (coins.indexOf("USDC") !== -1 ? "USDC" : "USDT");
+    const price = this.poolPrice({ coinA, coinB });
+    const r3 = n => (n > 0 ? Number(n.toPrecision(3)) : "");
+    this.setState({ dialog: "pool", plMode: "new", plId: null, plPort: port.id, plCoinA: coinA, plCoinB: coinB,
+      plPlace: (preset && preset.place) || "", plMin: (preset && preset.min) || String(r3(price * 0.9)).replace(".", ","),
+      plMax: (preset && preset.max) || String(r3(price * 1.1)).replace(".", ","),
+      plDate: TODAY, plPrice: "", plAuto: true, plA: (preset && preset.a) || "", plB: "", plLast: "a", plPct: "100" });
+  }
+  openPoolEvent(port, pool, mode) {
+    this.setState({ dialog: "pool", plMode: mode, plId: pool.id, plPort: port.id, plCoinA: pool.coinA, plCoinB: pool.coinB,
+      plDate: TODAY, plPrice: "", plAuto: true, plA: "", plB: "", plLast: "a", plPct: "100" });
+  }
+  sendPoolEvent(port, pool, body) {
+    if (this.state.online) return this.api("POST", "pools/" + pool.id + "/events", body).then(() => this.setState({ dialog: null }), () => false);
+    return Promise.resolve(this.poolDemo(crypto => {
+      const p = crypto.find(x => x.id === port.id), pl = p.pools.find(x => x.id === pool.id);
+      this.demoPoolEvent(p, pl, body.kind, body.date, body.price, body.amountA, body.amountB, body.percent);
+    }));
+  }
+
+  // Карточки пулов открытого портфеля
+  poolCards(port) {
+    const fmtP = n => (n > 0 ? n.toLocaleString("ru-RU", { maximumSignificantDigits: 6 }).replace(/ /g, " ") : "—");
+    const dm = d => d.split("-").reverse().join(".");
+    const STATUS = { in: ["в интервале", "good"], below: ["ниже интервала", "warn"], above: ["выше интервала", "warn"], closed: ["закрыта", ""] };
+    return (port.pools || []).map(pool => {
+      const price = this.poolPrice(pool), c = this.poolCalc(pool, price);
+      const ua = this.coinUsdt(pool.coinA), ub = this.coinUsdt(pool.coinB);
+      const value = c.a * ua + c.b * ub, pnl = value - c.invested;
+      const vsHodl = value - (c.holdA * ua + c.holdB * ub), fees = c.feeA * ua + c.feeB * ub;
+      // шкала: интервал и цена с запасом по краям
+      const lo = Math.min(pool.min, price || pool.min), hi = Math.max(pool.max, price || pool.max), pad = (hi - lo) * 0.12 || hi * 0.1;
+      const at = v => ((v - (lo - pad)) / (hi - lo + 2 * pad) * 100).toFixed(2) + "%";
+      const st = STATUS[c.status], open = this.state.poolHist === pool.id;
+      const newest = pool.events[pool.events.length - 1];
+      const A = curBadge(pool.coinA), B = curBadge(pool.coinB);
+      return {
+        key: pool.id, pair: pool.coinA + " / " + pool.coinB,
+        iconA: A.icon, iconALen: A.iconLen, iconAStyle: A.iconStyle, iconB: B.icon, iconBLen: B.iconLen, iconBStyle: B.iconStyle,
+        place: pool.place || "пул ликвидности",
+        statusLabel: c.status === "below" ? "ниже интервала — всё в " + pool.coinA : c.status === "above" ? "выше интервала — всё в " + pool.coinB : st[0],
+        tone: st[1],
+        rangeLabel: "Интервал " + fmtP(pool.min) + " — " + fmtP(pool.max) + " " + pool.coinB + " за " + pool.coinA,
+        priceLabel: "цена " + fmtP(price),
+        bandL: at(pool.min), bandW: ((pool.max - pool.min) / (hi - lo + 2 * pad) * 100).toFixed(2) + "%", markL: at(price),
+        markOn: price > 0 && !!c.L,
+        amountA: this.coinAmount(c.a, pool.coinA), amountB: this.coinAmount(c.b, pool.coinB),
+        valueLabel: this.usdt(value), valueRub: "≈ " + this.money(value * this.coinRub("USDT")),
+        investedLabel: (c.invested > 0 ? this.pctLabel(pnl, c.invested) + " · " : "") + "вложено " + this.usdt(c.invested),
+        pnlLabel: this.usdt(pnl, true),
+        pnlColor: pnl > 0.005 ? "var(--pos)" : pnl < -0.005 ? "var(--neg)" : "var(--ink2)",
+        feesLabel: c.feeA || c.feeB
+          ? "комиссии собрано " + [c.feeA ? this.coinAmount(c.feeA, pool.coinA) : "", c.feeB ? this.coinAmount(c.feeB, pool.coinB) : ""].filter(Boolean).join(" + ") + " ≈ " + this.usdt(fees)
+          : "комиссий пока не собрано",
+        hodlLabel: c.L ? "к простому хранению " + this.usdt(vsHodl, true) : "",
+        hodlColor: vsHodl < -0.005 ? "var(--neg)" : vsHodl > 0.005 ? "var(--pos)" : "var(--ink3)",
+        isOpen: !!c.L, histOpen: open, histLabel: open ? "Скрыть историю" : "История · " + pool.events.length,
+        toggleHist: () => this.set("poolHist", open ? null : pool.id),
+        deposit: () => this.openPoolEvent(port, pool, "deposit"),
+        withdraw: () => this.openPoolEvent(port, pool, "withdraw"),
+        fees: () => this.openPoolEvent(port, pool, "fees"),
+        // интервал после открытия не меняется: выводим всё и открываем новую позицию с этими монетами
+        rerange: () => {
+          if (!c.L || !(price > 0)) return;
+          if (!window.confirm("Интервал у открытой позиции не меняется. Вывести всё из " + pool.coinA + "/" + pool.coinB + " и открыть новую позицию с этими монетами?")) return;
+          const [a, b] = poolAmounts(c.L, price, pool.min, pool.max);
+          this.sendPoolEvent(port, pool, { kind: "withdraw", date: TODAY, price, percent: 100, amountA: a, amountB: b })
+            .then(ok => { if (ok !== false) this.openPoolNew(port, { coinA: pool.coinA, coinB: pool.coinB, place: pool.place, a: a > 0 ? String(Number(a.toPrecision(8))).replace(".", ",") : "" }); });
+        },
+        remove: () => {
+          if (!window.confirm("Удалить позицию " + pool.coinA + "/" + pool.coinB + "? Все её события отменятся, и монеты портфеля станут такими, как до неё.")) return;
+          if (this.state.online) { this.api("DELETE", "pools/" + pool.id).catch(() => {}); return; }
+          this.poolDemo(crypto => {
+            const p = crypto.find(x => x.id === port.id), pl = p.pools.find(x => x.id === pool.id);
+            pl.events.slice().reverse().forEach(e => this.demoRevert(p, pl, e));
+            p.pools = p.pools.filter(x => x !== pl);
+          });
+        },
+        events: pool.events.slice().reverse().map(e => ({
+          key: e.id, date: dm(e.date),
+          what: e.kind === "deposit" ? "Внесено · цена " + fmtP(e.price)
+            : e.kind === "withdraw" ? "Выведено " + Math.round(c.pcts[e.id] || 0) + " % · цена " + fmtP(e.price) : "Собраны комиссии",
+          amounts: [e.amountA ? this.coinAmount(e.amountA, pool.coinA) : "", e.amountB ? this.coinAmount(e.amountB, pool.coinB) : ""].filter(Boolean).join(" · "),
+          tone: e.kind === "deposit" ? "var(--ink2)" : "var(--pos)",
+          canDel: e === newest, noDel: e !== newest,
+          del: () => {
+            if (!window.confirm("Отменить это событие? Монеты портфеля вернутся, как были до него." + (pool.events.length === 1 ? " Позиция без событий удалится." : ""))) return;
+            if (this.state.online) { this.api("DELETE", "pools/" + pool.id + "/events/" + e.id).catch(() => {}); return; }
+            this.poolDemo(crypto => {
+              const p = crypto.find(x => x.id === port.id), pl = p.pools.find(x => x.id === pool.id);
+              this.demoRevert(p, pl, pl.events.find(x => x.id === e.id));
+              if (!pl.events.length) p.pools = p.pools.filter(x => x !== pl);
+            });
+          }
+        }))
+      };
+    });
+  }
+
+  // Окно пула: новая позиция или событие существующей (внести, вывести, комиссии)
+  poolDialogVals() {
+    const st = this.state;
+    if (st.dialog !== "pool") return { poolDialog: false };
+    const port = st.crypto.find(p => p.id === st.plPort);
+    const pool = port && st.plId != null ? (port.pools || []).find(x => x.id === st.plId) : null;
+    if (!port || (st.plMode !== "new" && !pool)) return { poolDialog: false };
+    const num = v => parseFloat(String(v || "").replace(/\s/g, "").replace(",", ".")) || 0;
+    const show = n => (n > 0 ? String(Number(n.toPrecision(n >= 1 ? 8 : 6))).replace(".", ",") : "0");
+    const fmtP = n => (n > 0 ? n.toLocaleString("ru-RU", { maximumSignificantDigits: 6 }).replace(/ /g, " ") : "—");
+    const isNew = st.plMode === "new", mode = st.plMode;
+    const p = isNew ? { coinA: st.plCoinA, coinB: st.plCoinB, min: num(st.plMin), max: num(st.plMax), events: [] } : pool;
+    const marketPrice = this.poolPrice(p, st.plDate >= TODAY ? null : st.plDate);
+    const price = st.plAuto ? marketPrice : num(st.plPrice);
+    const rangeOk = p.min > 0 && p.max > p.min;
+    // внесение: вторая монета считается по первой (или наоборот) — как в интерфейсе протокола
+    let a = num(st.plA), b = num(st.plB), aShown = st.plA, bShown = st.plB, region = "in";
+    if ((isNew || mode === "deposit") && rangeOk && price > 0) {
+      const sp = Math.sqrt(Math.min(Math.max(price, p.min), p.max)), sl = Math.sqrt(p.min), sh = Math.sqrt(p.max);
+      region = price <= p.min ? "below" : price >= p.max ? "above" : "in";
+      if (region === "below") { b = 0; bShown = "0"; }
+      else if (region === "above") { a = 0; aShown = "0"; }
+      else if (st.plLast === "b") { const L = b / (sp - sl); a = L * (1 / sp - 1 / sh); aShown = b ? show(a) : ""; }
+      else { const L = a / (1 / sp - 1 / sh); b = L * (sp - sl); bShown = a ? show(b) : ""; }
+    }
+    let c = pool ? this.poolCalc(pool, price) : null;
+    const pct = Math.min(100, Math.max(0, num(st.plPct)));
+    if (mode === "withdraw" && c) [a, b] = c.L && price > 0 ? poolAmounts(c.L * pct / 100, price, pool.min, pool.max) : [0, 0];
+    // откуда возьмутся монеты внесения: из портфеля, а чего нет — новые деньги
+    const fromPort = coin => { const x = port.assets.find(y => y.coin === coin); return x ? x.amount : 0; };
+    const parts = [[p.coinA, a], [p.coinB, b]].filter(([, q]) => q > 0);
+    const took = parts.map(([coin, q]) => [coin, Math.min(q, fromPort(coin))]).filter(([, q]) => q > 0);
+    const extra = parts.map(([coin, q]) => [coin, q - Math.min(q, fromPort(coin))]).filter(([, q]) => q > 1e-12);
+    const list = xs => xs.map(([coin, q]) => this.coinAmount(q, coin)).join(" и ");
+    const coinOpts = COINS.map(([code, name]) => ({ key: code, value: code, label: code + " · " + name }))
+      .concat([{ key: "+", value: "+", label: "+ Другая монета…" }]);
+    const lo = Math.min(p.min || price, price || p.min), hi = Math.max(p.max || price, price || p.max), pad = (hi - lo) * 0.12 || hi * 0.1 || 1;
+    const at = v => ((v - (lo - pad)) / (hi - lo + 2 * pad) * 100).toFixed(2) + "%";
+    const save = () => {
+      if (isNew && !rangeOk) { window.alert("Интервал: нижняя цена больше нуля и меньше верхней."); return; }
+      if (!(price > 0)) { window.alert("Укажите цену " + p.coinA + " в " + p.coinB + "."); return; }
+      if (mode === "withdraw" && !(pct > 0)) { window.alert("Сколько вывести — от 0 до 100 %."); return; }
+      if (mode === "fees" && !(a > 0) && !(b > 0)) { window.alert("Укажите, сколько монет пришло комиссиями."); return; }
+      if ((isNew || mode === "deposit") && !(poolLiquidity(a, b, price, p.min, p.max) > 0)) { window.alert(this.poolNeed(p, price) + "."); return; }
+      if (isNew) {
+        const body = { portfolio: port.id, coinA: p.coinA, coinB: p.coinB, min: p.min, max: p.max, place: st.plPlace.trim(),
+          date: st.plDate, price, amountA: a, amountB: b };
+        if (st.online) { this.api("POST", "pools", body).then(() => this.setState({ dialog: null }), () => {}); return; }
+        this.poolDemo(crypto => {
+          const pt = crypto.find(x => x.id === port.id);
+          const pl = { id: Date.now(), coinA: p.coinA, coinB: p.coinB, min: p.min, max: p.max, place: body.place, events: [] };
+          pt.pools = (pt.pools || []).concat([pl]);
+          this.demoPoolEvent(pt, pl, "deposit", st.plDate, price, a, b);
+        });
+        return;
+      }
+      this.sendPoolEvent(port, pool, { kind: mode, date: st.plDate, price, amountA: a, amountB: b, percent: pct });
+    };
+    return {
+      poolDialog: true, poolIsNew: isNew, poolIsEvent: !isNew,
+      poolTitle: isNew ? "Новая позиция в пуле" : p.coinA + " / " + p.coinB,
+      poolSub: isNew ? "в портфеле «" + port.name + "»" : (pool.place || "пул ликвидности") + " · " + fmtP(pool.min) + " — " + fmtP(pool.max),
+      poolModes: [["deposit", "Внести"], ["withdraw", "Вывести"], ["fees", "Комиссии"]].map(([id, label]) => ({
+        key: id, label, on: mode === id ? "1" : "0", pick: () => this.setState({ plMode: id, plA: "", plB: "", plLast: "a" }) })),
+      plCoinA: p.coinA, plCoinB: p.coinB, poolCoinOptions: coinOpts,
+      onPlCoinA: e => (e.target.value === "+" ? this.openCoinAdd("poolA") : this.setState({ plCoinA: e.target.value, plA: "", plB: "" })),
+      onPlCoinB: e => (e.target.value === "+" ? this.openCoinAdd("poolB") : this.setState({ plCoinB: e.target.value, plA: "", plB: "" })),
+      plPlace: st.plPlace, onPlPlace: e => this.set("plPlace", e.target.value),
+      plMin: st.plMin, onPlMin: e => this.set("plMin", e.target.value),
+      plMax: st.plMax, onPlMax: e => this.set("plMax", e.target.value),
+      poolPairUnit: p.coinB + " за " + p.coinA,
+      poolHasPrice: mode !== "fees",
+      plPriceValue: st.plAuto ? show(price) : st.plPrice,
+      onPlPrice: e => this.setState({ plPrice: e.target.value, plAuto: false }),
+      poolPriceAuto: () => this.setState({ plAuto: true, plPrice: "" }),
+      poolPriceHint: st.plAuto ? "по курсу " + (st.plDate >= TODAY ? "сейчас" : "на " + st.plDate.split("-").reverse().join(".")) : "своя цена",
+      poolBarOn: (isNew ? rangeOk : true) && price > 0,
+      poolBandL: at(p.min), poolBandW: ((p.max - p.min) / (hi - lo + 2 * pad) * 100).toFixed(2) + "%", poolMarkL: at(price),
+      poolRegion: !rangeOk || !(price > 0) ? "" : region === "below" && mode !== "withdraw" && mode !== "fees" ? "Цена ниже интервала — вносится только " + p.coinA + "."
+        : region === "above" && mode !== "withdraw" && mode !== "fees" ? "Цена выше интервала — вносится только " + p.coinB + "." : "",
+      poolHasAmounts: mode !== "withdraw",
+      plA: isNew || mode === "deposit" ? aShown : st.plA, plB: isNew || mode === "deposit" ? bShown : st.plB,
+      onPlA: e => this.setState({ plA: e.target.value, plLast: "a" }),
+      onPlB: e => this.setState({ plB: e.target.value, plLast: "b" }),
+      poolIsWithdraw: mode === "withdraw",
+      plPct: st.plPct, onPlPct: e => this.set("plPct", e.target.value),
+      poolPcts: [25, 50, 75, 100].map(n => ({ key: n, label: n + " %", on: pct === n ? "1" : "0", pick: () => this.set("plPct", String(n)) })),
+      poolHint: mode === "withdraw" ? (c && c.L ? "Вернётся в портфель: " + (list([[p.coinA, a], [p.coinB, b]].filter(([, q]) => q > 0)) || "ничего") + "." : "Позиция закрыта — выводить нечего.")
+        : mode === "fees" ? "Монеты комиссий придут в портфель как чистый доход — без вложенного."
+        : !parts.length ? "" : (took.length ? "Из портфеля: " + list(took) + ". " : "")
+          + (extra.length ? "Новыми деньгами: " + list(extra) + " — вложены по курсу дня." : ""),
+      poolSaveLabel: isNew ? "Открыть позицию" : mode === "deposit" ? "Внести" : mode === "withdraw" ? "Вывести" : "Записать",
+      savePool: save
+    };
+  }
+
   // ---- свои монеты: поиск в CoinGecko и список на отслеживание ----
   openCoinAdd(from) {
     this.setState({ coinAdd: from, coinQ: "", coinFound: [], coinBusy: false, coinMsg: "" });
@@ -3899,7 +4399,8 @@ class Component extends DCLogic {
   // после добавления монета сразу выбирается там, откуда открыли поиск
   coinAdded(code) {
     const from = this.state.coinAdd;
-    this.setState({ coinAdd: null, ...(from === "deal" ? { dealCoin: code } : from === "asset" ? { crAssetCoin: code } : {}) });
+    this.setState({ coinAdd: null, ...(from === "deal" ? { dealCoin: code } : from === "asset" ? { crAssetCoin: code }
+      : from === "poolA" ? { plCoinA: code } : from === "poolB" ? { plCoinB: code } : {}) });
   }
   addCoin(c) {
     if (this.state.online) {
@@ -4116,7 +4617,8 @@ class Component extends DCLogic {
       ...period("anaFrom", "anaTo", "anaPreset"),
       ...period("expFrom", "expTo", "expPreset", { expMsg: "" }),
       ...period("avFrom", "avTo", "avPreset"),
-      rcStart: { value: st.rcStart || TODAY, set: v => this.set("rcStart", v) }
+      rcStart: { value: st.rcStart || TODAY, set: v => this.set("rcStart", v) },
+      plDate: { value: st.plDate, set: v => this.set("plDate", v) }
     };
   }
 
@@ -5482,8 +5984,11 @@ class Component extends DCLogic {
     // ---- Криптовалюта ----
     // Стоимость монеты — количество по текущему курсу, прибыль — разница с
     // вложенным. Виджеты считают либо все портфели, либо открытый.
-    const crValue = p => p.assets.reduce((sum, a) => sum + a.amount * this.coinUsdt(a.coin), 0);
-    const crInvested = p => p.assets.reduce((sum, a) => sum + a.invested, 0);
+    // пулы портфеля входят в его стоимость и вложенное
+    const crValue = p => p.assets.reduce((sum, a) => sum + a.amount * this.coinUsdt(a.coin), 0)
+      + (p.pools || []).reduce((sum, pool) => sum + this.poolValue(pool), 0);
+    const crInvested = p => p.assets.reduce((sum, a) => sum + a.invested, 0)
+      + (p.pools || []).reduce((sum, pool) => sum + this.poolCalc(pool, 0).invested, 0);
     const crOpenPort = st.crypto.find(p => p.id === st.crOpen) || null;
     const crPctLabel = (pnl, invested) => {
       if (!(invested > 0)) return "—";
@@ -5496,8 +6001,9 @@ class Component extends DCLogic {
     const crTone = pnl => (pnl > 0 ? "good" : pnl < 0 ? "bad" : "");
     const crColor = pnl => (pnl > 0 ? "var(--pos)" : pnl < 0 ? "var(--neg)" : "var(--ink2)");
     const crCoinsLabel = p => {
-      if (!p.assets.length) return "пусто";
-      const codes = p.assets.map(a => a.coin);
+      const codes = p.assets.map(a => a.coin)
+        .concat((p.pools || []).filter(pool => this.poolCalc(pool, 0).L).map(pool => pool.coinA + "/" + pool.coinB));
+      if (!codes.length) return "пусто";
       return codes.length > 4 ? codes.slice(0, 3).join(" · ") + " и ещё " + (codes.length - 3) : codes.join(" · ");
     };
     const crAssetCount = st.crypto.reduce((n, p) => n + p.assets.length, 0);
@@ -5801,6 +6307,7 @@ class Component extends DCLogic {
       ...(st.screen === "reports" ? this.repAccVals() : {}),
       ...this.accViewVals(),
       ...this.coinAddVals(),
+      ...this.poolDialogVals(),
       reportHead1: monthName(reportKeys[0]), reportHead2: monthName(reportKeys[1]), reportHead3: monthName(reportKeys[2]),
       reportRows: (() => {
         const keys = reportKeys;
@@ -6076,13 +6583,15 @@ class Component extends DCLogic {
       crList: !crOpenPort && !crOpenAcc && st.crypto.length > 0,
       crEmpty: !crOpenPort && !crOpenAcc && st.crypto.length === 0,
       crHasAssets: !!crOpenPort && crOpenPort.assets.length > 0,
-      crNoAssets: !!crOpenPort && crOpenPort.assets.length === 0,
+      // совсем пустой портфель: ни монет, ни пулов
+      crNoAssets: !!crOpenPort && crOpenPort.assets.length === 0 && !(crOpenPort.pools || []).length,
       crBack: () => this.setState({ crOpen: null, crAccOpen: null, crCoin: null }),
       crBackLabel: crOpenAcc ? "Весь раздел" : "Все портфели",
       crShowDealBtn: st.screen === "crypto" && !!crOpenAcc,
       crPortTitle: crOpenPort ? crOpenPort.name : crOpenAcc ? crOpenAcc.name : "",
       crPortPlaceLabel: crOpenPort
         ? (crOpenPort.place || "крипто-портфель") + " · " + pluralRu(crOpenPort.assets.length, "монета", "монеты", "монет")
+          + ((crOpenPort.pools || []).length ? " · " + pluralRu(crOpenPort.pools.length, "пул", "пула", "пулов") : "")
         : crOpenAcc
           ? crOpenAcc.cur
           : "",
@@ -6132,6 +6641,9 @@ class Component extends DCLogic {
           }
         });
       }),
+      crPools: crOpenPort ? this.poolCards(crOpenPort) : [],
+      crHasPools: !!crOpenPort && (crOpenPort.pools || []).length > 0,
+      crAddPool: () => { if (crOpenPort) this.openPoolNew(crOpenPort); },
       crSumInvested: crOpenPort ? this.usdt(crInvested(crOpenPort)) : "",
       crSumValue: crOpenPort ? this.usdt(crValue(crOpenPort)) : "",
       crSumPnlColor: crColor(crOpenPort ? crValue(crOpenPort) - crInvested(crOpenPort) : 0),
@@ -6427,7 +6939,7 @@ class Component extends DCLogic {
           return;
         }
         const id = st.crypto.reduce((m, p) => Math.max(m, p.id), 0) + 1;
-        this.setState({ crypto: st.crypto.concat([{ id, name, place, assets: [] }]), dialog: null, crOpen: id });
+        this.setState({ crypto: st.crypto.concat([{ id, name, place, assets: [], pools: [] }]), dialog: null, crOpen: id });
       },
       crAssetDialog: st.dialog === "crasset",
       crAssetDialogTitle: st.crAssetId === null ? "Новая монета" : "Монета в портфеле",
