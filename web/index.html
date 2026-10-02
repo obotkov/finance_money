@@ -4682,7 +4682,7 @@ class Component extends DCLogic {
       accViewBack: () => this.set("accView", null),
       avIcon: badge.icon, avIconLen: badge.iconLen, avIconStyle: badge.iconStyle,
       avName: a.name, avKind: cur === "RUB" ? a.kind : a.kind + " · " + cur,
-      avBalance: this.money(worth, cur, true), avBalColor: worth < 0 ? "var(--neg)" : "var(--ink)",
+      avBalance: this.money(worth, cur), avBalColor: worth < 0 ? "var(--neg)" : "var(--ink)",
       avBalSub: cur === "RUB" ? "сейчас" : "≈ " + this.money(this.accRub(a)),
       avEdit: () => this.editAcc(i),
       avCoins: a.kind === "Криптокошелёк" && all.some(e => e.kind === "trade"),
@@ -4698,17 +4698,17 @@ class Component extends DCLogic {
         else if (p) this.setState({ avPreset: id, avFrom: p.from, avTo: p.to });
         else this.setState({ avPreset: "custom" });
       },
-      avStart: this.money(startBal, cur, true), avEnd: this.money(endBal, cur, true),
-      avIn: "+" + this.fmt(plus, cur, true), avOut: (minus ? "−" : "") + this.fmt(minus, cur, true),
+      avStart: this.money(startBal, cur), avEnd: this.money(endBal, cur),
+      avIn: "+" + this.fmt(plus, cur), avOut: (minus ? "−" : "") + this.fmt(minus, cur),
       avfAll: st.accFilter === "all" ? "1" : "0", avfIn: st.accFilter === "in" ? "1" : "0", avfOut: st.accFilter === "out" ? "1" : "0",
       avSetAll: () => this.set("accFilter", "all"), avSetIn: () => this.set("accFilter", "in"), avSetOut: () => this.set("accFilter", "out"),
       avEmpty: !shown.length,
       avEmptyText: period.length ? "Таких движений за период нет." : "За выбранный период движений по счёту нет.",
       avRows: shown.map((e, k) => ({
         key: e.d + k + e.kind, date: dm(e.d), kind: e.kind, kindLabel: e.kindLabel, what: e.what, note: e.note,
-        amount: e.v === 0 ? this.fmt(0, cur, true) : this.signed(e.v, cur, true),
+        amount: e.v === 0 ? this.fmt(0, cur) : this.signed(e.v, cur),
         color: e.kind === "open" ? "var(--ink2)" : e.v > 0 ? "var(--pos)" : e.v < 0 ? "var(--neg)" : "var(--ink3)",
-        after: this.money(e.after, cur, true),
+        after: this.money(e.after, cur),
         clickable: e.t ? "1" : "0", hint: e.t ? "Изменить операцию" : "",
         edit: e.t ? () => this.editOp(e.t) : () => {}
       }))
@@ -4945,23 +4945,19 @@ class Component extends DCLogic {
     return true;
   }
 
-  // exact — точная сумма (остаток счёта, сумма операции): копейки видны, когда
-  // они есть, даже если в настройках суммы до рубля; целая сумма — без «,00».
-  // Итоги и сводки зовут без exact и округляются по настройке.
-  fmt(n, cur, exact) {
+  fmt(n, cur) {
     const c = CUR[cur || "RUB"];
     const crypto = CRYPTO_CURS.indexOf(cur) !== -1;
     const abs = Math.abs(n);
-    const kopecks = Math.round(abs * 100) % 100 !== 0;
     const s = crypto
       ? abs.toLocaleString("ru-RU", { maximumFractionDigits: abs < 1 ? 5 : 3 }).replace(/\u00a0/g, " ")
-      : this.state.cents || (exact && kopecks)
+      : this.state.cents
         ? abs.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).replace(/\u00a0/g, " ")
         : Math.round(abs).toLocaleString("ru-RU").replace(/\u00a0/g, " ");
     return s + " " + c.sym;
   }
-  money(n, cur, exact) { return (n < 0 ? "−" : "") + this.fmt(n, cur, exact); }
-  signed(n, cur, exact) { return (n < 0 ? "−" : "+") + this.fmt(n, cur, exact); }
+  money(n, cur) { return (n < 0 ? "−" : "") + this.fmt(n, cur); }
+  signed(n, cur) { return (n < 0 ? "−" : "+") + this.fmt(n, cur); }
 
   // ---- crypto: everything in the section is counted in USDT ----
   // The price of a coin comes from the same rates as the rest of the app
@@ -5271,7 +5267,7 @@ class Component extends DCLogic {
       repOps: listOps.map((t, i) => ({
         key: "t" + (t.id || i), title: t.t,
         meta: dm(t.d) + (t.tm ? " " + t.tm : "") + " · " + t.a,
-        amountLabel: (kind === "income" ? "+" : "−") + this.fmt(Math.abs(t.v), this.curOf(t.a), true),
+        amountLabel: (kind === "income" ? "+" : "−") + this.fmt(Math.abs(t.v), this.curOf(t.a)),
         color: kind === "income" ? "var(--pos)" : "var(--neg)"
       })),
       repEmpty: empty,
@@ -5844,7 +5840,7 @@ class Component extends DCLogic {
         key: a.name + i, name: a.name,
         kind: a.cur === "RUB" ? a.kind : a.kind + " · " + a.cur,
         crypto: p ? "1" : "0",
-        balanceLabel: this.money(worth, a.cur, true),
+        balanceLabel: this.money(worth, a.cur),
         rubLabel: a.cur === "RUB" ? "" : "≈ " + this.money(this.accRub(a)),
         color: worth < 0 ? "var(--neg)" : "var(--ink)",
         investedEmpty: hasInvested ? "0" : "1",
@@ -5895,7 +5891,7 @@ class Component extends DCLogic {
           key: t.d + i + t.t, dateLabel: this.dayLabel(t.d), title: t.t,
           note: t.t + " · закрыта " + this.dayLabel(t.closeD), cat: t.c, catPath: "Сделка",
           acc: t.a + " · " + t.gotCur, fromAcc: t.a, toAcc: t.a,
-          fromAmt: this.signed(t.v, cur, true), toAmt: "+" + this.fmt(this.closeProceeds(t), cur, true),
+          fromAmt: this.signed(t.v, cur), toAmt: "+" + this.fmt(this.closeProceeds(t), cur),
           amountLabel: this.pnlMoney(pnl, cur) + " · сделка закрыта",
           color: pnl > 0 ? "var(--pos)" : pnl < 0 ? "var(--neg)" : "var(--ink3)",
           edit: () => this.editOp(t),
@@ -5913,21 +5909,21 @@ class Component extends DCLogic {
         fromAcc: trade ? (t.type === "buy" ? t.a : t.gotCur) : transfer || t.v < 0 ? t.a : "",
         toAcc: trade ? (t.type === "buy" ? t.gotCur : t.a) : transfer ? t.to : t.v > 0 ? t.a : "",
         fromAmt: trade
-          ? (t.type === "buy" ? this.signed(t.v, this.curOf(t.a), true) : "−" + this.coinAmount(Math.abs(t.got || 0), t.gotCur))
-          : transfer && t.gotCur && t.gotCur !== this.curOf(t.a) ? this.fmt(t.v, this.curOf(t.a), true) : "",
+          ? (t.type === "buy" ? this.signed(t.v, this.curOf(t.a)) : "−" + this.coinAmount(Math.abs(t.got || 0), t.gotCur))
+          : transfer && t.gotCur && t.gotCur !== this.curOf(t.a) ? this.fmt(t.v, this.curOf(t.a)) : "",
         toAmt: trade
-          ? (t.type === "buy" ? "+" + this.coinAmount(Math.abs(t.got || 0), t.gotCur) : this.signed(t.v, this.curOf(t.a), true))
+          ? (t.type === "buy" ? "+" + this.coinAmount(Math.abs(t.got || 0), t.gotCur) : this.signed(t.v, this.curOf(t.a)))
           : transfer
-          ? (t.gotCur && t.gotCur !== this.curOf(t.a) ? this.fmt(t.got, t.gotCur, true) : this.fmt(t.v, this.curOf(t.a), true))
-          : this.signed(t.v, this.curOf(t.a), true),
+          ? (t.gotCur && t.gotCur !== this.curOf(t.a) ? this.fmt(t.got, t.gotCur) : this.fmt(t.v, this.curOf(t.a)))
+          : this.signed(t.v, this.curOf(t.a)),
         amountLabel: trade
-          ? this.signed(t.v, this.curOf(t.a), true) + " · "
+          ? this.signed(t.v, this.curOf(t.a)) + " · "
             + (t.type === "buy" ? "+" : "−") + this.coinAmount(Math.abs(t.got || 0), t.gotCur)
           : transfer
           ? (t.gotCur && t.gotCur !== this.curOf(t.a)
-              ? this.fmt(t.v, this.curOf(t.a), true) + " → " + this.fmt(t.got, t.gotCur, true)
-              : this.fmt(t.v, this.curOf(t.a), true))
-          : this.signed(t.v, this.curOf(t.a), true),
+              ? this.fmt(t.v, this.curOf(t.a)) + " → " + this.fmt(t.got, t.gotCur)
+              : this.fmt(t.v, this.curOf(t.a)))
+          : this.signed(t.v, this.curOf(t.a)),
         color: transfer || trade ? "var(--ink3)" : (t.v > 0 ? "var(--pos)" : "var(--neg)"),
         edit: () => this.editOp(t),
         del: e => { e.stopPropagation(); this.deleteOp(t); }
