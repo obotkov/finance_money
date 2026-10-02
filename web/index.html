@@ -170,6 +170,42 @@
   .movers-h { font-size: 12px; color: var(--ink3); padding: 8px 18px 4px; }
   .mover { display: flex; align-items: center; gap: 12px; padding: 9px 14px; margin: 0 4px; border-radius: 12px; cursor: pointer; }
   .movers-none { font-size: 13px; color: var(--ink3); padding: 8px 18px; }
+  /* виджеты портфелей на Сводке: малый — четверть ряда, широкий — половина, с графиками монет */
+  .wg-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+  .wg { padding: 16px 18px; cursor: pointer; min-width: 0; }
+  .wg[data-size="wide"] { grid-column: span 2; }
+  .wg-title { font-size: 15px; font-weight: 600; color: var(--accent); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .wg-val { font-size: 26px; font-weight: 600; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .wg-unit { font-size: 14px; font-weight: 400; color: var(--ink3); }
+  .wg-ch { font-size: 13px; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .wg-sub { font-size: 12px; color: var(--ink3); margin-top: 3px; }
+  .wg-rows { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); }
+  .wg-row { display: grid; grid-template-columns: 12px minmax(0, 1fr) auto 58px; align-items: center; gap: 8px; font-size: 13px; }
+  .wg-row[data-size="wide"] { grid-template-columns: 12px minmax(0, 1.1fr) minmax(40px, 1fr) minmax(0, .9fr) 64px; }
+  .wg-arr { font-size: 10px; color: var(--ink3); }
+  .wg-coin { font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .wg-amt { font-weight: 400; font-size: 12px; color: var(--ink3); margin-left: 4px; }
+  .wg-v { text-align: right; white-space: nowrap; }
+  .wg-p { text-align: right; white-space: nowrap; font-size: 12px; color: var(--ink3); }
+  .wg-spark { width: 100%; height: 22px; display: block; }
+  .wg-spark polyline { fill: none; stroke-width: 1.6; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
+  .wg-edit { padding: 12px; border-radius: 14px; background: var(--fill); }
+  .wg-ic { padding: 6px 10px; min-width: 34px; }
+  .wg-n { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--ink2); }
+  @media (max-width: 1100px) {
+    .wg-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+  @media (max-width: 760px) {
+    .wg-grid { gap: 10px; }
+    .wg { padding: 13px 13px; }
+    .wg-val { font-size: 21px; }
+    .wg-unit { font-size: 12px; }
+    .wg-ch { font-size: 12px; }
+    .wg-row { grid-template-columns: 9px minmax(0, 1fr) auto auto; gap: 5px; font-size: 12px; }
+    .wg-row .wg-p { font-size: 11px; }
+    .wg-row[data-size="wide"] { grid-template-columns: 9px minmax(0, 1fr) 52px auto 54px; }
+    .wg-amt { display: none; }
+  }
   .crop-close { display: inline-block; margin-top: 3px; padding: 3px 10px; font-size: 12px; border-radius: 980px; background: var(--btn-s); color: var(--accent); }
   .crop-close:hover { filter: brightness(1.1); }
   .cr-seclabel { font-size: 13px; color: var(--ink2); padding: 0 4px; }
@@ -714,6 +750,49 @@
               </sc-if>
               </div>
               <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--ink3)"><span>{{ worthFrom }}</span><span>{{ worthTo }}</span></div>
+            </div>
+            </sc-if>
+
+            <!-- виджеты портфелей и крипто-счетов: размер, строки и валюта настраиваются -->
+            <sc-if value="{{ wgOn }}" hint-placeholder-val="{{ true }}">
+            <div style="display:flex;flex-direction:column;gap:10px">
+              <div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px;padding:0 4px">
+                <span class="big" style="font-size:17px">Криптопортфели</span>
+                <a href="#" onClick="{{ wgEdit }}" style="font-size:13px">Настроить</a>
+              </div>
+              <sc-if value="{{ wgNone }}" hint-placeholder-val="{{ false }}">
+                <div class="card" style="padding:14px 18px;font-size:13px;color:var(--ink3)">Виджеты убраны — <a href="#" onClick="{{ wgEdit }}">добавить</a></div>
+              </sc-if>
+              <div class="wg-grid">
+                <sc-for list="{{ wgList }}" as="w" hint-placeholder-count="3">
+                  <div class="card wg" data-size="{{ w.size }}" onClick="{{ w.open }}" title="{{ w.hint }}">
+                    <div class="wg-title">{{ w.title }}</div>
+                    <div class="num wg-val">{{ w.value }} <span class="wg-unit">{{ w.unit }}</span></div>
+                    <div class="num wg-ch"><span class="tone" data-tone="{{ w.tone }}">{{ w.ch }}</span> <span style="color:var(--ink3)">за сутки</span></div>
+                    <sc-if value="{{ w.hasPnl }}" hint-placeholder-val="{{ false }}">
+                      <div class="num wg-sub">{{ w.investedLine }} · <span class="tone" data-tone="{{ w.pnlTone }}">{{ w.pnlLine }}</span></div>
+                    </sc-if>
+                    <sc-if value="{{ w.hasRows }}" hint-placeholder-val="{{ true }}">
+                    <div class="wg-rows">
+                      <sc-for list="{{ w.rows }}" as="r" hint-placeholder-count="4">
+                        <div class="wg-row" data-size="{{ w.size }}" title="{{ r.hint }}">
+                          <span class="tone wg-arr" data-tone="{{ r.tone }}">{{ r.arrow }}</span>
+                          <span class="wg-coin">{{ r.coin }}<sc-if value="{{ w.wide }}" hint-placeholder-val="{{ false }}"><span class="num wg-amt">{{ r.amount }}</span></sc-if></span>
+                          <sc-if value="{{ w.wide }}" hint-placeholder-val="{{ false }}">
+                            <svg class="wg-spark" viewBox="0 0 100 24" preserveAspectRatio="none" aria-hidden="true">
+                              <path d="{{ r.area }}" style="fill:{{ r.color }};opacity:.14"></path>
+                              <polyline points="{{ r.line }}" style="stroke:{{ r.color }}"></polyline>
+                            </svg>
+                          </sc-if>
+                          <span class="num wg-v">{{ r.value }}</span>
+                          <span class="num tone wg-p" data-tone="{{ r.tone }}">{{ r.pct }}</span>
+                        </div>
+                      </sc-for>
+                    </div>
+                    </sc-if>
+                  </div>
+                </sc-for>
+              </div>
             </div>
             </sc-if>
 
@@ -2641,6 +2720,41 @@
     </sc-if>
 
     <!-- диалог: бюджет -->
+    <!-- диалог: виджеты портфелей на Сводке -->
+    <sc-if value="{{ wgDialog }}" hint-placeholder-val="{{ false }}">
+    <div class="dlg" style="position:fixed;inset:0;display:grid;place-items:center;padding:24px;overflow:auto;background:var(--overlay);backdrop-filter:blur(6px)" onClick="{{ close }}">
+      <div class="card" style="width:min(560px,100%);max-height:calc(100vh - 48px);overflow-y:auto;padding:24px;border-radius:22px;box-shadow:0 24px 60px rgba(0,0,0,.22)" onClick="{{ stop }}">
+        <div class="big" style="font-size:21px">Виджеты на Сводке</div>
+        <div style="font-size:13px;color:var(--ink2);margin-top:6px">Портфель, крипто-счёт или вся криптовалюта. Малый виджет — стоимость и монеты, широкий занимает вдвое больше места и добавляет вложенное, прибыль и графики монет за неделю. Монеты идут от самой дорогой.</div>
+        <div style="display:flex;flex-direction:column;gap:10px;margin-top:16px">
+          <sc-for list="{{ wgDraftList }}" as="d" hint-placeholder-count="2">
+            <div class="wg-edit">
+              <select class="inp" value="{{ d.source }}" onChange="{{ d.onSource }}" aria-label="Что показывать">
+                <sc-for list="{{ wgSources }}" as="o" hint-placeholder-count="3"><option value="{{ o.value }}">{{ o.label }}</option></sc-for>
+              </select>
+              <div style="display:flex;gap:8px 10px;flex-wrap:wrap;align-items:center;margin-top:10px">
+                <span class="seg"><span class="segopt" data-on="{{ d.isSmall }}" onClick="{{ d.setSmall }}">Малый</span><span class="segopt" data-on="{{ d.isWide }}" onClick="{{ d.setWide }}">Широкий</span></span>
+                <span class="seg"><span class="segopt" data-on="{{ d.isUsdt }}" onClick="{{ d.setUsdt }}">USDT</span><span class="segopt" data-on="{{ d.isRub }}" onClick="{{ d.setRub }}">₽</span></span>
+                <span class="wg-n"><button class="btn btn-s wg-ic" onClick="{{ d.less }}" aria-label="Меньше монет">−</button><span class="num" style="min-width:74px;text-align:center">{{ d.rowsLabel }}</span><button class="btn btn-s wg-ic" onClick="{{ d.more }}" aria-label="Больше монет">+</button></span>
+                <span style="margin-left:auto;display:inline-flex;gap:2px">
+                  <button class="btn btn-t wg-ic" onClick="{{ d.up }}" title="Выше" aria-label="Выше">↑</button>
+                  <button class="btn btn-t wg-ic" onClick="{{ d.down }}" title="Ниже" aria-label="Ниже">↓</button>
+                  <button class="btn btn-t wg-ic" style="color:var(--neg)" onClick="{{ d.del }}" title="Убрать" aria-label="Убрать">✕</button>
+                </span>
+              </div>
+            </div>
+          </sc-for>
+          <sc-if value="{{ wgDraftEmpty }}" hint-placeholder-val="{{ false }}"><div style="font-size:13px;color:var(--ink3)">Виджетов нет — блок на Сводке будет пустым.</div></sc-if>
+        </div>
+        <sc-if value="{{ wgCanAdd }}" hint-placeholder-val="{{ true }}"><button class="btn btn-s" style="margin-top:12px" onClick="{{ wgAdd }}">+ Добавить виджет</button></sc-if>
+        <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px">
+          <button class="btn btn-s" onClick="{{ close }}">Отмена</button>
+          <button class="btn btn-p" onClick="{{ wgSave }}">Сохранить</button>
+        </div>
+      </div>
+    </div>
+    </sc-if>
+
     <sc-if value="{{ bgDialog }}" hint-placeholder-val="{{ false }}">
     <div class="dlg" style="position:fixed;inset:0;display:grid;place-items:center;padding:24px;overflow:auto;background:var(--overlay);backdrop-filter:blur(6px)" onClick="{{ close }}">
       <div class="card" style="width:min(440px,100%);max-height:calc(100vh - 48px);overflow-y:auto;padding:24px;border-radius:22px;box-shadow:0 24px 60px rgba(0,0,0,.22)" onClick="{{ stop }}">
@@ -3281,6 +3395,8 @@ class Component extends DCLogic {
     plDate: TODAY, plPrice: "", plAuto: true, plA: "", plB: "", plLast: "a", plPct: "100", poolHist: null,
     // Telegram: ссылка привязки, ждём ли нажатия Start, сообщение под карточкой
     telegram: {}, tgUrl: "", tgWaiting: false, tgMsg: "",
+    // виджеты портфелей на Сводке: null — не настраивались (показываются по умолчанию)
+    widgets: null, wgDraft: [],
     coins: [], coinAdd: null, coinQ: "", coinFound: [], coinBusy: false, coinMsg: "",
     // движение по счёту: какой счёт открыт (null — список счетов), период и фильтр
     accView: null, avFrom: THIS_MONTH + "-01", avTo: TODAY, avPreset: "month", accFilter: "all",
@@ -3620,6 +3736,149 @@ class Component extends DCLogic {
     });
   }
 
+  // ---- Виджеты портфелей на Сводке (backend/widgets.go) ----
+  // Источник: "all" — вся криптовалюта, "p:<id портфеля>", "a:<id счёта>" (в демо
+  // у счетов нет id — там имя).
+  widgetSources() {
+    const st = this.state;
+    return [{ value: "all", label: "Вся криптовалюта" }]
+      .concat(st.crypto.map(p => ({ value: "p:" + p.id, label: "Портфель «" + p.name + "»" })))
+      .concat(st.accounts.filter(a => a.kind === "Криптокошелёк")
+        .map(a => ({ value: "a:" + (a.id != null ? a.id : a.name), label: "Счёт «" + a.name + "»" })));
+  }
+  // Что сейчас на Сводке: свои настройки без пропавших источников, а пока их не
+  // настраивали — по малому виджету на каждый портфель и крипто-счёт (до четырёх)
+  widgetList() {
+    const srcs = this.widgetSources(), known = new Set(srcs.map(o => o.value));
+    if (this.state.widgets) return this.state.widgets.filter(w => known.has(w.source));
+    const own = srcs.slice(1, 5);
+    return own.map(o => ({ source: o.value, size: own.length === 1 ? "wide" : "small", rows: 4, cur: "USDT" }));
+  }
+  // Монеты источника (код → количество), вложенное в USDT и куда ведёт нажатие
+  widgetSource(source) {
+    const st = this.state, coins = {};
+    const add = (coin, n) => { if (coin && n > 1e-12) coins[coin] = (coins[coin] || 0) + n; };
+    const addPools = pools => (pools || []).forEach(pool => {
+      const c = this.poolCalc(pool, this.poolPrice(pool));
+      add(pool.coinA, c.a); add(pool.coinB, c.b);
+    });
+    const port = p => {
+      p.assets.forEach(a => add(a.coin, a.amount));
+      addPools(p.pools);
+      return p.assets.reduce((sum, a) => sum + a.invested, 0) + (p.pools || []).reduce((sum, pool) => sum + this.poolCalc(pool, 0).invested, 0);
+    };
+    const acc = a => {
+      add(a.cur || "RUB", a.balance);
+      this.holdings(a).forEach(h => add(h.coin, h.amount));
+      addPools(a.pools);
+      return this.accInvested(a);
+    };
+    const accs = st.accounts.filter(a => a.kind === "Криптокошелёк");
+    if (source === "all") {
+      const invested = st.crypto.reduce((s, p) => s + port(p), 0) + accs.reduce((s, a) => s + acc(a), 0);
+      return { title: "Вся криптовалюта", coins, invested, open: () => { this.goScreen("crypto"); this.setState({ crOpen: null, crAccOpen: null, crCoin: null }); } };
+    }
+    const key = source.slice(2);
+    if (source.startsWith("p:")) {
+      const p = st.crypto.find(x => String(x.id) === key);
+      return p && { title: p.name, coins, invested: port(p), open: () => { this.goScreen("crypto"); this.setState({ crOpen: p.id, crAccOpen: null, crCoin: null }); } };
+    }
+    const a = accs.find(x => String(x.id != null ? x.id : x.name) === key);
+    return a && { title: a.name, coins, invested: acc(a), open: () => { this.goScreen("crypto"); this.setState({ crOpen: null, crAccOpen: a.name, crCoin: null }); } };
+  }
+  widgetVals() {
+    const st = this.state;
+    const dayAgo = k => { const d = new Date(TODAY_Y, TODAY_M, TODAY_D - k); return d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate()); };
+    const week = [6, 5, 4, 3, 2, 1, 0].map(dayAgo), yday = week[5];
+    const usdtRub = this.coinRub("USDT");
+    // крупные суммы — без копеек, мелкие — до сотых; миллионы — «1,25 млн»
+    const num = (n, sign) => {
+      const a = Math.abs(n);
+      const s = a >= 1e6 ? (a / 1e6).toLocaleString("ru-RU", { maximumFractionDigits: 2 }) + " млн"
+        : a >= 1000 ? Math.round(a).toLocaleString("ru-RU")
+        : a.toLocaleString("ru-RU", { maximumFractionDigits: a >= 100 ? 1 : 2 });
+      return (n < 0 && a >= 0.005 ? "−" : sign && n > 0 && a >= 0.005 ? "+" : "") + s.replace(/\u00a0/g, " ");
+    };
+    const pct = p => (p > 0.005 ? "+" : p < -0.005 ? "−" : "") + Math.abs(p).toFixed(2).replace(".", ",") + " %";
+    const tone = n => (n > 1e-9 ? "good" : n < -1e-9 ? "bad" : "");
+    const list = this.widgetList().map((w, i) => {
+      const src = this.widgetSource(w.source);
+      if (!src) return null;
+      const rub = w.cur === "RUB";
+      // цена единицы в валюте виджета в день day
+      const unit = (code, day) => rub ? this.rubOn(code, day) : this.rubOn(code, day) / this.rubOn("USDT", day);
+      const coins = Object.keys(src.coins).map(coin => {
+        const n = src.coins[coin], now = n * unit(coin, TODAY), was = n * unit(coin, yday);
+        return { coin, n, now, was, prices: week.map(d => unit(coin, d)) };
+      }).filter(c => Math.abs(c.now) > 0.005).sort((a, b) => b.now - a.now);
+      const now = coins.reduce((s, c) => s + c.now, 0), was = coins.reduce((s, c) => s + c.was, 0);
+      const valueUsdt = rub ? (usdtRub > 0 ? now / usdtRub : 0) : now;
+      const pnl = valueUsdt - src.invested, k = rub ? usdtRub : 1;
+      const wide = w.size === "wide";
+      const rows = coins.slice(0, w.rows).map(c => {
+        const p = c.was > 0 ? (c.now / c.was - 1) * 100 : 0;
+        const lo = Math.min(...c.prices), hi = Math.max(...c.prices), span = hi - lo || 1;
+        const pts = c.prices.map((v, j) => (j / 6 * 100).toFixed(1) + "," + (hi === lo ? 12 : 21 - (v - lo) / span * 18).toFixed(1));
+        return {
+          key: c.coin, coin: c.coin, amount: this.coinAmount(c.n), value: num(c.now), pct: pct(p),
+          tone: tone(p), arrow: p > 0.005 ? "▲" : p < -0.005 ? "▼" : "•",
+          hint: this.coinAmount(c.n, c.coin) + " · цена " + (rub ? this.money(unit(c.coin, TODAY), "RUB") : this.coinPrice(c.coin)),
+          line: pts.join(" "), area: "M0,24 L" + pts.join(" L") + " L100,24 Z",
+          // цвет — как у стрелки и процента: по изменению за сутки
+          color: p > 0.005 ? "var(--pos)" : p < -0.005 ? "var(--neg)" : "var(--ink3)"
+        };
+      });
+      return {
+        key: i + w.source, size: wide ? "wide" : "small", wide, title: src.title,
+        value: num(now), unit: rub ? "₽" : "USDT",
+        ch: (wide ? num(now - was, true) + " · " : "") + (was > 0 ? pct((now / was - 1) * 100) : "0,00 %"), tone: tone(now - was),
+        hasPnl: wide && src.invested > 0.005,
+        investedLine: "вложено " + num(src.invested * k), pnlLine: "прибыль " + num(pnl * k, true) + " · " + pct(pnl / src.invested * 100), pnlTone: tone(pnl),
+        hasRows: rows.length > 0, rows,
+        hint: "Стоимость по нынешним курсам; за сутки — изменение цен монет при нынешнем составе",
+        open: src.open
+      };
+    }).filter(Boolean);
+    const sources = this.widgetSources();
+    const draft = st.wgDraft || [];
+    const setDraft = fn => this.setState(s => ({ wgDraft: fn(s.wgDraft.slice()) }));
+    const patch = (i, p) => setDraft(d => { d[i] = { ...d[i], ...p }; return d; });
+    const swap = (i, j) => setDraft(d => { if (j >= 0 && j < d.length) [d[i], d[j]] = [d[j], d[i]]; return d; });
+    return {
+      // блок есть, когда есть что показывать или что добавить
+      wgOn: sources.length > 1 || list.length > 0,
+      wgNone: list.length === 0,
+      wgList: list,
+      wgEdit: e => { if (e) e.preventDefault(); this.setState({ dialog: "widgets", wgDraft: this.widgetList().map(w => ({ ...w })) }); },
+      wgDialog: st.dialog === "widgets",
+      wgSources: sources,
+      wgDraftEmpty: draft.length === 0,
+      wgDraftList: draft.map((d, i) => ({
+        key: "d" + i, source: d.source,
+        onSource: e => patch(i, { source: e.target.value }),
+        isSmall: d.size === "small" ? "1" : "0", isWide: d.size === "wide" ? "1" : "0",
+        setSmall: () => patch(i, { size: "small" }), setWide: () => patch(i, { size: "wide" }),
+        isUsdt: d.cur === "USDT" ? "1" : "0", isRub: d.cur === "RUB" ? "1" : "0",
+        setUsdt: () => patch(i, { cur: "USDT" }), setRub: () => patch(i, { cur: "RUB" }),
+        rowsLabel: d.rows ? pluralRu(d.rows, "монета", "монеты", "монет") : "без монет",
+        less: () => patch(i, { rows: Math.max(0, d.rows - 1) }), more: () => patch(i, { rows: Math.min(10, d.rows + 1) }),
+        up: () => swap(i, i - 1), down: () => swap(i, i + 1),
+        del: () => setDraft(x => x.filter((_, j) => j !== i))
+      })),
+      wgCanAdd: draft.length < 12,
+      wgAdd: () => setDraft(d => {
+        const used = new Set(d.map(w => w.source));
+        const next = sources.find(o => !used.has(o.value)) || sources[0];
+        return d.concat({ source: next.value, size: "small", rows: 4, cur: "USDT" });
+      }),
+      wgSave: () => {
+        const widgets = st.wgDraft;
+        if (st.online) { this.api("PUT", "widgets", { widgets }).then(() => this.setState({ dialog: null }), () => {}); return; }
+        this.setState({ widgets, dialog: null });
+      }
+    };
+  }
+
   // Сводка: монеты из портфелей и крипто-счетов, которые больше всех выросли и
   // упали за период — по дневным курсам, в USDT. Стейблкоины не в счёт.
   moversVals() {
@@ -3793,7 +4052,7 @@ class Component extends DCLogic {
       const cat = cats.some(c => c.name === s.cat && c.kind === kind) ? s.cat : this.firstLeaf(kind, cats);
       return Object.assign({ user: data.user || null, accounts, cats, txs: data.txs || [],
         crypto: data.crypto || [], rates, history: data.history || {}, backups: data.backups || [], recurring: data.recurring || [],
-        budgets: data.budgets || [], coins: data.coins || [], telegram: data.telegram || {}, budgetAlert: data.budgetAlert || { on: true, pct: 90 }, pushKey: data.pushKey || "", pushDevices: data.pushDevices || 0,
+        budgets: data.budgets || [], coins: data.coins || [], telegram: data.telegram || {}, widgets: data.widgets || null, budgetAlert: data.budgetAlert || { on: true, pct: 90 }, pushKey: data.pushKey || "", pushDevices: data.pushDevices || 0,
         currentBackup: data.currentBackup || null, acc, accTo, cat }, extra);
     });
   }
@@ -6448,6 +6707,7 @@ class Component extends DCLogic {
       ...this.summaryVals(),
       ...(st.screen === "rates" ? this.ratesVals() : {}),
       ...(st.screen === "summary" ? this.moversVals() : { moversOn: false }),
+      ...(st.screen === "summary" || st.dialog === "widgets" ? this.widgetVals() : { wgOn: false, wgDialog: false }),
       visibleTxs: visible.map(shapeTx),
       countLabel: visible.length + " из " + periodTxs.length + " операций",
       noTxs: visible.length === 0,

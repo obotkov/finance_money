@@ -131,8 +131,10 @@ type State struct {
 	Telegram TelegramState `json:"telegram"`
 	// уведомления о бюджетах и пуши: ключ для подписки браузера, сколько устройств подписано
 	BudgetAlert BudgetAlert `json:"budgetAlert"`
-	PushKey     string      `json:"pushKey,omitempty"`
-	PushDevices int         `json:"pushDevices"`
+	// виджеты на Сводке (widgets.go); null — не настраивались
+	Widgets     []Widget `json:"widgets"`
+	PushKey     string   `json:"pushKey,omitempty"`
+	PushDevices int      `json:"pushDevices"`
 	// бекап, с которым данные сейчас совпадают; null — их меняли после сохранения
 	CurrentBackup *int64          `json:"currentBackup"`
 	Rates         map[string]Rate `json:"rates"`
@@ -313,6 +315,9 @@ func (s *Store) State(ctx context.Context, uid int64) (*State, error) {
 		return nil, err
 	}
 	if st.Coins, err = s.userCoins(ctx, uid); err != nil {
+		return nil, err
+	}
+	if st.Widgets, err = s.widgets(ctx, uid); err != nil {
 		return nil, err
 	}
 	if st.BudgetAlert, err = s.budgetAlert(ctx, uid); err != nil {

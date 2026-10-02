@@ -139,6 +139,8 @@ func (a *API) Handler() http.Handler {
 		return nil
 	}))
 
+	mux.HandleFunc("PUT /api/widgets", a.withState(withBody(s.SetWidgets)))
+
 	mux.HandleFunc("POST /api/push/subscribe", a.withState(withBody(s.SavePushSubscription)))
 	mux.HandleFunc("POST /api/push/unsubscribe", a.withState(func(r *http.Request, uid int64) error {
 		var in PushSubscription

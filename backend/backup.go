@@ -493,6 +493,12 @@ func dumpBackup(ctx context.Context, tx pgx.Tx, uid int64) (*backupFile, error) 
 // ссылки между ними переводятся через старые id из файла. Остатки счетов
 // берутся из бекапа как есть — операции их не пересчитывают.
 func restore(ctx context.Context, tx pgx.Tx, uid int64, f *backupFile) error {
+	// виджеты ссылаются на счета и портфели по id, а восстановление их перенумерует:
+	// запоминаем имена и после восстановления находим по ним новые id
+	widgets, err := widgetNames(ctx, tx, uid)
+	if err != nil {
+		return err
+	}
 	for _, q := range []string{
 		`DELETE FROM transactions WHERE user_id = $1`,
 		`DELETE FROM accounts WHERE user_id = $1`,
@@ -617,7 +623,7 @@ func restore(ctx context.Context, tx pgx.Tx, uid int64, f *backupFile) error {
 			return err
 		}
 	}
-	return nil
+	return widgetIDs(ctx, tx, uid, widgets)
 }
 
 // at — время из бекапа или NULL, чтобы база поставила now().
