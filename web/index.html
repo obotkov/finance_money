@@ -1132,6 +1132,9 @@
                 <span class="big" style="font-size:18px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ crPortTitle }}</span>
                 <span style="font-size:13px;color:var(--ink3);flex:none">{{ crPortPlaceLabel }}</span>
               </div>
+              <div class="cr-head-btns" style="margin-left:auto;display:flex;gap:10px;flex:none">
+                <button class="btn btn-s" onClick="{{ crAddPool }}">Добавить пул</button>
+              </div>
               </sc-if>
               <sc-if value="{{ crInsidePort }}" hint-placeholder-val="{{ true }}">
               <div class="cr-head-btns" style="margin-left:auto;display:flex;gap:10px;flex:none">
@@ -1326,7 +1329,7 @@
             </sc-if>
 
             <!-- пулы ликвидности портфеля: монеты в позиции считаются по курсу и интервалу -->
-            <sc-if value="{{ crHasPools }}" hint-placeholder-val="{{ false }}">
+            <sc-if value="{{ crPortPools }}" hint-placeholder-val="{{ false }}">
             <div style="display:flex;flex-direction:column;gap:12px">
               <div class="big" style="font-size:17px;padding:4px 4px 0">Пулы ликвидности</div>
               <sc-for list="{{ crPools }}" as="pl" hint-placeholder-count="1">
@@ -1427,6 +1430,66 @@
                 <span class="num cr-total" style="font-size:13px;color:var(--ink3)"><span>вложено {{ crAccSumInvested }}</span><i> · </i><span>стоимость <span style="color:var(--ink)">{{ crAccSumValue }}</span></span><i> · </i><span style="color:{{ crAccSumPnlColor }}">{{ crAccSumPnlLine }}</span></span>
               </div>
             </div>
+            <!-- пулы ликвидности крипто-счёта: та же разметка, что у портфеля -->
+            <sc-if value="{{ crAccPools }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;flex-direction:column;gap:12px">
+              <div class="big" style="font-size:17px;padding:4px 4px 0">Пулы ликвидности</div>
+              <sc-for list="{{ crPools }}" as="pl" hint-placeholder-count="1">
+                <div class="card pool-card">
+                  <div style="display:flex;align-items:center;gap:12px">
+                    <span style="display:flex;flex:none">
+                      <span class="coin" data-len="{{ pl.iconALen }}" style="{{ pl.iconAStyle }}">{{ pl.iconA }}</span>
+                      <span class="coin" data-len="{{ pl.iconBLen }}" style="{{ pl.iconBStyle }};margin-left:-8px">{{ pl.iconB }}</span>
+                    </span>
+                    <span style="flex:1;min-width:0">
+                      <span style="display:block;font-size:16px;font-weight:600">{{ pl.pair }}</span>
+                      <span style="display:block;font-size:12px;color:var(--ink3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ pl.place }}</span>
+                    </span>
+                    <span class="pool-status" data-tone="{{ pl.tone }}">{{ pl.statusLabel }}</span>
+                  </div>
+                  <div class="num" style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:13px;color:var(--ink2);margin-top:14px">
+                    <span>{{ pl.rangeLabel }}</span><span>{{ pl.priceLabel }}</span>
+                  </div>
+                  <div class="pool-bar">
+                    <span class="pool-track"></span>
+                    <span class="pool-band" style="left:{{ pl.bandL }};width:{{ pl.bandW }}"></span>
+                    <sc-if value="{{ pl.markOn }}" hint-placeholder-val="{{ true }}"><span class="pool-mark" style="left:{{ pl.markL }}"></span></sc-if>
+                  </div>
+                  <div class="pool-kpis">
+                    <div><div class="av-cap">В позиции</div><div class="num" style="font-size:15px;margin-top:2px">{{ pl.amountA }}</div><div class="num" style="font-size:15px">{{ pl.amountB }}</div></div>
+                    <div><div class="av-cap">Стоимость</div><div class="num big" style="font-size:19px;margin-top:2px">{{ pl.valueLabel }}</div><div class="num" style="font-size:12px;color:var(--ink3)">{{ pl.valueRub }}</div></div>
+                    <div><div class="av-cap">Прибыль</div><div class="num" style="font-size:16px;font-weight:500;margin-top:2px;color:{{ pl.pnlColor }}">{{ pl.pnlLabel }}</div><div class="num" style="font-size:12px;color:var(--ink3)">{{ pl.investedLabel }}</div></div>
+                  </div>
+                  <div class="num" style="display:flex;gap:6px 16px;flex-wrap:wrap;font-size:12px;color:var(--ink3);margin-top:10px">
+                    <span>{{ pl.feesLabel }}</span><span style="color:{{ pl.hodlColor }}">{{ pl.hodlLabel }}</span>
+                  </div>
+                  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">
+                    <button class="btn btn-s" onClick="{{ pl.deposit }}">Внести</button>
+                    <sc-if value="{{ pl.isOpen }}" hint-placeholder-val="{{ true }}">
+                      <button class="btn btn-s" onClick="{{ pl.withdraw }}">Вывести</button>
+                      <button class="btn btn-s" onClick="{{ pl.fees }}">Комиссии</button>
+                      <button class="btn btn-t" onClick="{{ pl.rerange }}">Изменить интервал</button>
+                    </sc-if>
+                    <button class="btn btn-t" style="margin-left:auto" onClick="{{ pl.toggleHist }}">{{ pl.histLabel }}</button>
+                    <button class="btn btn-t" style="color:var(--neg)" onClick="{{ pl.remove }}">Удалить</button>
+                  </div>
+                  <sc-if value="{{ pl.histOpen }}" hint-placeholder-val="{{ false }}">
+                    <div style="border-top:1px solid var(--line);margin-top:12px;padding-top:4px">
+                      <sc-for list="{{ pl.events }}" as="e" hint-placeholder-count="2">
+                        <div class="pool-ev">
+                          <span class="num" style="color:var(--ink3)">{{ e.date }}</span>
+                          <span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ e.what }}</span>
+                          <span class="num" style="text-align:right;white-space:nowrap;color:{{ e.tone }}">{{ e.amounts }}</span>
+                          <sc-if value="{{ e.canDel }}" hint-placeholder-val="{{ false }}"><button class="btn btn-t" style="padding:0 4px;color:var(--ink3);font-size:17px;line-height:1" title="Отменить событие" onClick="{{ e.del }}">×</button></sc-if>
+                          <sc-if value="{{ e.noDel }}" hint-placeholder-val="{{ true }}"><span></span></sc-if>
+                        </div>
+                      </sc-for>
+                    </div>
+                  </sc-if>
+                </div>
+              </sc-for>
+            </div>
+            </sc-if>
             <div class="card" style="padding:6px 4px 10px">
               <div style="display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:4px 12px;padding:12px 18px 8px">
                 <span style="font-size:13px;color:var(--ink2);display:flex;align-items:center;gap:8px;flex-wrap:wrap">Движение средств <span style="color:var(--ink3)">{{ crOpsSub }}</span>
@@ -3179,7 +3242,7 @@ class Component extends DCLogic {
     repOff: [], repAccPop: null,
     // свои монеты: список пользователя и окно поиска (откуда открыто: rates, deal, asset)
     // пулы: окно (новая позиция или событие) и открытая история
-    plMode: "new", plId: null, plPort: null, plCoinA: "ETH", plCoinB: "USDT", plPlace: "", plMin: "", plMax: "",
+    plMode: "new", plId: null, plOwner: null, plCoinA: "ETH", plCoinB: "USDT", plPlace: "", plMin: "", plMax: "",
     plDate: TODAY, plPrice: "", plAuto: true, plA: "", plB: "", plLast: "a", plPct: "100", poolHist: null,
     coins: [], coinAdd: null, coinQ: "", coinFound: [], coinBusy: false, coinMsg: "",
     // движение по счёту: какой счёт открыт (null — список счетов), период и фильтр
@@ -3395,16 +3458,30 @@ class Component extends DCLogic {
       h.amount += (t.type === "buy" ? 1 : -1) * (t.got || 0);
       h.spent -= t.v;
     });
+    // пулы счёта забирают монеты и возвращают их; потраченное на монету меняется в той же доле
+    (acc.pools || []).forEach(pool => pool.events.forEach(e => {
+      [[pool.coinA, e.assetA], [pool.coinB, e.assetB]].forEach(([coin, d]) => {
+        if (!d || coin === (acc.cur || "RUB")) return;
+        const h = by[coin] || (by[coin] = { coin, amount: 0, spent: 0 });
+        if (h.amount > 1e-12) h.spent *= Math.max(0, (h.amount + d) / h.amount);
+        h.amount += d;
+      });
+    }));
     return Object.keys(by).map(k => by[k]).filter(h => Math.abs(h.amount) > 1e-12);
   }
 
   // Сколько стоит счёт в своей валюте: остаток плюс купленные на нём монеты.
   // Для обычного счёта это просто остаток.
   accWorth(acc) {
-    const hs = this.holdings(acc);
-    if (!hs.length) return acc.balance;
+    const hs = this.holdings(acc), pools = acc.pools || [];
+    if (!hs.length && !pools.length) return acc.balance;
     const rate = CUR[acc.cur || "RUB"] ? CUR[acc.cur || "RUB"].rate : 1;
-    return acc.balance + hs.reduce((sum, h) => sum + this.toRub(h.amount, h.coin) / rate, 0);
+    // и монеты в пулах счёта — по текущей цене
+    const inPools = pools.reduce((sum, pool) => {
+      const c = this.poolCalc(pool, this.poolPrice(pool));
+      return sum + c.a * this.coinRub(pool.coinA) + c.b * this.coinRub(pool.coinB);
+    }, 0);
+    return acc.balance + (hs.reduce((sum, h) => sum + this.toRub(h.amount, h.coin), 0) + inPools) / rate;
   }
   accRub(acc) { return this.toRub(this.accWorth(acc), acc.cur); }
 
@@ -3453,6 +3530,14 @@ class Component extends DCLogic {
         const v = this.txEffect(t, acc.name);
         if (v) list.push({ d: t.d, bal: v });
       });
+      // события пулов счёта: валюта счёта — в остаток, остальные монеты — в количество
+      (acc.pools || []).forEach(pool => pool.events.forEach(e => {
+        [[pool.coinA, e.assetA], [pool.coinB, e.assetB]].forEach(([coin, d]) => {
+          if (!d) return;
+          if (coin === (acc.cur || "RUB")) list.push({ d: e.date, bal: d });
+          else list.push({ d: e.date, bal: 0, coin, qty: d });
+        });
+      }));
       return { acc, list };
     });
     return days.map(day => {
@@ -3486,6 +3571,12 @@ class Component extends DCLogic {
         });
         rub += bal * this.rubOn(acc.cur || "RUB", day);
         Object.keys(held).forEach(c => { if (held[c] > 1e-12) rub += held[c] * this.rubOn(c, day); });
+        (acc.pools || []).forEach(pool => {
+          const L = pool.events.reduce((sum, e) => sum + (e.date <= day ? e.liquidity : 0), 0);
+          if (!(L > 1e-12)) return;
+          const [a, b] = poolAmounts(L, this.poolPrice(pool, day), pool.min, pool.max);
+          rub += a * this.rubOn(pool.coinA, day) + b * this.rubOn(pool.coinB, day);
+        });
       });
       const usdt = this.rubOn("USDT", day);
       return usdt > 0 ? rub / usdt : 0;
@@ -4069,7 +4160,26 @@ class Component extends DCLogic {
 
   // ---- бекапы ----
 
-  // ---- пулы ликвидности в крипто-портфеле ----
+  // ---- пулы ликвидности: в крипто-портфеле или на крипто-счёте ----
+  // Хозяин позиции задаётся строкой: "p:<id портфеля>" или "a:<название счёта>".
+  poolOwner(ref) {
+    const st = this.state;
+    if (!ref) return null;
+    if (ref.startsWith("p:")) {
+      const p = st.crypto.find(x => String(x.id) === ref.slice(2));
+      return p ? { ref, isAcc: false, obj: p, pools: p.pools || [], label: "в портфеле «" + p.name + "»" } : null;
+    }
+    const a = st.accounts.find(x => x.name === ref.slice(2));
+    return a ? { ref, isAcc: true, obj: a, pools: a.pools || [], label: "на счёте «" + a.name + "»" } : null;
+  }
+  // сколько монеты есть у хозяина, чтобы внести: в портфеле — строка монеты,
+  // на счёте — остаток в его валюте или купленные на нём монеты
+  poolAvailable(o, coin) {
+    if (!o.isAcc) { const x = o.obj.assets.find(y => y.coin === coin); return x ? x.amount : 0; }
+    if (coin === (o.obj.cur || "RUB")) return Math.max(o.obj.balance, 0);
+    const h = this.holdings(o.obj).find(x => x.coin === coin);
+    return h ? h.amount : 0;
+  }
   // Цена пары — сколько монеты B за одну A: по рублёвым курсам обеих (на день day или сейчас).
   poolPrice(pool, day) {
     const ra = day ? this.rubOn(pool.coinA, day) : this.coinRub(pool.coinA);
@@ -4108,16 +4218,29 @@ class Component extends DCLogic {
   }
 
   // Демо: то же, что делает сервер (backend/pools.go), над состоянием страницы.
-  poolDemo(fn) {
-    const crypto = JSON.parse(JSON.stringify(this.state.crypto));
-    try { fn(crypto); } catch (err) { window.alert(err.message); return false; }
-    crypto.forEach(p => (p.pools || []).forEach(pool => pool.events.sort((x, y) => (x.date < y.date ? -1 : x.date > y.date ? 1 : x.id - y.id))));
-    this.setState({ crypto, dialog: null });
+  poolDemo(ref, fn) {
+    const crypto = JSON.parse(JSON.stringify(this.state.crypto)), accounts = JSON.parse(JSON.stringify(this.state.accounts));
+    const owner = ref.startsWith("p:") ? crypto.find(x => String(x.id) === ref.slice(2)) : accounts.find(x => x.name === ref.slice(2));
+    try { owner.pools = owner.pools || []; fn(owner); } catch (err) { window.alert(err.message); return false; }
+    owner.pools.forEach(pool => pool.events.sort((x, y) => (x.date < y.date ? -1 : x.date > y.date ? 1 : x.id - y.id)));
+    this.setState({ crypto, accounts, dialog: null });
     return true;
   }
-  demoMove(port, coin, da, dInv) {
+  // o — портфель (с assets) или крипто-счёт
+  demoMove(o, coin, da, dInv) {
     if (!da && !dInv) return;
-    const a = port.assets.find(x => x.coin === coin);
+    if (!o.assets) {
+      if (coin === (o.cur || "RUB")) {
+        if (da < 0 && o.balance + da < -1e-9) throw new Error("На счёте не хватает " + coin + " — сначала пополните его");
+        o.balance += da;
+        return;
+      }
+      // монеты счёта считаются из сделок и событий пулов — событие их и поменяет
+      const h = this.holdings(o).find(x => x.coin === coin), held = h ? h.amount : 0;
+      if (da < 0 && held + da < -1e-9) throw new Error("На счёте только " + this.coinAmount(held, coin) + " — сначала купите или переведите их");
+      return;
+    }
+    const port = o, a = port.assets.find(x => x.coin === coin);
     if (!a) {
       if (da < -1e-12) throw new Error("В портфеле нет " + coin + ", чтобы списать их");
       port.assets.push({ id: Date.now() + Math.random(), coin, amount: Math.max(da, 0), invested: Math.max(dInv, 0) });
@@ -4128,6 +4251,7 @@ class Component extends DCLogic {
     if (a.amount < 1e-12 && a.invested < 1e-6) port.assets.splice(port.assets.indexOf(a), 1);
   }
   demoPoolEvent(port, pool, kind, date, price, a, b, pct) {
+    const usdtOn = (coin, q) => { const u = this.rubOn("USDT", date); return u > 0 ? q * this.rubOn(coin, date) / u : 0; };
     const last = pool.events.reduce((m, e) => (e.date > m ? e.date : m), "");
     if (last && date < last) throw new Error("Дата не раньше последнего события позиции — " + last.split("-").reverse().join("."));
     const ev = { id: Date.now(), kind, date, price, amountA: a, amountB: b, liquidity: 0, invested: 0, assetA: 0, assetB: 0, assetInvA: 0, assetInvB: 0 };
@@ -4138,14 +4262,19 @@ class Component extends DCLogic {
       Object.assign(ev, { amountA: ua, amountB: ub, liquidity: L });
       [[pool.coinA, ua, "A"], [pool.coinB, ub, "B"]].forEach(([coin, q, side]) => {
         if (!(q > 0)) return;
+        if (!port.assets) {
+          // со счёта: монеты уходят с него целиком, вложено — их стоимость в день внесения
+          this.demoMove(port, coin, -q, 0);
+          ev["asset" + side] = -q; ev.invested += usdtOn(coin, q);
+          return;
+        }
         const have = port.assets.find(x => x.coin === coin), take = have ? Math.min(q, have.amount) : 0;
         if (take > 0) {
           const inv = have.invested * take / have.amount;
           this.demoMove(port, coin, -take, -inv);
           ev["asset" + side] = -take; ev["assetInv" + side] = -inv; ev.invested += inv;
         }
-        const u = this.rubOn("USDT", date);
-        if (q - take > 1e-12 && u > 0) ev.invested += (q - take) * this.rubOn(coin, date) / u;
+        if (q - take > 1e-12) ev.invested += usdtOn(coin, q - take);
       });
     } else if (kind === "withdraw") {
       const c = this.poolCalc(pool, price);
@@ -4161,41 +4290,46 @@ class Component extends DCLogic {
     }
     pool.events.push(ev);
   }
+  // сначала монеты, потом событие: на счёте монеты считаются вместе с событиями
   demoRevert(port, pool, ev) {
-    pool.events.splice(pool.events.indexOf(ev), 1);
     this.demoMove(port, pool.coinA, -(ev.assetA || 0), -(ev.assetInvA || 0));
     this.demoMove(port, pool.coinB, -(ev.assetB || 0), -(ev.assetInvB || 0));
+    pool.events.splice(pool.events.indexOf(ev), 1);
   }
 
-  openPoolNew(port, preset) {
-    const coins = port.assets.map(a => a.coin);
+  openPoolNew(ref, preset) {
+    const o = this.poolOwner(ref);
+    if (!o) return;
+    // по умолчанию — монеты хозяина: на счёте вторая монета — его валюта
+    const coins = o.isAcc ? this.holdings(o.obj).map(h => h.coin) : o.obj.assets.map(a => a.coin);
     const coinA = (preset && preset.coinA) || coins.find(c => c !== "USDT" && c !== "USDC") || "ETH";
-    const coinB = (preset && preset.coinB) || (coins.indexOf("USDC") !== -1 ? "USDC" : "USDT");
+    const coinB = (preset && preset.coinB) || (o.isAcc && o.obj.cur !== coinA ? o.obj.cur : coins.indexOf("USDC") !== -1 ? "USDC" : "USDT");
     const price = this.poolPrice({ coinA, coinB });
     const r3 = n => (n > 0 ? Number(n.toPrecision(3)) : "");
-    this.setState({ dialog: "pool", plMode: "new", plId: null, plPort: port.id, plCoinA: coinA, plCoinB: coinB,
+    this.setState({ dialog: "pool", plMode: "new", plId: null, plOwner: ref, plCoinA: coinA, plCoinB: coinB,
       plPlace: (preset && preset.place) || "", plMin: (preset && preset.min) || String(r3(price * 0.9)).replace(".", ","),
       plMax: (preset && preset.max) || String(r3(price * 1.1)).replace(".", ","),
       plDate: TODAY, plPrice: "", plAuto: true, plA: (preset && preset.a) || "", plB: "", plLast: "a", plPct: "100" });
   }
-  openPoolEvent(port, pool, mode) {
-    this.setState({ dialog: "pool", plMode: mode, plId: pool.id, plPort: port.id, plCoinA: pool.coinA, plCoinB: pool.coinB,
+  openPoolEvent(ref, pool, mode) {
+    this.setState({ dialog: "pool", plMode: mode, plId: pool.id, plOwner: ref, plCoinA: pool.coinA, plCoinB: pool.coinB,
       plDate: TODAY, plPrice: "", plAuto: true, plA: "", plB: "", plLast: "a", plPct: "100" });
   }
-  sendPoolEvent(port, pool, body) {
+  sendPoolEvent(ref, pool, body) {
     if (this.state.online) return this.api("POST", "pools/" + pool.id + "/events", body).then(() => this.setState({ dialog: null }), () => false);
-    return Promise.resolve(this.poolDemo(crypto => {
-      const p = crypto.find(x => x.id === port.id), pl = p.pools.find(x => x.id === pool.id);
-      this.demoPoolEvent(p, pl, body.kind, body.date, body.price, body.amountA, body.amountB, body.percent);
+    return Promise.resolve(this.poolDemo(ref, o => {
+      this.demoPoolEvent(o, o.pools.find(x => x.id === pool.id), body.kind, body.date, body.price, body.amountA, body.amountB, body.percent);
     }));
   }
 
-  // Карточки пулов открытого портфеля
-  poolCards(port) {
+  // Карточки пулов открытого портфеля или крипто-счёта
+  poolCards(ref) {
+    const o = this.poolOwner(ref);
+    if (!o) return [];
     const fmtP = n => (n > 0 ? n.toLocaleString("ru-RU", { maximumSignificantDigits: 6 }).replace(/ /g, " ") : "—");
     const dm = d => d.split("-").reverse().join(".");
     const STATUS = { in: ["в интервале", "good"], below: ["ниже интервала", "warn"], above: ["выше интервала", "warn"], closed: ["закрыта", ""] };
-    return (port.pools || []).map(pool => {
+    return o.pools.map(pool => {
       const price = this.poolPrice(pool), c = this.poolCalc(pool, price);
       const ua = this.coinUsdt(pool.coinA), ub = this.coinUsdt(pool.coinB);
       const value = c.a * ua + c.b * ub, pnl = value - c.invested;
@@ -4228,24 +4362,24 @@ class Component extends DCLogic {
         hodlColor: vsHodl < -0.005 ? "var(--neg)" : vsHodl > 0.005 ? "var(--pos)" : "var(--ink3)",
         isOpen: !!c.L, histOpen: open, histLabel: open ? "Скрыть историю" : "История · " + pool.events.length,
         toggleHist: () => this.set("poolHist", open ? null : pool.id),
-        deposit: () => this.openPoolEvent(port, pool, "deposit"),
-        withdraw: () => this.openPoolEvent(port, pool, "withdraw"),
-        fees: () => this.openPoolEvent(port, pool, "fees"),
+        deposit: () => this.openPoolEvent(ref, pool, "deposit"),
+        withdraw: () => this.openPoolEvent(ref, pool, "withdraw"),
+        fees: () => this.openPoolEvent(ref, pool, "fees"),
         // интервал после открытия не меняется: выводим всё и открываем новую позицию с этими монетами
         rerange: () => {
           if (!c.L || !(price > 0)) return;
           if (!window.confirm("Интервал у открытой позиции не меняется. Вывести всё из " + pool.coinA + "/" + pool.coinB + " и открыть новую позицию с этими монетами?")) return;
           const [a, b] = poolAmounts(c.L, price, pool.min, pool.max);
-          this.sendPoolEvent(port, pool, { kind: "withdraw", date: TODAY, price, percent: 100, amountA: a, amountB: b })
-            .then(ok => { if (ok !== false) this.openPoolNew(port, { coinA: pool.coinA, coinB: pool.coinB, place: pool.place, a: a > 0 ? String(Number(a.toPrecision(8))).replace(".", ",") : "" }); });
+          this.sendPoolEvent(ref, pool, { kind: "withdraw", date: TODAY, price, percent: 100, amountA: a, amountB: b })
+            .then(ok => { if (ok !== false) this.openPoolNew(ref, { coinA: pool.coinA, coinB: pool.coinB, place: pool.place, a: a > 0 ? String(Number(a.toPrecision(8))).replace(".", ",") : "" }); });
         },
         remove: () => {
-          if (!window.confirm("Удалить позицию " + pool.coinA + "/" + pool.coinB + "? Все её события отменятся, и монеты портфеля станут такими, как до неё.")) return;
+          if (!window.confirm("Удалить позицию " + pool.coinA + "/" + pool.coinB + "? Все её события отменятся, и монеты " + (o.isAcc ? "счёта" : "портфеля") + " станут такими, как до неё.")) return;
           if (this.state.online) { this.api("DELETE", "pools/" + pool.id).catch(() => {}); return; }
-          this.poolDemo(crypto => {
-            const p = crypto.find(x => x.id === port.id), pl = p.pools.find(x => x.id === pool.id);
-            pl.events.slice().reverse().forEach(e => this.demoRevert(p, pl, e));
-            p.pools = p.pools.filter(x => x !== pl);
+          this.poolDemo(ref, ow => {
+            const pl = ow.pools.find(x => x.id === pool.id);
+            pl.events.slice().reverse().forEach(e => this.demoRevert(ow, pl, e));
+            ow.pools = ow.pools.filter(x => x !== pl);
           });
         },
         events: pool.events.slice().reverse().map(e => ({
@@ -4256,12 +4390,12 @@ class Component extends DCLogic {
           tone: e.kind === "deposit" ? "var(--ink2)" : "var(--pos)",
           canDel: e === newest, noDel: e !== newest,
           del: () => {
-            if (!window.confirm("Отменить это событие? Монеты портфеля вернутся, как были до него." + (pool.events.length === 1 ? " Позиция без событий удалится." : ""))) return;
+            if (!window.confirm("Отменить это событие? Монеты " + (o.isAcc ? "счёта" : "портфеля") + " вернутся, как были до него." + (pool.events.length === 1 ? " Позиция без событий удалится." : ""))) return;
             if (this.state.online) { this.api("DELETE", "pools/" + pool.id + "/events/" + e.id).catch(() => {}); return; }
-            this.poolDemo(crypto => {
-              const p = crypto.find(x => x.id === port.id), pl = p.pools.find(x => x.id === pool.id);
-              this.demoRevert(p, pl, pl.events.find(x => x.id === e.id));
-              if (!pl.events.length) p.pools = p.pools.filter(x => x !== pl);
+            this.poolDemo(ref, ow => {
+              const pl = ow.pools.find(x => x.id === pool.id);
+              this.demoRevert(ow, pl, pl.events.find(x => x.id === e.id));
+              if (!pl.events.length) ow.pools = ow.pools.filter(x => x !== pl);
             });
           }
         }))
@@ -4273,9 +4407,9 @@ class Component extends DCLogic {
   poolDialogVals() {
     const st = this.state;
     if (st.dialog !== "pool") return { poolDialog: false };
-    const port = st.crypto.find(p => p.id === st.plPort);
-    const pool = port && st.plId != null ? (port.pools || []).find(x => x.id === st.plId) : null;
-    if (!port || (st.plMode !== "new" && !pool)) return { poolDialog: false };
+    const o = this.poolOwner(st.plOwner);
+    const pool = o && st.plId != null ? o.pools.find(x => x.id === st.plId) : null;
+    if (!o || (st.plMode !== "new" && !pool)) return { poolDialog: false };
     const num = v => parseFloat(String(v || "").replace(/\s/g, "").replace(",", ".")) || 0;
     const show = n => (n > 0 ? String(Number(n.toPrecision(n >= 1 ? 8 : 6))).replace(".", ",") : "0");
     const fmtP = n => (n > 0 ? n.toLocaleString("ru-RU", { maximumSignificantDigits: 6 }).replace(/ /g, " ") : "—");
@@ -4297,11 +4431,10 @@ class Component extends DCLogic {
     let c = pool ? this.poolCalc(pool, price) : null;
     const pct = Math.min(100, Math.max(0, num(st.plPct)));
     if (mode === "withdraw" && c) [a, b] = c.L && price > 0 ? poolAmounts(c.L * pct / 100, price, pool.min, pool.max) : [0, 0];
-    // откуда возьмутся монеты внесения: из портфеля, а чего нет — новые деньги
-    const fromPort = coin => { const x = port.assets.find(y => y.coin === coin); return x ? x.amount : 0; };
+    // откуда возьмутся монеты внесения: из портфеля (а чего нет — новые деньги) или со счёта
     const parts = [[p.coinA, a], [p.coinB, b]].filter(([, q]) => q > 0);
-    const took = parts.map(([coin, q]) => [coin, Math.min(q, fromPort(coin))]).filter(([, q]) => q > 0);
-    const extra = parts.map(([coin, q]) => [coin, q - Math.min(q, fromPort(coin))]).filter(([, q]) => q > 1e-12);
+    const took = parts.map(([coin, q]) => [coin, Math.min(q, this.poolAvailable(o, coin))]).filter(([, q]) => q > 0);
+    const extra = parts.map(([coin, q]) => [coin, q - Math.min(q, this.poolAvailable(o, coin))]).filter(([, q]) => q > 1e-12);
     const list = xs => xs.map(([coin, q]) => this.coinAmount(q, coin)).join(" и ");
     const coinOpts = COINS.map(([code, name]) => ({ key: code, value: code, label: code + " · " + name }))
       .concat([{ key: "+", value: "+", label: "+ Другая монета…" }]);
@@ -4314,23 +4447,22 @@ class Component extends DCLogic {
       if (mode === "fees" && !(a > 0) && !(b > 0)) { window.alert("Укажите, сколько монет пришло комиссиями."); return; }
       if ((isNew || mode === "deposit") && !(poolLiquidity(a, b, price, p.min, p.max) > 0)) { window.alert(this.poolNeed(p, price) + "."); return; }
       if (isNew) {
-        const body = { portfolio: port.id, coinA: p.coinA, coinB: p.coinB, min: p.min, max: p.max, place: st.plPlace.trim(),
-          date: st.plDate, price, amountA: a, amountB: b };
+        const body = { ...(o.isAcc ? { account: o.obj.id } : { portfolio: o.obj.id }), coinA: p.coinA, coinB: p.coinB, min: p.min, max: p.max,
+          place: st.plPlace.trim(), date: st.plDate, price, amountA: a, amountB: b };
         if (st.online) { this.api("POST", "pools", body).then(() => this.setState({ dialog: null }), () => {}); return; }
-        this.poolDemo(crypto => {
-          const pt = crypto.find(x => x.id === port.id);
+        this.poolDemo(o.ref, ow => {
           const pl = { id: Date.now(), coinA: p.coinA, coinB: p.coinB, min: p.min, max: p.max, place: body.place, events: [] };
-          pt.pools = (pt.pools || []).concat([pl]);
-          this.demoPoolEvent(pt, pl, "deposit", st.plDate, price, a, b);
+          ow.pools.push(pl);
+          this.demoPoolEvent(ow, pl, "deposit", st.plDate, price, a, b);
         });
         return;
       }
-      this.sendPoolEvent(port, pool, { kind: mode, date: st.plDate, price, amountA: a, amountB: b, percent: pct });
+      this.sendPoolEvent(o.ref, pool, { kind: mode, date: st.plDate, price, amountA: a, amountB: b, percent: pct });
     };
     return {
       poolDialog: true, poolIsNew: isNew, poolIsEvent: !isNew,
       poolTitle: isNew ? "Новая позиция в пуле" : p.coinA + " / " + p.coinB,
-      poolSub: isNew ? "в портфеле «" + port.name + "»" : (pool.place || "пул ликвидности") + " · " + fmtP(pool.min) + " — " + fmtP(pool.max),
+      poolSub: isNew ? o.label : (pool.place || "пул ликвидности") + " · " + fmtP(pool.min) + " — " + fmtP(pool.max),
       poolModes: [["deposit", "Внести"], ["withdraw", "Вывести"], ["fees", "Комиссии"]].map(([id, label]) => ({
         key: id, label, on: mode === id ? "1" : "0", pick: () => this.setState({ plMode: id, plA: "", plB: "", plLast: "a" }) })),
       plCoinA: p.coinA, plCoinB: p.coinB, poolCoinOptions: coinOpts,
@@ -4356,10 +4488,12 @@ class Component extends DCLogic {
       poolIsWithdraw: mode === "withdraw",
       plPct: st.plPct, onPlPct: e => this.set("plPct", e.target.value),
       poolPcts: [25, 50, 75, 100].map(n => ({ key: n, label: n + " %", on: pct === n ? "1" : "0", pick: () => this.set("plPct", String(n)) })),
-      poolHint: mode === "withdraw" ? (c && c.L ? "Вернётся в портфель: " + (list([[p.coinA, a], [p.coinB, b]].filter(([, q]) => q > 0)) || "ничего") + "." : "Позиция закрыта — выводить нечего.")
-        : mode === "fees" ? "Монеты комиссий придут в портфель как чистый доход — без вложенного."
-        : !parts.length ? "" : (took.length ? "Из портфеля: " + list(took) + ". " : "")
-          + (extra.length ? "Новыми деньгами: " + list(extra) + " — вложены по курсу дня." : ""),
+      poolHint: mode === "withdraw" ? (c && c.L ? "Вернётся " + (o.isAcc ? "на счёт" : "в портфель") + ": " + (list([[p.coinA, a], [p.coinB, b]].filter(([, q]) => q > 0)) || "ничего") + "." : "Позиция закрыта — выводить нечего.")
+        : mode === "fees" ? "Монеты комиссий придут " + (o.isAcc ? "на счёт" : "в портфель") + " как чистый доход — без вложенного."
+        : !parts.length ? ""
+        // со счёта внести больше, чем на нём есть, нельзя — новых денег у счёта нет
+        : o.isAcc ? "Со счёта: " + list(parts) + "." + (extra.length ? " Не хватает " + list(extra) + " — сначала купите или переведите их на счёт." : "")
+        : (took.length ? "Из портфеля: " + list(took) + ". " : "") + (extra.length ? "Новыми деньгами: " + list(extra) + " — вложены по курсу дня." : ""),
       poolSaveLabel: isNew ? "Открыть позицию" : mode === "deposit" ? "Внести" : mode === "withdraw" ? "Вывести" : "Записать",
       savePool: save
     };
@@ -4496,6 +4630,14 @@ class Component extends DCLogic {
       }
       ev.push({ t, d: t.d, tm: t.tm, v: t.v, kind: t.v > 0 ? "in" : "out", kindLabel: t.v > 0 ? "Доход" : "Расход", what: this.catPathOf(t.c), note: t.t === t.c ? "" : t.t });
     });
+    // пулы счёта: внесение забирает его валюту с остатка, вывод и комиссии возвращают
+    (acc.pools || []).forEach(pool => pool.events.forEach(e => {
+      const v = (pool.coinA === cur ? e.assetA || 0 : 0) + (pool.coinB === cur ? e.assetB || 0 : 0);
+      if (!v) return;
+      ev.push({ t: null, d: e.date, tm: "", v, kind: v > 0 ? "in" : "out", kindLabel: "Пул",
+        what: (v < 0 ? "→ " : "← ") + pool.coinA + "/" + pool.coinB,
+        note: e.kind === "deposit" ? "внесено в пул" : e.kind === "withdraw" ? "выведено из пула" : "комиссии пула" });
+    }));
     // начальный остаток: то, что было на счёте до первой операции
     const opening = acc.balance - ev.reduce((s, e) => s + e.v, 0);
     const firstD = ev.reduce((m, e) => (e.d < m ? e.d : m), "9999");
@@ -6641,9 +6783,10 @@ class Component extends DCLogic {
           }
         });
       }),
-      crPools: crOpenPort ? this.poolCards(crOpenPort) : [],
-      crHasPools: !!crOpenPort && (crOpenPort.pools || []).length > 0,
-      crAddPool: () => { if (crOpenPort) this.openPoolNew(crOpenPort); },
+      crPools: crOpenPort ? this.poolCards("p:" + crOpenPort.id) : crOpenAcc ? this.poolCards("a:" + crOpenAcc.name) : [],
+      crPortPools: !!crOpenPort && (crOpenPort.pools || []).length > 0,
+      crAccPools: !!crOpenAcc && (crOpenAcc.pools || []).length > 0,
+      crAddPool: () => { if (crOpenPort) this.openPoolNew("p:" + crOpenPort.id); else if (crOpenAcc) this.openPoolNew("a:" + crOpenAcc.name); },
       crSumInvested: crOpenPort ? this.usdt(crInvested(crOpenPort)) : "",
       crSumValue: crOpenPort ? this.usdt(crValue(crOpenPort)) : "",
       crSumPnlColor: crColor(crOpenPort ? crValue(crOpenPort) - crInvested(crOpenPort) : 0),
@@ -7016,7 +7159,11 @@ class Component extends DCLogic {
           : " · счёт открывается с нулём, дальше баланс считают операции");
       })(),
       accCanDelete: st.editIndex !== null,
-      delAcc: () => this.setState({ dialog: "delacc", delAccTo: "" }),
+      delAcc: () => {
+        const a = st.editIndex !== null ? st.accounts[st.editIndex] : null;
+        if (a && (a.pools || []).length) { window.alert("На счёте есть пулы ликвидности — сначала удалите их в разделе «Криптовалюта»."); return; }
+        this.setState({ dialog: "delacc", delAccTo: "" });
+      },
       // ---- диалог удаления счёта ----
       delAccDialog: !!delAcc,
       delAccTitle: delAcc ? "Удалить счёт «" + delAcc.name + "»?" : "",
@@ -7077,7 +7224,15 @@ class Component extends DCLogic {
         const accounts = st.accounts.slice();
         const was = st.editIndex === null ? null : st.accounts[st.editIndex].name;
         if (st.editIndex === null) accounts.push({ name, kind: st.accKind, balance, cur: st.accCur });
-        else accounts[st.editIndex] = { name, kind: st.accKind, balance, cur: st.accCur };
+        // прочие поля счёта (пулы) остаются; с пулами валюту и тип не сменить — как на сервере
+        else {
+          const old = st.accounts[st.editIndex];
+          if ((old.pools || []).length && (old.cur !== st.accCur || old.kind !== st.accKind)) {
+            window.alert("На счёте есть пулы ликвидности — валюту и тип счёта не поменять, пока они есть.");
+            return;
+          }
+          accounts[st.editIndex] = { ...old, name, kind: st.accKind, balance, cur: st.accCur };
+        }
         // без сервера операции хранят название счёта — переименование правит и их
         const txs = was === null || was === name ? st.txs
           : st.txs.map(t => (t.a !== was && t.to !== was ? t

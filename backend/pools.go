@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"math"
+	"strconv"
 	"strings"
 	"time"
 
@@ -16,10 +17,16 @@ import (
 // ниже интервала всё лежит в A, выше — в B, внутри — смесь (формулы Uniswap v3).
 // Страница считает так же — poolAmounts/poolLiquidity в index.html.
 //
-// Монеты ходят между позицией и строками монет того же портфеля: внесение
-// берёт их из портфеля (а чего там нет — считается новыми деньгами по курсу дня),
-// вывод и комиссии возвращают туда. «Вложено» переезжает вместе с монетами
-// пропорционально, поэтому прибыль портфеля от внесения или вывода не меняется.
+// Хозяин позиции — крипто-портфель или крипто-счёт. В портфеле монеты ходят
+// между позицией и строками его монет: внесение берёт их оттуда (а чего там нет —
+// считается новыми деньгами по курсу дня), вывод и комиссии возвращают туда.
+// «Вложено» переезжает вместе с монетами пропорционально, поэтому прибыль
+// портфеля от внесения или вывода не меняется. На счёте монеты валюты счёта
+// уходят с его остатка (accounts.balance), остальные — из купленных на нём
+// монет, которые считаются из сделок и событий пулов (accountCoinHeld); внести
+// больше, чем есть на счёте, нельзя. Вложенное счёта считается по деньгам со
+// стороны, поэтому у позиции на счёте «вложено» — стоимость внесённого в день
+// внесения, только для её собственной прибыли.
 
 type Pool struct {
 	ID     int64       `json:"id"`
@@ -75,22 +82,23 @@ func poolLiquidity(a, b, p, lo, hi float64) float64 {
 	return L
 }
 
-func (s *Store) poolsOf(ctx context.Context, uid int64) (map[int64][]Pool, error) {
+// poolsOf — позиции пользователя по хозяевам: портфелям и крипто-счетам.
+func (s *Store) poolsOf(ctx context.Context, uid int64) (byPortfolio, byAccount map[int64][]Pool, err error) {
 	rows, _ := s.db.Query(ctx, `
-		SELECT portfolio_id, id, coin_a, coin_b, price_min, price_max, place
+		SELECT COALESCE(portfolio_id, 0), COALESCE(account_id, 0), id, coin_a, coin_b, price_min, price_max, place
 		FROM lp_positions WHERE user_id = $1 ORDER BY id`, uid)
 	type row struct {
-		portfolio int64
-		pool      Pool
+		portfolio, account int64
+		pool               Pool
 	}
 	list, err := pgx.CollectRows(rows, func(r pgx.CollectableRow) (row, error) {
 		var x row
 		x.pool.Events = []PoolEvent{}
-		err := r.Scan(&x.portfolio, &x.pool.ID, &x.pool.CoinA, &x.pool.CoinB, &x.pool.Min, &x.pool.Max, &x.pool.Place)
+		err := r.Scan(&x.portfolio, &x.account, &x.pool.ID, &x.pool.CoinA, &x.pool.CoinB, &x.pool.Min, &x.pool.Max, &x.pool.Place)
 		return x, err
 	})
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	at := map[int64]*Pool{}
 	for i := range list {
@@ -104,24 +112,30 @@ func (s *Store) poolsOf(ctx context.Context, uid int64) (map[int64][]Pool, error
 		var pos int64
 		var e PoolEvent
 		if err := rows.Scan(&pos, &e.ID, &e.Kind, &e.Date, &e.Price, &e.AmountA, &e.AmountB, &e.Liquidity, &e.Invested, &e.AssetA, &e.AssetB); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		if p := at[pos]; p != nil {
 			p.Events = append(p.Events, e)
 		}
 	}
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	out := map[int64][]Pool{}
+	byPortfolio, byAccount = map[int64][]Pool{}, map[int64][]Pool{}
 	for _, x := range list {
-		out[x.portfolio] = append(out[x.portfolio], x.pool)
+		if x.account != 0 {
+			byAccount[x.account] = append(byAccount[x.account], x.pool)
+		} else {
+			byPortfolio[x.portfolio] = append(byPortfolio[x.portfolio], x.pool)
+		}
 	}
-	return out, nil
+	return byPortfolio, byAccount, nil
 }
 
 type PoolInput struct {
+	// хозяин: портфель или крипто-счёт (id), заполнено одно из двух
 	Portfolio int64   `json:"portfolio"`
+	Account   int64   `json:"account"`
 	CoinA     string  `json:"coinA"`
 	CoinB     string  `json:"coinB"`
 	Min       float64 `json:"min"`
@@ -146,8 +160,61 @@ type PoolEventInput struct {
 
 type poolRow struct {
 	id, portfolio int64
+	account       int64  // не 0 — позиция на крипто-счёте
+	accCur        string // валюта этого счёта
 	coinA, coinB  string
 	lo, hi        float64
+}
+
+// move меняет монеты хозяина позиции: строку монеты портфеля или счёт.
+func (p poolRow) move(ctx context.Context, tx pgx.Tx, uid int64, coin string, da, dInv float64) error {
+	if p.account == 0 {
+		return moveAsset(ctx, tx, uid, p.portfolio, coin, da, dInv)
+	}
+	if da == 0 {
+		return nil
+	}
+	if coin == p.accCur {
+		var bal float64
+		if err := tx.QueryRow(ctx, `UPDATE accounts SET balance = balance + $3 WHERE id = $1 AND user_id = $2 RETURNING balance`,
+			p.account, uid, da).Scan(&bal); err != nil {
+			return err
+		}
+		if da < 0 && bal < -1e-9 {
+			return badRequest("На счёте не хватает " + coin + " — сначала пополните его")
+		}
+		return nil
+	}
+	// монеты на счёте не хранятся отдельно: это сделки плюс события пулов, так
+	// что записанное событие их и меняет — остаётся проверить, что их хватает
+	if da < 0 {
+		held, err := accountCoinHeld(ctx, tx, uid, p.account, coin)
+		if err != nil {
+			return err
+		}
+		if held+da < -1e-9 {
+			return badRequest("На счёте только " + fmtQty(held) + " " + coin + " — сначала купите или переведите их")
+		}
+	}
+	return nil
+}
+
+// accountCoinHeld — сколько монеты coin на крипто-счёте: открытые покупки минус
+// продажи и плюс то, что вернули или минус то, что забрали пулы этого счёта.
+func accountCoinHeld(ctx context.Context, tx pgx.Tx, uid, account int64, coin string) (float64, error) {
+	var held float64
+	err := tx.QueryRow(ctx, `
+		SELECT
+			(SELECT COALESCE(sum(CASE type WHEN 'buy' THEN received ELSE -received END), 0) FROM transactions
+			 WHERE user_id = $1 AND account_id = $2 AND coin = $3 AND type IN ('buy', 'sell') AND close_price IS NULL)
+			+ (SELECT COALESCE(sum(CASE WHEN p.coin_a = $3 THEN e.asset_a ELSE 0 END + CASE WHEN p.coin_b = $3 THEN e.asset_b ELSE 0 END), 0)
+			   FROM lp_events e JOIN lp_positions p ON p.id = e.position_id WHERE p.user_id = $1 AND p.account_id = $2)`,
+		uid, account, coin).Scan(&held)
+	return held, err
+}
+
+func fmtQty(v float64) string {
+	return strings.Replace(strconv.FormatFloat(v, 'f', -1, 64), ".", ",", 1)
 }
 
 func parseDay(s string) (time.Time, error) {
@@ -179,19 +246,37 @@ func (s *Store) CreatePool(ctx context.Context, uid int64, in PoolInput) error {
 		return err
 	}
 	return pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) error {
-		var exists bool
-		if err := tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM crypto_portfolios WHERE id = $1 AND user_id = $2)`,
-			in.Portfolio, uid).Scan(&exists); err != nil {
-			return err
+		p := poolRow{coinA: in.CoinA, coinB: in.CoinB, lo: in.Min, hi: in.Max}
+		var portfolio, account *int64
+		if in.Account > 0 {
+			var kind string
+			err := tx.QueryRow(ctx, `SELECT kind, currency FROM accounts WHERE id = $1 AND user_id = $2 FOR UPDATE`,
+				in.Account, uid).Scan(&kind, &p.accCur)
+			if errors.Is(err, pgx.ErrNoRows) {
+				return notFound("Счёт не найден")
+			}
+			if err != nil {
+				return err
+			}
+			if kind != cryptoKind {
+				return badRequest("Пул можно открыть только на крипто-счёте")
+			}
+			p.account, account = in.Account, &in.Account
+		} else {
+			var exists bool
+			if err := tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM crypto_portfolios WHERE id = $1 AND user_id = $2)`,
+				in.Portfolio, uid).Scan(&exists); err != nil {
+				return err
+			}
+			if !exists {
+				return notFound("Портфель не найден")
+			}
+			p.portfolio, portfolio = in.Portfolio, &in.Portfolio
 		}
-		if !exists {
-			return notFound("Портфель не найден")
-		}
-		p := poolRow{portfolio: in.Portfolio, coinA: in.CoinA, coinB: in.CoinB, lo: in.Min, hi: in.Max}
 		if err := tx.QueryRow(ctx, `
-			INSERT INTO lp_positions (user_id, portfolio_id, coin_a, coin_b, price_min, price_max, place)
-			VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
-			uid, in.Portfolio, in.CoinA, in.CoinB, in.Min, in.Max, in.Place).Scan(&p.id); err != nil {
+			INSERT INTO lp_positions (user_id, portfolio_id, account_id, coin_a, coin_b, price_min, price_max, place)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
+			uid, portfolio, account, in.CoinA, in.CoinB, in.Min, in.Max, in.Place).Scan(&p.id); err != nil {
 			return err
 		}
 		return poolDeposit(ctx, tx, uid, p, day, in.Price, in.AmountA, in.AmountB)
@@ -241,10 +326,10 @@ func (s *Store) AddPoolEvent(ctx context.Context, uid, id int64, in PoolEventInp
 			if !(in.AmountA > 0) && !(in.AmountB > 0) {
 				return badRequest("Укажите, сколько монет пришло комиссиями")
 			}
-			if err := moveAsset(ctx, tx, uid, p.portfolio, p.coinA, in.AmountA, 0); err != nil {
+			if err := p.move(ctx, tx, uid, p.coinA, in.AmountA, 0); err != nil {
 				return err
 			}
-			if err := moveAsset(ctx, tx, uid, p.portfolio, p.coinB, in.AmountB, 0); err != nil {
+			if err := p.move(ctx, tx, uid, p.coinB, in.AmountB, 0); err != nil {
 				return err
 			}
 			_, err := tx.Exec(ctx, `
@@ -259,10 +344,14 @@ func (s *Store) AddPoolEvent(ctx context.Context, uid, id int64, in PoolEventInp
 func lockPool(ctx context.Context, tx pgx.Tx, uid, id int64) (poolRow, error) {
 	p := poolRow{id: id}
 	err := tx.QueryRow(ctx, `
-		SELECT portfolio_id, coin_a, coin_b, price_min, price_max FROM lp_positions
-		WHERE id = $1 AND user_id = $2 FOR UPDATE`, id, uid).Scan(&p.portfolio, &p.coinA, &p.coinB, &p.lo, &p.hi)
+		SELECT COALESCE(portfolio_id, 0), COALESCE(account_id, 0), coin_a, coin_b, price_min, price_max FROM lp_positions
+		WHERE id = $1 AND user_id = $2 FOR UPDATE`, id, uid).Scan(&p.portfolio, &p.account, &p.coinA, &p.coinB, &p.lo, &p.hi)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return p, notFound("Позиция не найдена")
+	}
+	if err == nil && p.account != 0 {
+		// счёт блокируется вместе с позицией: его остаток и монеты меняются событием
+		err = tx.QueryRow(ctx, `SELECT currency FROM accounts WHERE id = $1 FOR UPDATE`, p.account).Scan(&p.accCur)
 	}
 	return p, err
 }
@@ -282,6 +371,9 @@ func poolDeposit(ctx context.Context, tx pgx.Tx, uid int64, p poolRow, day time.
 	// сколько монет на самом деле ушло в позицию: лишнее одной из них остаётся в портфеле
 	ua, ub := poolAmounts(L, price, p.lo, p.hi)
 	ua, ub = math.Min(ua, a), math.Min(ub, b)
+	if p.account != 0 {
+		return poolDepositAccount(ctx, tx, uid, p, day, price, L, ua, ub)
+	}
 	var invested float64
 	moved := [2]struct{ take, inv float64 }{}
 	for i, c := range []struct {
@@ -323,6 +415,33 @@ func poolDeposit(ctx context.Context, tx pgx.Tx, uid int64, p poolRow, day time.
 	return err
 }
 
+// poolDepositAccount — внесение с крипто-счёта: монеты уходят с остатка счёта
+// и из купленных на нём; вложенное позиции — их стоимость в день внесения.
+func poolDepositAccount(ctx context.Context, tx pgx.Tx, uid int64, p poolRow, day time.Time, price, L, ua, ub float64) error {
+	var invested float64
+	for _, c := range []struct {
+		coin string
+		q    float64
+	}{{p.coinA, ua}, {p.coinB, ub}} {
+		if !(c.q > 0) {
+			continue
+		}
+		if err := p.move(ctx, tx, uid, c.coin, -c.q, 0); err != nil {
+			return err
+		}
+		usdt, err := usdtOn(ctx, tx, c.coin, day)
+		if err != nil {
+			return err
+		}
+		invested += c.q * usdt
+	}
+	_, err := tx.Exec(ctx, `
+		INSERT INTO lp_events (user_id, position_id, kind, day, price, amount_a, amount_b, liquidity, invested, asset_a, asset_b)
+		VALUES ($1, $2, 'deposit', $3, $4, $5, $6, $7, $8, $9, $10)`,
+		uid, p.id, day, price, ua, ub, L, invested, -ua, -ub)
+	return err
+}
+
 // poolWithdraw выводит percent процентов ликвидности; a и b — сколько монет
 // пришло на самом деле (страница подставляет расчётное). Вложенное уходит
 // в монеты портфеля той же долей, поделённое по их стоимости.
@@ -351,10 +470,10 @@ func poolWithdraw(ctx context.Context, tx pgx.Tx, uid int64, p poolRow, day time
 		invA = iw * va / (va + vb)
 	}
 	invB := iw - invA
-	if err := moveAsset(ctx, tx, uid, p.portfolio, p.coinA, a, invA); err != nil {
+	if err := p.move(ctx, tx, uid, p.coinA, a, invA); err != nil {
 		return err
 	}
-	if err := moveAsset(ctx, tx, uid, p.portfolio, p.coinB, b, invB); err != nil {
+	if err := p.move(ctx, tx, uid, p.coinB, b, invB); err != nil {
 		return err
 	}
 	_, err := tx.Exec(ctx, `
@@ -478,15 +597,22 @@ func (s *Store) DeletePool(ctx context.Context, uid, id int64) error {
 	})
 }
 
+// revertPoolEvent возвращает монеты хозяина и удаляет событие. Порядок важен:
+// монеты крипто-счёта считаются вместе с событиями, поэтому проверка «хватает
+// ли» идёт, пока событие ещё на месте.
 func revertPoolEvent(ctx context.Context, tx pgx.Tx, uid int64, p poolRow, eventID int64) error {
 	var a, b, ia, ib float64
 	if err := tx.QueryRow(ctx, `
-		DELETE FROM lp_events WHERE id = $1 AND position_id = $2
-		RETURNING asset_a, asset_b, asset_inv_a, asset_inv_b`, eventID, p.id).Scan(&a, &b, &ia, &ib); err != nil {
+		SELECT asset_a, asset_b, asset_inv_a, asset_inv_b FROM lp_events WHERE id = $1 AND position_id = $2`,
+		eventID, p.id).Scan(&a, &b, &ia, &ib); err != nil {
 		return err
 	}
-	if err := moveAsset(ctx, tx, uid, p.portfolio, p.coinA, -a, -ia); err != nil {
+	if err := p.move(ctx, tx, uid, p.coinA, -a, -ia); err != nil {
 		return err
 	}
-	return moveAsset(ctx, tx, uid, p.portfolio, p.coinB, -b, -ib)
+	if err := p.move(ctx, tx, uid, p.coinB, -b, -ib); err != nil {
+		return err
+	}
+	_, err := tx.Exec(ctx, `DELETE FROM lp_events WHERE id = $1`, eventID)
+	return err
 }

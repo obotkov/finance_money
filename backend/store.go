@@ -58,6 +58,8 @@ type Account struct {
 	Cur     string  `json:"cur"`
 	// CreatedAt dates the opening-balance row of the export
 	CreatedAt string `json:"createdAt"`
+	// пулы ликвидности на крипто-счёте (pools.go)
+	Pools []Pool `json:"pools,omitempty"`
 }
 
 type Category struct {
@@ -241,6 +243,13 @@ func (s *Store) State(ctx context.Context, uid int64) (*State, error) {
 	if err != nil {
 		return nil, err
 	}
+	_, accPools, err := s.poolsOf(ctx, uid)
+	if err != nil {
+		return nil, err
+	}
+	for i := range st.Accounts {
+		st.Accounts[i].Pools = accPools[st.Accounts[i].ID]
+	}
 
 	rows, _ = s.db.Query(ctx, `SELECT id, name, parent_id, kind, icon FROM categories WHERE user_id = $1 ORDER BY id`, uid)
 	st.Cats, err = pgx.CollectRows(rows, func(r pgx.CollectableRow) (Category, error) {
@@ -392,6 +401,17 @@ func (s *Store) UpdateAccount(ctx context.Context, uid, id int64, in AccountInpu
 	if err := in.validate(); err != nil {
 		return err
 	}
+	// у счёта с пулами нельзя сменить валюту или тип: события пулов меняли его остаток в этой валюте
+	var pooled bool
+	if err := s.db.QueryRow(ctx, `
+		SELECT EXISTS (SELECT 1 FROM lp_positions p JOIN accounts a ON a.id = p.account_id
+		               WHERE p.account_id = $1 AND a.user_id = $2 AND (a.currency <> $3 OR a.kind <> $4))`,
+		id, uid, in.Cur, in.Kind).Scan(&pooled); err != nil {
+		return err
+	}
+	if pooled {
+		return badRequest("На счёте есть пулы ликвидности — валюту и тип счёта не поменять, пока они есть")
+	}
 	tag, err := s.db.Exec(ctx, `
 		UPDATE accounts SET name = $3, kind = $4, balance = $5, currency = $6
 		WHERE id = $1 AND user_id = $2`,
@@ -417,6 +437,13 @@ func (s *Store) DeleteAccount(ctx context.Context, uid, id, replace int64) error
 		}
 		if err != nil {
 			return err
+		}
+		var pooled bool
+		if err := tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM lp_positions WHERE account_id = $1)`, id).Scan(&pooled); err != nil {
+			return err
+		}
+		if pooled {
+			return badRequest("На счёте есть пулы ликвидности — сначала удалите их в разделе «Криптовалюта»")
 		}
 		if replace > 0 {
 			if err := moveTxs(ctx, tx, uid, id, replace, cur); err != nil {
@@ -851,7 +878,7 @@ func (s *Store) cryptoPortfolios(ctx context.Context, uid int64) ([]CryptoPortfo
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
-	pools, err := s.poolsOf(ctx, uid)
+	pools, _, err := s.poolsOf(ctx, uid)
 	if err != nil {
 		return nil, err
 	}

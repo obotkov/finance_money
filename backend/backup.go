@@ -75,6 +75,8 @@ type backupAccount struct {
 	Currency  string    `json:"currency"`
 	Balance   string    `json:"balance"`
 	CreatedAt time.Time `json:"createdAt"`
+	// пулы ликвидности на крипто-счёте; в старых бекапах поля нет
+	Pools []backupPool `json:"pools,omitempty"`
 }
 
 type backupCategory struct {
@@ -312,8 +314,18 @@ func parseBackup(raw []byte) (*backupFile, error) {
 			}
 		}
 	}
+	var allPools []backupPool
 	for _, p := range f.Crypto {
-		for _, pl := range p.Pools {
+		allPools = append(allPools, p.Pools...)
+	}
+	for _, a := range f.Accounts {
+		if len(a.Pools) > 0 && a.Kind != cryptoKind {
+			return nil, badRequest("В бекапе пул на счёте «" + a.Name + "», который не крипто-счёт")
+		}
+		allPools = append(allPools, a.Pools...)
+	}
+	{
+		for _, pl := range allPools {
 			if coinID(pl.CoinA) == "" || coinID(pl.CoinB) == "" || pl.CoinA == pl.CoinB {
 				return nil, badRequest("В бекапе пул с неизвестной монетой " + pl.CoinA + "/" + pl.CoinB)
 			}
@@ -382,6 +394,11 @@ func dumpBackup(ctx context.Context, tx pgx.Tx, uid int64) (*backupFile, error) 
 	if err != nil {
 		return nil, err
 	}
+	for i := range f.Accounts {
+		if f.Accounts[i].Pools, err = dumpPools(ctx, tx, uid, "account_id", f.Accounts[i].ID); err != nil {
+			return nil, err
+		}
+	}
 
 	rows, _ = tx.Query(ctx, `SELECT id, name, parent_id, kind, icon FROM categories WHERE user_id = $1 ORDER BY id`, uid)
 	f.Categories, err = pgx.CollectRows(rows, func(r pgx.CollectableRow) (backupCategory, error) {
@@ -433,7 +450,7 @@ func dumpBackup(ctx context.Context, tx pgx.Tx, uid int64) (*backupFile, error) 
 		if err != nil {
 			return nil, err
 		}
-		if f.Crypto[i].Pools, err = dumpPools(ctx, tx, uid, id); err != nil {
+		if f.Crypto[i].Pools, err = dumpPools(ctx, tx, uid, "portfolio_id", id); err != nil {
 			return nil, err
 		}
 	}
@@ -475,12 +492,6 @@ func restore(ctx context.Context, tx pgx.Tx, uid int64, f *backupFile) error {
 		if _, err := tx.Exec(ctx, q, uid); err != nil {
 			return err
 		}
-	}
-	at := func(t time.Time) *time.Time {
-		if t.IsZero() {
-			return nil
-		}
-		return &t
 	}
 
 	cats := map[int64]int64{}
@@ -587,34 +598,57 @@ func restore(ctx context.Context, tx pgx.Tx, uid int64, f *backupFile) error {
 				return err
 			}
 		}
-		for _, pl := range p.Pools {
-			var pid int64
-			if err := tx.QueryRow(ctx, `
-				INSERT INTO lp_positions (user_id, portfolio_id, coin_a, coin_b, price_min, price_max, place, created_at)
-				VALUES ($1, $2, $3, $4, $5::numeric, $6::numeric, $7, COALESCE($8, now())) RETURNING id`,
-				uid, id, pl.CoinA, pl.CoinB, pl.Min, pl.Max, pl.Place, at(pl.CreatedAt)).Scan(&pid); err != nil {
+		if err := restorePools(ctx, tx, uid, "portfolio_id", id, p.Pools); err != nil {
+			return err
+		}
+	}
+	for _, a := range f.Accounts {
+		if err := restorePools(ctx, tx, uid, "account_id", accs[a.ID], a.Pools); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// at — время из бекапа или NULL, чтобы база поставила now().
+func at(t time.Time) *time.Time {
+	if t.IsZero() {
+		return nil
+	}
+	return &t
+}
+
+// restorePools записывает позиции хозяина (column — portfolio_id или account_id)
+// с событиями как есть: остатки и монеты в бекапе уже учитывают их.
+func restorePools(ctx context.Context, tx pgx.Tx, uid int64, column string, owner int64, pools []backupPool) error {
+	for _, pl := range pools {
+		var pid int64
+		if err := tx.QueryRow(ctx, `
+			INSERT INTO lp_positions (user_id, `+column+`, coin_a, coin_b, price_min, price_max, place, created_at)
+			VALUES ($1, $2, $3, $4, $5::numeric, $6::numeric, $7, COALESCE($8, now())) RETURNING id`,
+			uid, owner, pl.CoinA, pl.CoinB, pl.Min, pl.Max, pl.Place, at(pl.CreatedAt)).Scan(&pid); err != nil {
+			return err
+		}
+		for _, e := range pl.Events {
+			if _, err := tx.Exec(ctx, `
+				INSERT INTO lp_events (user_id, position_id, kind, day, price, amount_a, amount_b, liquidity, invested,
+				                       asset_a, asset_b, asset_inv_a, asset_inv_b, created_at)
+				VALUES ($1, $2, $3, $4::date, $5::numeric, $6::numeric, $7::numeric, $8, $9::numeric,
+				        $10::numeric, $11::numeric, $12::numeric, $13::numeric, COALESCE($14, now()))`,
+				uid, pid, e.Kind, e.Date, e.Price, e.AmountA, e.AmountB, e.Liquidity, e.Invested,
+				e.AssetA, e.AssetB, e.AssetInvA, e.AssetInvB, at(e.CreatedAt)); err != nil {
 				return err
-			}
-			for _, e := range pl.Events {
-				if _, err := tx.Exec(ctx, `
-					INSERT INTO lp_events (user_id, position_id, kind, day, price, amount_a, amount_b, liquidity, invested,
-					                       asset_a, asset_b, asset_inv_a, asset_inv_b, created_at)
-					VALUES ($1, $2, $3, $4::date, $5::numeric, $6::numeric, $7::numeric, $8, $9::numeric,
-					        $10::numeric, $11::numeric, $12::numeric, $13::numeric, COALESCE($14, now()))`,
-					uid, pid, e.Kind, e.Date, e.Price, e.AmountA, e.AmountB, e.Liquidity, e.Invested,
-					e.AssetA, e.AssetB, e.AssetInvA, e.AssetInvB, at(e.CreatedAt)); err != nil {
-					return err
-				}
 			}
 		}
 	}
 	return nil
 }
 
-func dumpPools(ctx context.Context, tx pgx.Tx, uid, portfolio int64) ([]backupPool, error) {
+// dumpPools — позиции одного хозяина: column — portfolio_id или account_id.
+func dumpPools(ctx context.Context, tx pgx.Tx, uid int64, column string, owner int64) ([]backupPool, error) {
 	rows, _ := tx.Query(ctx, `
 		SELECT id, coin_a, coin_b, price_min::text, price_max::text, place, created_at
-		FROM lp_positions WHERE user_id = $1 AND portfolio_id = $2 ORDER BY id`, uid, portfolio)
+		FROM lp_positions WHERE user_id = $1 AND `+column+` = $2 ORDER BY id`, uid, owner)
 	var ids []int64
 	pools, err := pgx.CollectRows(rows, func(r pgx.CollectableRow) (backupPool, error) {
 		var p backupPool
