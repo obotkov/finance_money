@@ -24,5 +24,9 @@ if ! grep -q '^DB_PASSWORD=.' .env; then
 fi
 docker compose up -d --build --remove-orphans
 docker image prune -f >/dev/null
+# кэш сборки растёт с каждой выкладкой и однажды занял весь диск — база легла;
+# оставляем только последние три дня
+docker builder prune -f --filter until=72h >/dev/null
 docker compose ps
+df -h / | tail -1
 EOF

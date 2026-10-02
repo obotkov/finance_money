@@ -24,7 +24,7 @@ git push && ./deploy.sh
 
 `go build` in `backend/` leaves a `backend/backend` binary — don't commit it. Tests are pure unit tests (validation, parsers); there are no DB-backed tests.
 
-Established workflow in this repo: after each finished feature — commit, `git push`, `./deploy.sh`, then check the live page with `curl -s https://penny.place/ | grep -c <new identifier>` and `curl https://penny.place/api/auth/config` (200) / `/api/state` (401 without a session). Don't ssh into the production server or query its DB without asking the user first.
+Established workflow in this repo: after each finished feature — commit, `git push`, `./deploy.sh`, then check the live page with `curl -s https://penny.place/ | grep -c <new identifier>` and `curl https://penny.place/api/auth/config` (200) / `/api/state` (401 without a session). Don't ssh into the production server or query its DB without asking the user first. The server's disk is small (10 GB): `deploy.sh` prunes Docker build cache older than 3 days and prints `df` at the end — if `/api/health` returns 502 after a deploy, check disk space first (a full disk once crash-looped Postgres).
 
 ## Architecture
 
