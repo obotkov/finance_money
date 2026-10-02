@@ -1,2 +1,4 @@
 .DS_Store
 .env
+# бинарник после go build в backend/
+/backend/backend
