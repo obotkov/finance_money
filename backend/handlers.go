@@ -322,8 +322,14 @@ func (a *API) telegramLink(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	if a.tg == nil || a.tg.username == "" {
+	if a.tg == nil {
 		a.fail(w, r, &APIError{http.StatusServiceUnavailable, "Telegram-бот на сервере не настроен"})
+		return
+	}
+	bot := a.tg.Username()
+	if bot == "" {
+		_, why := a.tg.status()
+		a.fail(w, r, &APIError{http.StatusServiceUnavailable, "Бот не на связи: " + why})
 		return
 	}
 	code, err := a.store.TelegramLink(r.Context(), u.ID)
@@ -331,7 +337,7 @@ func (a *API) telegramLink(w http.ResponseWriter, r *http.Request) {
 		a.fail(w, r, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]string{"url": "https://t.me/" + a.tg.username + "?start=" + code})
+	writeJSON(w, http.StatusOK, map[string]string{"url": "https://t.me/" + bot + "?start=" + code})
 }
 
 func (a *API) state(ctx context.Context, u *User) (*State, error) {
@@ -346,7 +352,9 @@ func (a *API) state(ctx context.Context, u *User) (*State, error) {
 	if st.Telegram, err = a.store.telegramState(ctx, u.ID); err != nil {
 		return nil, err
 	}
-	st.Telegram.Enabled = a.tg != nil
+	if st.Telegram.Enabled = a.tg != nil; st.Telegram.Enabled {
+		st.Telegram.Ready, st.Telegram.Error = a.tg.status()
+	}
 	return st, nil
 }
 

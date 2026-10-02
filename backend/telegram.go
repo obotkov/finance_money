@@ -13,6 +13,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -30,11 +31,15 @@ const (
 )
 
 type Telegram struct {
-	store    *Store
-	log      *slog.Logger
-	api      string // https://api.telegram.org/bot<token>
-	http     *http.Client
+	store *Store
+	log   *slog.Logger
+	api   string // https://api.telegram.org/bot<token>
+	token string
+	http  *http.Client
+
+	mu       sync.Mutex
 	username string // имя бота для ссылки; пусто, пока getMe не ответил
+	startErr string // почему getMe не ответил — показываем в Настройках
 }
 
 func NewTelegram(store *Store, token, apiURL string, log *slog.Logger) *Telegram {
@@ -44,8 +49,35 @@ func NewTelegram(store *Store, token, apiURL string, log *slog.Logger) *Telegram
 	if apiURL == "" {
 		apiURL = "https://api.telegram.org"
 	}
-	return &Telegram{store: store, log: log, api: strings.TrimRight(apiURL, "/") + "/bot" + token,
-		http: &http.Client{Timeout: 70 * time.Second}}
+	return &Telegram{store: store, log: log, api: strings.TrimRight(apiURL, "/") + "/bot" + token, token: token,
+		http: &http.Client{Timeout: 70 * time.Second}, startErr: "бот ещё запускается — обновите страницу через минуту"}
+}
+
+// Username — имя бота; пусто, пока бот не связался с Telegram.
+func (t *Telegram) Username() string {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return t.username
+}
+
+// status — готов ли бот, и если нет, то почему (по-человечески).
+func (t *Telegram) status() (bool, string) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return t.username != "", t.startErr
+}
+
+// startError переводит ошибку getMe в понятную причину для Настроек.
+func startError(err error) string {
+	msg := err.Error()
+	var ne interface{ Timeout() bool }
+	switch {
+	case strings.Contains(msg, "Unauthorized") || strings.Contains(msg, "Not Found"):
+		return "Telegram не принял токен — проверьте TELEGRAM_BOT_TOKEN в .env (его выдаёт @BotFather)"
+	case errors.As(err, &ne) || strings.Contains(msg, "dial") || strings.Contains(msg, "connection") || strings.Contains(msg, "EOF") || strings.Contains(msg, "tls"):
+		return "сервер не может связаться с api.telegram.org: " + msg
+	}
+	return msg
 }
 
 // call вызывает метод Bot API с JSON-параметрами; out — поле result ответа.
@@ -65,7 +97,8 @@ func (t *Telegram) call(ctx context.Context, method string, params, out any) err
 func (t *Telegram) do(req *http.Request, out any) error {
 	resp, err := t.http.Do(req)
 	if err != nil {
-		return err
+		// в ошибке клиента есть адрес запроса, а в нём токен — в логи его не пускаем
+		return errors.New(strings.ReplaceAll(err.Error(), t.token, "<token>"))
 	}
 	defer resp.Body.Close()
 	var r struct {
@@ -117,20 +150,29 @@ func (t *Telegram) sendDocument(ctx context.Context, chat int64, name string, da
 // Run узнаёт имя бота, затем забирает сообщения и раз в 10 минут проверяет,
 // не пора ли разослать недельную сводку.
 func (t *Telegram) Run(ctx context.Context) {
-	for t.username == "" {
+	for wait := 15 * time.Second; t.Username() == ""; wait = min(wait*2, 5*time.Minute) {
 		var me struct {
 			Username string `json:"username"`
 		}
-		if err := t.call(ctx, "getMe", map[string]any{}, &me); err != nil {
+		err := t.call(ctx, "getMe", map[string]any{}, &me)
+		if err == nil && me.Username == "" {
+			err = errors.New("getMe не вернул имя бота")
+		}
+		if err != nil {
 			t.log.Warn("telegram: getMe", "err", err)
+			t.mu.Lock()
+			t.startErr = startError(err)
+			t.mu.Unlock()
 			select {
 			case <-ctx.Done():
 				return
-			case <-time.After(time.Minute):
+			case <-time.After(wait):
 			}
 			continue
 		}
-		t.username = me.Username
+		t.mu.Lock()
+		t.username, t.startErr = me.Username, ""
+		t.mu.Unlock()
 		t.log.Info("telegram: bot ready", "bot", me.Username)
 	}
 	// getUpdates не работает, пока у бота стоит вебхук
@@ -371,6 +413,8 @@ func (s *Store) telegramChat(ctx context.Context, uid int64) (int64, error) {
 // TelegramState — что показать в Настройках.
 type TelegramState struct {
 	Enabled bool   `json:"enabled"` // бот настроен на сервере
+	Ready   bool   `json:"ready"`   // и связался с Telegram
+	Error   string `json:"error,omitempty"`
 	Linked  bool   `json:"linked"`
 	Name    string `json:"name,omitempty"`
 	Weekly  bool   `json:"weekly"`

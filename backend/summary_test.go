@@ -1,6 +1,8 @@
 package main
 
 import (
+	"errors"
+	"strings"
 	"testing"
 	"time"
 )
@@ -33,5 +35,14 @@ func TestSummaryRange(t *testing.T) {
 	}
 	if signedRub(1500) != "+1 500 ₽" || signedRub(-20) != "−20 ₽" || signedRub(0) != "0 ₽" {
 		t.Errorf("signedRub: %q %q %q", signedRub(1500), signedRub(-20), signedRub(0))
+	}
+}
+
+func TestStartError(t *testing.T) {
+	if got := startError(errors.New("telegram: Unauthorized")); !strings.Contains(got, "TELEGRAM_BOT_TOKEN") {
+		t.Errorf("Unauthorized: %q", got)
+	}
+	if got := startError(errors.New(`Post "https://api.telegram.org/bot<token>/getMe": dial tcp 1.2.3.4:443: i/o timeout`)); !strings.Contains(got, "api.telegram.org") {
+		t.Errorf("сеть: %q", got)
 	}
 }

@@ -4034,7 +4034,8 @@ class Component extends DCLogic {
   tgVals() {
     const st = this.state, tg = st.telegram || {};
     const off = !st.online ? "В демо-режиме бота нет — подключить Telegram можно после входа."
-      : !tg.enabled ? "Бот на сервере пока не настроен: администратору нужно добавить TELEGRAM_BOT_TOKEN в .env." : "";
+      : !tg.enabled ? "Бот на сервере пока не настроен: администратору нужно добавить TELEGRAM_BOT_TOKEN в .env."
+      : !tg.ready ? "Бот не на связи: " + (tg.error || "бот ещё запускается — обновите страницу через минуту") + "." : "";
     const send = what => () => this.api("POST", "telegram/send", { what })
       .then(() => this.set("tgMsg", what === "backup" ? "Бекап сохранён и отправлен в Telegram." : "Сводка отправлена в Telegram."), () => {});
     return {
