@@ -26,7 +26,8 @@ type Config struct {
 type API struct {
 	store  *Store
 	rates  *RateUpdater
-	push   *Pusher // nil — пуши не настроены (в тестах)
+	push   *Pusher   // nil — пуши не настроены (в тестах)
+	tg     *Telegram // nil — Telegram-бот не настроен
 	log    *slog.Logger
 	origin string         // the site's own origin: writes from other origins are refused
 	secure bool           // cookies only over HTTPS
@@ -155,6 +156,44 @@ func (a *API) Handler() http.Handler {
 		return s.RemoveCoin(r.Context(), uid, r.PathValue("code"))
 	}))
 
+	// Telegram: ссылка для привязки чата, недельная рассылка, отправка сейчас, отключение
+	mux.HandleFunc("POST /api/telegram/link", a.telegramLink)
+	mux.HandleFunc("PUT /api/telegram", a.withState(func(r *http.Request, uid int64) error {
+		var in struct {
+			Weekly bool `json:"weekly"`
+		}
+		if err := decode(r, &in); err != nil {
+			return err
+		}
+		return s.SetTelegramWeekly(r.Context(), uid, in.Weekly)
+	}))
+	mux.HandleFunc("DELETE /api/telegram", a.withState(func(r *http.Request, uid int64) error {
+		return s.UnlinkTelegram(r.Context(), uid)
+	}))
+	mux.HandleFunc("POST /api/telegram/send", a.withState(func(r *http.Request, uid int64) error {
+		if a.tg == nil {
+			return &APIError{http.StatusServiceUnavailable, "Telegram-бот на сервере не настроен"}
+		}
+		var in struct {
+			What string `json:"what"`
+		}
+		if err := decode(r, &in); err != nil {
+			return err
+		}
+		var err error
+		if in.What == "backup" {
+			err = a.tg.SendBackup(r.Context(), uid)
+		} else {
+			err = a.tg.SendSummary(r.Context(), uid, false)
+		}
+		var ae *APIError
+		if err != nil && !errors.As(err, &ae) {
+			a.log.Warn("telegram: send", "user", uid, "err", err)
+			return &APIError{http.StatusBadGateway, "Telegram не принял сообщение — попробуйте позже"}
+		}
+		return err
+	}))
+
 	mux.HandleFunc("POST /api/rates/refresh", a.withState(func(r *http.Request, _ int64) error {
 		if err := a.rates.Refresh(r.Context()); err != nil {
 			return &APIError{http.StatusBadGateway, "Не удалось обновить курсы: " + err.Error()}
@@ -277,6 +316,24 @@ func (a *API) searchCoins(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"coins": found})
 }
 
+// telegramLink выдаёт ссылку t.me/<бот>?start=<код> для привязки чата.
+func (a *API) telegramLink(w http.ResponseWriter, r *http.Request) {
+	u, ok := a.requireUser(w, r)
+	if !ok {
+		return
+	}
+	if a.tg == nil || a.tg.username == "" {
+		a.fail(w, r, &APIError{http.StatusServiceUnavailable, "Telegram-бот на сервере не настроен"})
+		return
+	}
+	code, err := a.store.TelegramLink(r.Context(), u.ID)
+	if err != nil {
+		a.fail(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"url": "https://t.me/" + a.tg.username + "?start=" + code})
+}
+
 func (a *API) state(ctx context.Context, u *User) (*State, error) {
 	st, err := a.store.State(ctx, u.ID)
 	if err != nil {
@@ -286,6 +343,10 @@ func (a *API) state(ctx context.Context, u *User) (*State, error) {
 	if a.push != nil {
 		st.PushKey = a.push.PublicKey()
 	}
+	if st.Telegram, err = a.store.telegramState(ctx, u.ID); err != nil {
+		return nil, err
+	}
+	st.Telegram.Enabled = a.tg != nil
 	return st, nil
 }
 

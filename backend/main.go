@@ -58,8 +58,14 @@ func run(log *slog.Logger) error {
 		return err
 	}
 	go store.RunRecurring(ctx, log, 15*time.Minute, func(uid int64) { push.CheckBudgets(uid) })
+	// Telegram-бот: сводка и бекапы; без токена выключен
+	tg := NewTelegram(store, os.Getenv("TELEGRAM_BOT_TOKEN"), os.Getenv("TELEGRAM_API_URL"), log)
+	if tg != nil {
+		go tg.Run(ctx)
+	}
 	api := NewAPI(store, rates, push, cfg, log)
-	log.Info("config", "public_url", cfg.PublicURL, "google_sign_in", api.google != nil)
+	api.tg = tg
+	log.Info("config", "public_url", cfg.PublicURL, "google_sign_in", api.google != nil, "telegram", tg != nil)
 
 	srv := &http.Server{
 		Addr:              getenv("ADDR", ":8080"),

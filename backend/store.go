@@ -127,6 +127,8 @@ type State struct {
 	Budgets   []Budget          `json:"budgets"`
 	// свои монеты пользователя сверх встроенного списка
 	Coins []Coin `json:"coins"`
+	// Telegram: настроен ли бот, подключён ли чат (handlers.go заполняет)
+	Telegram TelegramState `json:"telegram"`
 	// уведомления о бюджетах и пуши: ключ для подписки браузера, сколько устройств подписано
 	BudgetAlert BudgetAlert `json:"budgetAlert"`
 	PushKey     string      `json:"pushKey,omitempty"`

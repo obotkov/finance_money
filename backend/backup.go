@@ -176,13 +176,21 @@ func (s *Store) DataChanged(ctx context.Context, uid int64) error {
 
 // CreateBackup сохраняет снимок текущих данных, и он становится текущей версией.
 func (s *Store) CreateBackup(ctx context.Context, uid int64) error {
-	return pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) error {
-		id, err := saveBackup(ctx, tx, uid)
-		if err != nil {
+	_, err := s.createBackup(ctx, uid, "manual")
+	return err
+}
+
+// createBackup сохраняет бекап, делает его текущей версией и возвращает id.
+func (s *Store) createBackup(ctx context.Context, uid int64, kind string) (int64, error) {
+	var id int64
+	err := pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) error {
+		var err error
+		if id, err = saveBackup(ctx, tx, uid, kind); err != nil {
 			return err
 		}
 		return setCurrent(ctx, tx, uid, &id)
 	})
+	return id, err
 }
 
 func setCurrent(ctx context.Context, tx pgx.Tx, uid int64, id *int64) error {
@@ -349,7 +357,9 @@ func parseBackup(raw []byte) (*backupFile, error) {
 
 // saveBackup снимает данные пользователя и кладёт их в backups, оставляя
 // последние maxBackups. Возвращает id нового бекапа.
-func saveBackup(ctx context.Context, tx pgx.Tx, uid int64) (int64, error) {
+// saveBackup сохраняет снимок данных; kind — manual (кнопкой), auto (сам перед
+// восстановлением) или telegram (отправлен в Telegram).
+func saveBackup(ctx context.Context, tx pgx.Tx, uid int64, kind string) (int64, error) {
 	f, err := dumpBackup(ctx, tx, uid)
 	if err != nil {
 		return 0, err
@@ -368,9 +378,9 @@ func saveBackup(ctx context.Context, tx pgx.Tx, uid int64) (int64, error) {
 	}
 	var id int64
 	if err := tx.QueryRow(ctx, `
-		INSERT INTO backups (user_id, created_at, kind, accounts, txs, size, data) VALUES ($1, $2, 'manual', $3, $4, $5, $6)
+		INSERT INTO backups (user_id, created_at, kind, accounts, txs, size, data) VALUES ($1, $2, $3, $4, $5, $6, $7)
 		RETURNING id`,
-		uid, f.CreatedAt, len(f.Accounts), len(f.Transactions), len(raw), buf.Bytes()).Scan(&id); err != nil {
+		uid, f.CreatedAt, kind, len(f.Accounts), len(f.Transactions), len(raw), buf.Bytes()).Scan(&id); err != nil {
 		return 0, err
 	}
 	_, err = tx.Exec(ctx, `

@@ -2074,6 +2074,41 @@
                 <button class="btn btn-s" onClick="{{ openImport }}">Загрузить CSV…</button>
               </div>
             </div>
+            <!-- Telegram: сводка и бекап по понедельникам, отправка сейчас -->
+            <div class="card" style="grid-column:1 / -1;padding:20px 22px;display:flex;flex-direction:column;gap:14px">
+              <div>
+                <div class="big" style="font-size:17px">Telegram</div>
+                <div style="font-size:13px;color:var(--ink3)">Сводка по финансам и файл бекапа — каждый понедельник в 10:00 по Москве. В сводке: сколько на счетах, доходы и расходы за неделю и с начала месяца, куда ушло больше всего, бюджеты у лимита и платежи на ближайшую неделю.</div>
+              </div>
+              <sc-if value="{{ tgOff }}" hint-placeholder-val="{{ false }}">
+                <div style="font-size:13px;color:var(--ink2)">{{ tgOffText }}</div>
+              </sc-if>
+              <sc-if value="{{ tgCanLink }}" hint-placeholder-val="{{ true }}">
+                <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+                  <button class="btn btn-p" onClick="{{ tgLink }}">Подключить Telegram</button>
+                  <span style="font-size:13px;color:var(--ink3)">{{ tgLinkHint }}</span>
+                  <sc-if value="{{ tgHasUrl }}" hint-placeholder-val="{{ false }}"><a href="{{ tgUrl }}" target="_blank" rel="noopener" style="font-size:13px">Открыть чат с ботом</a></sc-if>
+                </div>
+              </sc-if>
+              <sc-if value="{{ tgLinked }}" hint-placeholder-val="{{ false }}">
+                <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+                  <span style="font-size:14px">Подключено: <b>{{ tgName }}</b></span>
+                  <span style="font-size:13px;color:var(--ink3);margin-left:auto">По понедельникам</span>
+                  <div class="seg">
+                    <span class="segopt" data-on="{{ tgWeeklyOn }}" onClick="{{ tgWeeklySet }}">Присылать</span>
+                    <span class="segopt" data-on="{{ tgWeeklyOff }}" onClick="{{ tgWeeklyUnset }}">Нет</span>
+                  </div>
+                </div>
+                <div style="display:flex;gap:10px;flex-wrap:wrap">
+                  <button class="btn btn-s" onClick="{{ tgSendSummary }}">Отправить сводку сейчас</button>
+                  <button class="btn btn-s" onClick="{{ tgSendBackup }}">Отправить бекап сейчас</button>
+                  <button class="btn btn-t" style="color:var(--neg);margin-left:auto" onClick="{{ tgUnlink }}">Отключить</button>
+                </div>
+              </sc-if>
+              <sc-if value="{{ tgHasMsg }}" hint-placeholder-val="{{ false }}">
+                <div style="font-size:13px;color:var(--ink2)">{{ tgMsg }}</div>
+              </sc-if>
+            </div>
             <!-- бекапы: снимки всех данных на сервере, скачивание и восстановление -->
             <div class="card" style="grid-column:1 / -1;padding:20px 22px;display:flex;flex-direction:column;gap:14px">
               <div style="display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap">
@@ -3244,6 +3279,8 @@ class Component extends DCLogic {
     // пулы: окно (новая позиция или событие) и открытая история
     plMode: "new", plId: null, plOwner: null, plCoinA: "ETH", plCoinB: "USDT", plPlace: "", plMin: "", plMax: "",
     plDate: TODAY, plPrice: "", plAuto: true, plA: "", plB: "", plLast: "a", plPct: "100", poolHist: null,
+    // Telegram: ссылка привязки, ждём ли нажатия Start, сообщение под карточкой
+    telegram: {}, tgUrl: "", tgWaiting: false, tgMsg: "",
     coins: [], coinAdd: null, coinQ: "", coinFound: [], coinBusy: false, coinMsg: "",
     // движение по счёту: какой счёт открыт (null — список счетов), период и фильтр
     accView: null, avFrom: THIS_MONTH + "-01", avTo: TODAY, avPreset: "month", accFilter: "all",
@@ -3756,7 +3793,7 @@ class Component extends DCLogic {
       const cat = cats.some(c => c.name === s.cat && c.kind === kind) ? s.cat : this.firstLeaf(kind, cats);
       return Object.assign({ user: data.user || null, accounts, cats, txs: data.txs || [],
         crypto: data.crypto || [], rates, history: data.history || {}, backups: data.backups || [], recurring: data.recurring || [],
-        budgets: data.budgets || [], coins: data.coins || [], budgetAlert: data.budgetAlert || { on: true, pct: 90 }, pushKey: data.pushKey || "", pushDevices: data.pushDevices || 0,
+        budgets: data.budgets || [], coins: data.coins || [], telegram: data.telegram || {}, budgetAlert: data.budgetAlert || { on: true, pct: 90 }, pushKey: data.pushKey || "", pushDevices: data.pushDevices || 0,
         currentBackup: data.currentBackup || null, acc, accTo, cat }, extra);
     });
   }
@@ -3993,6 +4030,52 @@ class Component extends DCLogic {
       })
       .catch(() => this.set("pushStatus", "unsupported"));
   }
+  // ---- Telegram: привязка чата и рассылка (backend/telegram.go) ----
+  tgVals() {
+    const st = this.state, tg = st.telegram || {};
+    const off = !st.online ? "В демо-режиме бота нет — подключить Telegram можно после входа."
+      : !tg.enabled ? "Бот на сервере пока не настроен: администратору нужно добавить TELEGRAM_BOT_TOKEN в .env." : "";
+    const send = what => () => this.api("POST", "telegram/send", { what })
+      .then(() => this.set("tgMsg", what === "backup" ? "Бекап сохранён и отправлен в Telegram." : "Сводка отправлена в Telegram."), () => {});
+    return {
+      tgOff: !!off, tgOffText: off,
+      tgCanLink: !off && !tg.linked, tgLinked: !off && !!tg.linked,
+      tgName: tg.name || "чат",
+      tgLinkHint: st.tgWaiting ? "Нажмите «Start» в чате с ботом — подключение появится здесь само." : "Откроется чат с ботом Penny — нажмите в нём «Start».",
+      tgHasUrl: !!st.tgUrl, tgUrl: st.tgUrl || "",
+      tgLink: () => {
+        // окно открывается сразу по нажатию — иначе браузер посчитает его всплывающим и не откроет
+        const win = window.open("", "_blank");
+        fetch(API + "telegram/link", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" })
+          .then(r => r.json().then(d => { if (!r.ok) throw new Error(d.error || "Ошибка сервера"); return d.url; }))
+          .then(url => {
+            if (win) win.location.href = url;
+            this.setState({ tgUrl: url, tgWaiting: true, tgMsg: "" });
+            this.waitTelegram(Date.now());
+          })
+          .catch(err => { if (win) win.close(); this.set("tgMsg", err.message); });
+      },
+      tgWeeklyOn: tg.weekly ? "1" : "0", tgWeeklyOff: tg.weekly ? "0" : "1",
+      tgWeeklySet: () => { if (!tg.weekly) this.api("PUT", "telegram", { weekly: true }).catch(() => {}); },
+      tgWeeklyUnset: () => { if (tg.weekly) this.api("PUT", "telegram", { weekly: false }).catch(() => {}); },
+      tgSendSummary: send("summary"), tgSendBackup: send("backup"),
+      tgUnlink: () => {
+        if (!window.confirm("Отключить Telegram? Сводка и бекапы перестанут приходить.")) return;
+        this.api("DELETE", "telegram").then(() => this.setState({ tgMsg: "", tgUrl: "" }), () => {});
+      },
+      tgHasMsg: !!st.tgMsg, tgMsg: st.tgMsg || ""
+    };
+  }
+  // после «Подключить» ждём, пока в чате нажмут Start: опрашиваем состояние до 5 минут
+  waitTelegram(started) {
+    clearTimeout(this.tgTimer);
+    if (!this.state.tgWaiting || Date.now() - started > 5 * 60 * 1000) { this.setState({ tgWaiting: false }); return; }
+    this.tgTimer = setTimeout(() => fetch(API + "state").then(r => r.json()).then(data => {
+      if (data.telegram && data.telegram.linked) { this.applyServer(data, { tgWaiting: false, tgUrl: "", tgMsg: "Telegram подключён — сводка придёт в понедельник в 10:00." }); return; }
+      this.waitTelegram(started);
+    }, () => this.waitTelegram(started)), 3000);
+  }
+
   pushVals() {
     const st = this.state, status = st.online ? st.pushStatus : "demo";
     const key = b64 => {
@@ -4855,7 +4938,7 @@ class Component extends DCLogic {
         key: String(b.id),
         when: this.backupWhen(b.createdAt),
         current: b.id === st.currentBackup, notCurrent: b.id !== st.currentBackup,
-        info: (b.kind === "auto" ? "Сохранён сам перед восстановлением · " : "")
+        info: (b.kind === "auto" ? "Сохранён сам перед восстановлением · " : b.kind === "telegram" ? "Отправлен в Telegram · " : "")
           + pluralRu(b.accounts, "счёт", "счёта", "счетов") + " · " + pluralRu(b.txs, "операция", "операции", "операций") + " · " + size(b.size),
         href: API + "backups/" + b.id + "/file",
         restore: () => {
@@ -6496,6 +6579,7 @@ class Component extends DCLogic {
       wipeAll: () => this.wipeAll(),
       ...(st.screen === "settings" ? this.backupVals() : {}),
       ...(st.screen === "settings" ? this.recurringVals() : {}),
+      ...(st.screen === "settings" ? this.tgVals() : {}),
       ...this.datePickerVals(),
       dataText: st.dataText, onDataText: e => this.set("dataText", e.target.value),
       onPickFile: e => {
