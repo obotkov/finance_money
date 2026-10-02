@@ -42,7 +42,7 @@ func TestStartError(t *testing.T) {
 	if got := startError(errors.New("telegram: Unauthorized")); !strings.Contains(got, "TELEGRAM_BOT_TOKEN") {
 		t.Errorf("Unauthorized: %q", got)
 	}
-	if got := startError(errors.New(`Post "https://api.telegram.org/bot<token>/getMe": dial tcp 1.2.3.4:443: i/o timeout`)); !strings.Contains(got, "api.telegram.org") {
+	if got := startError(errors.New(`Post "https://api.telegram.org/bot<token>/getMe": dial tcp 1.2.3.4:443: i/o timeout`)); !strings.Contains(got, "связаться") || !strings.Contains(got, "api.telegram.org") {
 		t.Errorf("сеть: %q", got)
 	}
 }

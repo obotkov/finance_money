@@ -73,9 +73,9 @@ func startError(err error) string {
 	var ne interface{ Timeout() bool }
 	switch {
 	case strings.Contains(msg, "Unauthorized") || strings.Contains(msg, "Not Found"):
-		return "Telegram не принял токен — проверьте TELEGRAM_BOT_TOKEN в .env (его выдаёт @BotFather)"
+		return "Telegram не принял токен — проверьте TELEGRAM_BOT_TOKEN в .env (его выдаёт @BotFather) и TELEGRAM_API_URL, если он задан"
 	case errors.As(err, &ne) || strings.Contains(msg, "dial") || strings.Contains(msg, "connection") || strings.Contains(msg, "EOF") || strings.Contains(msg, "tls"):
-		return "сервер не может связаться с api.telegram.org: " + msg
+		return "сервер не может связаться с Telegram: " + msg
 	}
 	return msg
 }
