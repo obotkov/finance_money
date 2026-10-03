@@ -342,7 +342,7 @@ func (a *API) AddCoin(ctx context.Context, uid int64, in struct {
 		return err
 	}
 	registerCoin(code, id)
-	if err := a.store.UpsertRates(ctx, map[string]float64{code: m.Price}, "coingecko"); err != nil {
+	if err := a.store.UpsertRates(ctx, map[string]float64{code: m.Price}, "coingecko", ""); err != nil {
 		return err
 	}
 	go a.rates.Backfill(context.Background())

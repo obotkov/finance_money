@@ -18,9 +18,12 @@ func TestParseCBR(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	got, err := parseCBR([]byte(body))
+	got, day, err := parseCBR([]byte(body))
 	if err != nil {
 		t.Fatal(err)
+	}
+	if day != "2026-09-15" {
+		t.Errorf("day = %q, want 2026-09-15", day)
 	}
 	// CNY идёт в раздел «Курсы» — за 1 юань, а не за 10
 	want := map[string]float64{"USD": 84.1234, "EUR": 98.5, "CNY": 11.73}
@@ -38,9 +41,12 @@ func TestParseCBRNominal(t *testing.T) {
 	src := `<?xml version="1.0" encoding="windows-1251"?><ValCurs>
 <Valute><CharCode>USD</CharCode><Nominal>1</Nominal><Value>80</Value></Valute>
 <Valute><CharCode>EUR</CharCode><Nominal>10</Nominal><Value>950,5</Value></Valute></ValCurs>`
-	got, err := parseCBR([]byte(src))
+	got, day, err := parseCBR([]byte(src))
 	if err != nil {
 		t.Fatal(err)
+	}
+	if day != "" {
+		t.Errorf("day = %q, want empty without Date", day)
 	}
 	if math.Abs(got["EUR"]-95.05) > 1e-9 {
 		t.Errorf("EUR = %v, want 95.05", got["EUR"])
@@ -50,7 +56,7 @@ func TestParseCBRNominal(t *testing.T) {
 func TestParseCBRMissingCurrency(t *testing.T) {
 	src := `<?xml version="1.0" encoding="windows-1251"?><ValCurs>
 <Valute><CharCode>USD</CharCode><Nominal>1</Nominal><Value>80</Value></Valute></ValCurs>`
-	if _, err := parseCBR([]byte(src)); err == nil {
+	if _, _, err := parseCBR([]byte(src)); err == nil {
 		t.Fatal("want error when EUR is missing")
 	}
 }

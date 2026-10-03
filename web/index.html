@@ -1634,7 +1634,7 @@
             </div>
             <div class="card" style="padding:6px 4px 10px">
               <div class="rt-row" data-cols="{{ ratesCols }}" style="padding:10px 14px 8px;margin:0 4px;font-size:12px;color:var(--ink3);border-bottom:1px solid var(--line)">
-                <span>Название</span><span style="text-align:right">{{ ratesPriceHead }}</span><span class="rt-usd" style="text-align:right">{{ ratesUsdHead }}</span><span style="text-align:right">За сутки</span>
+                <span>Название</span><span style="text-align:right">{{ ratesPriceHead }}</span><span class="rt-usd" style="text-align:right">{{ ratesUsdHead }}</span><span style="text-align:right">{{ ratesChHead }}</span>
               </div>
               <sc-for list="{{ ratesRows }}" as="r" hint-placeholder-count="8">
                 <div class="rowline rt-row" data-cols="{{ r.cols }}" style="padding:11px 14px;margin:0 4px">
@@ -3962,6 +3962,14 @@ class Component extends DCLogic {
       const day = lastDay(code);
       return day ? st.history[code][day] : 0;
     };
+    // Курс ЦБ лежит в истории под датой, на которую установлен (бывает и завтрашняя,
+    // за выходные — одна суббота), поэтому сравнивается с предыдущим курсом ЦБ, а не со вчера
+    const cbrDays = code => Object.keys((st.history || {})[code] || {}).sort();
+    const cbrBefore = code => {
+      const days = cbrDays(code);
+      return days.length > 1 ? st.history[code][days[days.length - 2]] : 0;
+    };
+    const dayLabel = day => new Date(day + "T00:00:00").toLocaleDateString("ru-RU", { day: "numeric", month: "long" });
     // Вчерашняя цена монеты в USDT — по рублёвым курсам монеты и USDT за тот же день
     const usdtBefore = code => {
       const day = lastDay(code), u = day && (st.history.USDT || {})[day];
@@ -3971,8 +3979,8 @@ class Component extends DCLogic {
     const digits = n => (n >= 100 ? 2 : n >= 1 ? 3 : n >= 0.01 ? 4 : 6);
     const usdtFmt = (n, max) => n.toLocaleString("ru-RU", { maximumFractionDigits: max }).replace(/\u00a0/g, " ") + " USDT";
     // usdt — изменение монеты в USDT: и процент, и разница считаются в долларовой цене, а не в рублях
-    const change = (code, now, scale, usdt) => {
-      const was = usdt ? usdtBefore(code) : rubBefore(code);
+    const change = (code, now, scale, usdt, cbr) => {
+      const was = usdt ? usdtBefore(code) : cbr ? cbrBefore(code) : rubBefore(code);
       if (!(was > 0) || !(now > 0)) return { pct: "", abs: "", tone: "" };
       const pct = (now / was - 1) * 100, d = (now - was) * scale, a = Math.abs(d);
       if (Math.abs(pct) < 0.005) return { pct: "0,00 %", abs: "", tone: "" };
@@ -3994,7 +4002,7 @@ class Component extends DCLogic {
         return Object.assign(CUR[code] ? curBadge(code) : badge(sym, "#6e6e73"), {
           key: code, name, sub: per > 1 ? per.toLocaleString("ru-RU").replace(/\u00a0/g, " ") + " " + code : code,
           price: rub > 0 ? rubFmt(rub * per, rub * per >= 1 ? 2 : 4) : "—", priceSub: "", usd: "", usdSub: "", cols: "3",
-          ...change(code, rub, per)
+          ...change(code, rub, per, false, true)
         });
       });
     } else if (tab === "crypto") {
@@ -4021,7 +4029,7 @@ class Component extends DCLogic {
         });
       });
     }
-    const list = Object.values(st.rates);
+    const list = Object.values(st.rates), usdDays = cbrDays("USD");
     const last = list.length ? new Date(Math.max(...list.map(r => Date.parse(r.updatedAt)))) : null;
     return {
       ratesRows: rows,
@@ -4030,13 +4038,15 @@ class Component extends DCLogic {
       })),
       ratesPriceHead: tab === "fiat" ? "Курс" : "В рублях",
       ratesUsdHead: tab === "crypto" ? "В USDT" : "В долларах",
+      ratesChHead: tab === "fiat" ? "Изменение" : "За сутки",
       ratesCols: tab === "fiat" ? "3" : "4",
-      ratesSource: tab === "fiat" ? "Официальный курс ЦБ РФ на сегодня."
+      ratesSource: tab === "fiat" ? "Официальный курс ЦБ РФ" + (usdDays.length ? " на " + dayLabel(usdDays[usdDays.length - 1]) : " на сегодня") + "."
         : tab === "crypto" ? "CoinGecko, цена в рублях и в USDT."
         : "gold-api.com: биржевая цена в долларах, в рубли — по курсу ЦБ.",
       ratesNote: !st.online || !last ? "Демо-режим: курсы примерные."
         : "Обновлено " + last.toLocaleString("ru-RU", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })
-          + ", дальше — раз в час. Изменение — к вчерашнему дню.",
+          + ", дальше — раз в час. " + (tab !== "fiat" ? "Изменение — к вчерашнему дню."
+            : usdDays.length > 1 ? "Изменение — к предыдущему курсу, на " + dayLabel(usdDays[usdDays.length - 2]) + "." : ""),
       ratesCrypto: tab === "crypto",
       openCoinAdd: () => this.openCoinAdd("rates"),
       refreshRates: () => { if (st.online) this.api("POST", "rates/refresh", {}).catch(() => {}); },

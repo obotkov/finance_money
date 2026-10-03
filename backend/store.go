@@ -1162,19 +1162,32 @@ func (s *Store) DeleteCategory(ctx context.Context, uid, id int64) error {
 // ---- rates ----
 
 // UpsertRates stores rub prices per currency code from one source; the price
-// also becomes today's in the daily history.
-func (s *Store) UpsertRates(ctx context.Context, rates map[string]float64, source string) error {
+// also goes into the daily history under day (YYYY-MM-DD, "" — today).
+func (s *Store) UpsertRates(ctx context.Context, rates map[string]float64, source, day string) error {
 	batch := &pgx.Batch{}
 	for code, rub := range rates {
 		batch.Queue(`
 			INSERT INTO rates (code, rub, source, updated_at) VALUES ($1, $2, $3, now())
 			ON CONFLICT (code) DO UPDATE SET rub = EXCLUDED.rub, source = EXCLUDED.source, updated_at = EXCLUDED.updated_at`,
 			code, rub, source)
-		batch.Queue(`
-			INSERT INTO rate_history (code, day, rub) VALUES ($1, CURRENT_DATE, $2)
-			ON CONFLICT (code, day) DO UPDATE SET rub = EXCLUDED.rub`, code, rub)
+		queueHistory(batch, code, day, rub)
 	}
 	return s.db.SendBatch(ctx, batch).Close()
+}
+
+// SetHistory записывает цены за один день, заменяя прежние.
+func (s *Store) SetHistory(ctx context.Context, day string, rates map[string]float64) error {
+	batch := &pgx.Batch{}
+	for code, rub := range rates {
+		queueHistory(batch, code, day, rub)
+	}
+	return s.db.SendBatch(ctx, batch).Close()
+}
+
+func queueHistory(batch *pgx.Batch, code, day string, rub float64) {
+	batch.Queue(`
+		INSERT INTO rate_history (code, day, rub) VALUES ($1, COALESCE(NULLIF($2, '')::date, CURRENT_DATE), $3)
+		ON CONFLICT (code, day) DO UPDATE SET rub = EXCLUDED.rub`, code, day, rub)
 }
 
 // CurrentRub returns the stored rouble price of one unit of code.

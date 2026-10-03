@@ -68,6 +68,7 @@ type RateUpdater struct {
 	log      *slog.Logger
 	http     *http.Client
 	mu       sync.Mutex // one refresh at a time
+	cbrPrev  string     // дата курса ЦБ, для которой предыдущий курс уже записан в историю
 	backfill sync.Mutex // и одна догрузка истории: CoinGecko без ключа отвечает на несколько запросов в минуту
 }
 
@@ -167,8 +168,9 @@ func (u *RateUpdater) Refresh(ctx context.Context) error {
 	defer u.mu.Unlock()
 
 	sources := []struct {
-		name  string
-		fetch func(context.Context) (map[string]float64, error)
+		name string
+		// fetch отдаёт курсы и дату, под которой они идут в историю ("" — сегодня)
+		fetch func(context.Context) (map[string]float64, string, error)
 	}{
 		{"cbr", u.fetchCBR},
 		{"coingecko", u.fetchCoinGecko},
@@ -176,9 +178,9 @@ func (u *RateUpdater) Refresh(ctx context.Context) error {
 	}
 	var errs []error
 	for _, src := range sources {
-		rates, err := src.fetch(ctx)
+		rates, day, err := src.fetch(ctx)
 		if err == nil {
-			err = u.store.UpsertRates(ctx, rates, src.name)
+			err = u.store.UpsertRates(ctx, rates, src.name, day)
 		}
 		if err != nil {
 			errs = append(errs, fmt.Errorf("%s: %w", src.name, err))
@@ -193,15 +195,50 @@ func (u *RateUpdater) Refresh(ctx context.Context) error {
 	return err
 }
 
-func (u *RateUpdater) fetchCBR(ctx context.Context) (map[string]float64, error) {
+// fetchCBR берёт последний установленный курс ЦБ. В историю он идёт под датой,
+// на которую установлен (после 15:30 по Москве это уже завтра, в пятницу —
+// суббота, и он же действует до понедельника), а не под днём запроса: иначе
+// вчера и сегодня в истории лежит один курс и изменение за сутки — 0 %.
+// Рядом записывается предыдущий курс, с которым его сравнивает страница.
+func (u *RateUpdater) fetchCBR(ctx context.Context) (map[string]float64, string, error) {
 	body, err := u.get(ctx, cbrURL)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
-	return parseCBR(body)
+	rates, day, err := parseCBR(body)
+	if err == nil && day != "" && day != u.cbrPrev {
+		if err := u.cbrPrevious(ctx, day); err != nil {
+			u.log.Warn("previous CBR rates", "day", day, "err", err)
+		} else {
+			u.cbrPrev = day
+		}
+	}
+	return rates, day, err
 }
 
-func (u *RateUpdater) fetchCoinGecko(ctx context.Context) (map[string]float64, error) {
+// cbrPrevious записывает в историю курс, действовавший накануне day: ЦБ отдаёт
+// его под датой установки, за выходные — субботней. Запись заменяет то, что
+// лежало под этой датой — раньше туда мог попасть следующий курс.
+func (u *RateUpdater) cbrPrevious(ctx context.Context, day string) error {
+	t, err := time.Parse(time.DateOnly, day)
+	if err != nil {
+		return err
+	}
+	body, err := u.get(ctx, cbrURL+"?date_req="+t.AddDate(0, 0, -1).Format("02/01/2006"))
+	if err != nil {
+		return err
+	}
+	prev, prevDay, err := parseCBR(body)
+	if err != nil {
+		return err
+	}
+	if prevDay == "" || prevDay >= day {
+		return fmt.Errorf("unexpected date %q of previous CBR rates", prevDay)
+	}
+	return u.store.SetHistory(ctx, prevDay, prev)
+}
+
+func (u *RateUpdater) fetchCoinGecko(ctx context.Context) (map[string]float64, string, error) {
 	coins := allCoinIDs()
 	ids := make([]string, 0, len(coins))
 	for _, id := range coins {
@@ -210,17 +247,18 @@ func (u *RateUpdater) fetchCoinGecko(ctx context.Context) (map[string]float64, e
 	slices.Sort(ids)
 	body, err := u.get(ctx, coingeckoURL+"?vs_currencies=rub&ids="+strings.Join(ids, ","))
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
-	return parseCoinGecko(body)
+	rates, err := parseCoinGecko(body)
+	return rates, "", err
 }
 
 // fetchMetals берёт цены металлов в долларах и переводит их в рубли за грамм
 // по курсу доллара ЦБ из базы. Металл без цены сохраняет прежнюю.
-func (u *RateUpdater) fetchMetals(ctx context.Context) (map[string]float64, error) {
+func (u *RateUpdater) fetchMetals(ctx context.Context) (map[string]float64, string, error) {
 	usd, err := u.store.CurrentRub(ctx, "USD")
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	out := map[string]float64{}
 	for _, m := range metals {
@@ -237,9 +275,9 @@ func (u *RateUpdater) fetchMetals(ctx context.Context) (map[string]float64, erro
 		out[m.code] = price * usd / m.grams
 	}
 	if len(out) == 0 {
-		return nil, errors.New("no metal prices")
+		return nil, "", errors.New("no metal prices")
 	}
-	return out, nil
+	return out, "", nil
 }
 
 // parseGoldAPI reads {"price": <USD>} from gold-api.com.
@@ -274,9 +312,11 @@ func (u *RateUpdater) get(ctx context.Context, url string) ([]byte, error) {
 }
 
 // parseCBR reads the daily XML of the Bank of Russia (windows-1251,
-// "Value" per "Nominal" units with a decimal comma).
-func parseCBR(body []byte) (map[string]float64, error) {
+// "Value" per "Nominal" units with a decimal comma) and the date the rates
+// are set for, as YYYY-MM-DD ("" when the XML has none).
+func parseCBR(body []byte) (map[string]float64, string, error) {
 	var doc struct {
+		Date    string `xml:"Date,attr"`
 		Valutes []struct {
 			CharCode string `xml:"CharCode"`
 			Nominal  string `xml:"Nominal"`
@@ -291,7 +331,7 @@ func parseCBR(body []byte) (map[string]float64, error) {
 		return nil, fmt.Errorf("unexpected charset %q", label)
 	}
 	if err := dec.Decode(&doc); err != nil {
-		return nil, fmt.Errorf("parse CBR XML: %w", err)
+		return nil, "", fmt.Errorf("parse CBR XML: %w", err)
 	}
 	out := map[string]float64{}
 	for _, v := range doc.Valutes {
@@ -300,20 +340,24 @@ func parseCBR(body []byte) (map[string]float64, error) {
 		}
 		value, err := strconv.ParseFloat(strings.Replace(strings.TrimSpace(v.Value), ",", ".", 1), 64)
 		if err != nil {
-			return nil, fmt.Errorf("%s value %q: %w", v.CharCode, v.Value, err)
+			return nil, "", fmt.Errorf("%s value %q: %w", v.CharCode, v.Value, err)
 		}
 		nominal, err := strconv.Atoi(strings.TrimSpace(v.Nominal))
 		if err != nil || nominal <= 0 {
-			return nil, fmt.Errorf("%s nominal %q", v.CharCode, v.Nominal)
+			return nil, "", fmt.Errorf("%s nominal %q", v.CharCode, v.Nominal)
 		}
 		out[v.CharCode] = value / float64(nominal)
 	}
 	for _, code := range fiatCodes {
 		if out[code] <= 0 {
-			return nil, fmt.Errorf("no %s in CBR XML", code)
+			return nil, "", fmt.Errorf("no %s in CBR XML", code)
 		}
 	}
-	return out, nil
+	day := ""
+	if t, err := time.Parse("02.01.2006", doc.Date); err == nil {
+		day = t.Format(time.DateOnly)
+	}
+	return out, day, nil
 }
 
 func parseCoinGecko(body []byte) (map[string]float64, error) {
