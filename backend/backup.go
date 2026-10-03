@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -28,12 +29,15 @@ const (
 	maxBackups = 30
 	// предел для загружаемого файла
 	maxBackupBytes = 32 << 20
+	// предел длины названия бекапа, в символах
+	maxBackupName = 60
 )
 
 // BackupInfo — строка списка бекапов на странице.
 type BackupInfo struct {
 	ID        int64     `json:"id"`
 	CreatedAt time.Time `json:"createdAt"`
+	Name      string    `json:"name"`
 	Kind      string    `json:"kind"`
 	Accounts  int       `json:"accounts"`
 	Txs       int       `json:"txs"`
@@ -151,11 +155,11 @@ type backupAsset struct {
 // Backups — список бекапов пользователя, новые сверху.
 func (s *Store) Backups(ctx context.Context, uid int64) ([]BackupInfo, error) {
 	rows, _ := s.db.Query(ctx, `
-		SELECT id, created_at, kind, accounts, txs, size FROM backups
+		SELECT id, created_at, name, kind, accounts, txs, size FROM backups
 		WHERE user_id = $1 ORDER BY created_at DESC, id DESC`, uid)
 	return pgx.CollectRows(rows, func(r pgx.CollectableRow) (BackupInfo, error) {
 		var b BackupInfo
-		err := r.Scan(&b.ID, &b.CreatedAt, &b.Kind, &b.Accounts, &b.Txs, &b.Size)
+		err := r.Scan(&b.ID, &b.CreatedAt, &b.Name, &b.Kind, &b.Accounts, &b.Txs, &b.Size)
 		return b, err
 	})
 }
@@ -201,6 +205,21 @@ func setCurrent(ctx context.Context, tx pgx.Tx, uid int64, id *int64) error {
 // DeleteBackup удаляет один бекап.
 func (s *Store) DeleteBackup(ctx context.Context, uid, id int64) error {
 	tag, err := s.db.Exec(ctx, `DELETE FROM backups WHERE id = $1 AND user_id = $2`, id, uid)
+	if err == nil && tag.RowsAffected() == 0 {
+		return notFound("Бекап не найден")
+	}
+	return err
+}
+
+// RenameBackup задаёт бекапу название; пустое убирает его, и в списке снова дата.
+func (s *Store) RenameBackup(ctx context.Context, uid, id int64, in struct {
+	Name string `json:"name"`
+}) error {
+	name := strings.Join(strings.Fields(in.Name), " ")
+	if utf8.RuneCountInString(name) > maxBackupName {
+		return badRequest(fmt.Sprintf("Название длиннее %d символов", maxBackupName))
+	}
+	tag, err := s.db.Exec(ctx, `UPDATE backups SET name = $1 WHERE id = $2 AND user_id = $3`, name, id, uid)
 	if err == nil && tag.RowsAffected() == 0 {
 		return notFound("Бекап не найден")
 	}

@@ -210,6 +210,7 @@ func (a *API) Handler() http.Handler {
 	mux.HandleFunc("POST /api/backups", a.withState(func(r *http.Request, uid int64) error {
 		return s.CreateBackup(r.Context(), uid)
 	}))
+	mux.HandleFunc("PUT /api/backups/{id}", a.withState(withIDBody(s.RenameBackup)))
 	mux.HandleFunc("DELETE /api/backups/{id}", a.withState(withID(s.DeleteBackup)))
 	mux.HandleFunc("GET /api/backups/{id}/file", a.backupFile)
 	mux.HandleFunc("POST /api/backups/{id}/restore", a.withState(withID(s.RestoreBackup)))

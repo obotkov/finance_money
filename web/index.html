@@ -152,6 +152,9 @@
   .rt-row[data-cols="4"] { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, .8fr); }
   .rt-row[data-cols="3"] .rt-usd { display: none; }
   .chart-tip { position: absolute; top: 2%; width: max-content; max-width: 70%; padding: 9px 12px; border-radius: 12px; background: var(--raised); border: 1px solid var(--line); box-shadow: 0 8px 24px rgba(0,0,0,.22); pointer-events: none; z-index: 2; }
+  .bk-ren { border: 0; background: none; color: var(--ink3); padding: 2px; margin: -2px 0; cursor: pointer; display: inline-flex; border-radius: 6px; }
+  .bk-ren:hover { color: var(--ink); background: var(--line); }
+  .bk-ren svg { width: 15px; height: 15px; }
   .rc-row[data-on="1"] { background: var(--accent-soft); margin: 0 -10px; padding-left: 10px !important; padding-right: 10px !important; border-radius: 10px; }
   @media (max-width: 760px) {
     .rt-row, .rt-row[data-cols="4"] { gap: 8px; }
@@ -166,6 +169,7 @@
     .rc-row .rc-btns .btn:first-child { padding-left: 0; }
     .bk-row > div:first-child { flex-basis: 100% !important; }
     .bk-row .btn:first-child { padding-left: 0; }
+    .bk-edit .inp { flex-basis: 100% !important; }
   }
   .movers-h { font-size: 12px; color: var(--ink3); padding: 8px 18px 4px; }
   .mover { display: flex; align-items: center; gap: 12px; padding: 9px 14px; margin: 0 4px; border-radius: 12px; cursor: pointer; }
@@ -2209,12 +2213,22 @@
                   <sc-for list="{{ bkRows }}" as="b" hint-placeholder-count="3">
                     <div class="bk-row" style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--line)">
                       <div style="flex:1;min-width:0">
-                        <div style="font-size:14px;font-weight:500;display:flex;align-items:center;gap:8px;flex-wrap:wrap">{{ b.when }}
-                          <sc-if value="{{ b.current }}" hint-placeholder-val="{{ false }}"><span style="font-size:11px;font-weight:500;color:var(--accent);background:var(--accent-soft);border-radius:6px;padding:2px 7px">Текущая версия</span></sc-if>
-                        </div>
+                        <sc-if value="{{ b.editing }}" hint-placeholder-val="{{ false }}">
+                          <div class="bk-edit" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:4px">
+                            <input class="inp" style="flex:1;min-width:160px;padding:6px 10px" maxLength="60" autoFocus="{{ true }}" placeholder="{{ b.when }}" value="{{ bkEditName }}" onChange="{{ onBkEditName }}">
+                            <button class="btn btn-p" style="padding:6px 12px" onClick="{{ bkEditSave }}">Сохранить</button>
+                            <button class="btn btn-t" onClick="{{ bkEditCancel }}">Отмена</button>
+                          </div>
+                        </sc-if>
+                        <sc-if value="{{ b.notEditing }}" hint-placeholder-val="{{ true }}">
+                          <div style="font-size:14px;font-weight:500;display:flex;align-items:center;gap:8px;flex-wrap:wrap;overflow-wrap:anywhere">{{ b.title }}
+                            <button class="bk-ren" title="Переименовать" aria-label="Переименовать" onClick="{{ b.rename }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16z"></path><path d="m13.5 6.5 4 4"></path></svg></button>
+                            <sc-if value="{{ b.current }}" hint-placeholder-val="{{ false }}"><span style="font-size:11px;font-weight:500;color:var(--accent);background:var(--accent-soft);border-radius:6px;padding:2px 7px">Текущая версия</span></sc-if>
+                          </div>
+                        </sc-if>
                         <div style="font-size:12px;color:var(--ink3)">{{ b.info }}</div>
                       </div>
-                      <div style="display:flex;gap:4px;flex:none">
+                      <div style="display:flex;gap:4px;flex:none;flex-wrap:wrap">
                         <a class="btn btn-t" href="{{ b.href }}" download="">Скачать</a>
                         <sc-if value="{{ b.notCurrent }}" hint-placeholder-val="{{ true }}"><button class="btn btn-t" onClick="{{ b.restore }}">Восстановить</button></sc-if>
                         <button class="btn btn-t" style="color:var(--neg)" onClick="{{ b.remove }}">Удалить</button>
@@ -3380,7 +3394,7 @@ class Component extends DCLogic {
     catId: null, catName: "", catParent: "", catKind: "expense", catIcon: "", catTab: "expense",
     anaPreset: "month", anaFrom: THIS_MONTH + "-01", anaTo: TODAY,
     anaGran: "day", anaHover: null, anaCats: null, anaCatGran: "week", anaCatHover: null,
-    dataText: "", dataMsg: "", dataAdminMsg: "", bkMsg: "",
+    dataText: "", dataMsg: "", dataAdminMsg: "", bkMsg: "", bkEdit: null,
     // повторяющиеся операции: rcId — какое правило изменяется, null — новое
     budgets: [], budgetAlert: { on: true, pct: 90 }, pushKey: "", pushDevices: 0, pushStatus: "", pushMsg: "", alertPctDraft: "",
     bgId: null, bgCat: "", bgAmount: "",
@@ -5180,7 +5194,7 @@ class Component extends DCLogic {
       + ", " + d.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
   }
   backupVals() {
-    const st = this.state, list = st.backups || [];
+    const st = this.state, list = st.backups || [], edit = st.bkEdit;
     const cur = list.find(b => b.id === st.currentBackup);
     // что пропадёт при переключении: изменения после последнего сохранения или восстановления
     const lose = cur ? "Сейчас данные совпадают с версией от " + this.backupWhen(cur.createdAt) + " — на неё можно будет вернуться."
@@ -5197,8 +5211,11 @@ class Component extends DCLogic {
       bkRows: list.map(b => ({
         key: String(b.id),
         when: this.backupWhen(b.createdAt),
+        title: b.name || this.backupWhen(b.createdAt),
+        editing: !!edit && edit.id === b.id, notEditing: !edit || edit.id !== b.id,
         current: b.id === st.currentBackup, notCurrent: b.id !== st.currentBackup,
-        info: (b.kind === "auto" ? "Сохранён сам перед восстановлением · " : b.kind === "telegram" ? "Отправлен в Telegram · " : "")
+        info: (b.name ? this.backupWhen(b.createdAt) + " · " : "")
+          + (b.kind === "auto" ? "Сохранён сам перед восстановлением · " : b.kind === "telegram" ? "Отправлен в Telegram · " : "")
           + pluralRu(b.accounts, "счёт", "счёта", "счетов") + " · " + pluralRu(b.txs, "операция", "операции", "операций") + " · " + size(b.size),
         href: API + "backups/" + b.id + "/file",
         restore: () => {
@@ -5208,12 +5225,22 @@ class Component extends DCLogic {
             .then(() => this.set("bkMsg", "Данные переключены на версию от " + this.backupWhen(b.createdAt) + "."))
             .catch(() => {});
         },
+        rename: () => this.setState({ bkEdit: { id: b.id, name: b.name || "" }, bkMsg: "" }),
         remove: () => {
-          if (!window.confirm("Удалить бекап от " + this.backupWhen(b.createdAt) + "? Вернуть его будет нельзя.")) return;
+          if (!window.confirm("Удалить бекап " + (b.name ? "«" + b.name + "» " : "") + "от " + this.backupWhen(b.createdAt) + "? Вернуть его будет нельзя.")) return;
           this.set("bkMsg", "");
           this.api("DELETE", "backups/" + b.id).catch(() => {});
         }
       })),
+      bkEditName: edit ? edit.name : "",
+      onBkEditName: e => this.set("bkEdit", { ...this.state.bkEdit, name: e.target.value }),
+      bkEditCancel: () => this.set("bkEdit", null),
+      bkEditSave: () => {
+        const ed = this.state.bkEdit;
+        if (!ed) return;
+        this.api("PUT", "backups/" + ed.id, { name: ed.name.trim() })
+          .then(() => this.set("bkEdit", null)).catch(() => {});
+      },
       makeBackup: () => {
         if (!st.online) { this.set("bkMsg", "Без сервера бекапы не сохраняются."); return; }
         this.set("bkMsg", "");
