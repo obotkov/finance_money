@@ -414,7 +414,7 @@ func dumpBackup(ctx context.Context, tx pgx.Tx, uid int64) (*backupFile, error) 
 
 	rows, _ := tx.Query(ctx, `
 		SELECT id, name, kind, currency, balance::text, created_at
-		FROM accounts WHERE user_id = $1 ORDER BY id`, uid)
+		FROM accounts WHERE user_id = $1 ORDER BY position, id`, uid)
 	f.Accounts, err = pgx.CollectRows(rows, func(r pgx.CollectableRow) (backupAccount, error) {
 		var a backupAccount
 		err := r.Scan(&a.ID, &a.Name, &a.Kind, &a.Currency, &a.Balance, &a.CreatedAt)

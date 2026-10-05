@@ -80,6 +80,7 @@ docker compose exec api /api users   # список: почта, имя, спо�
 | GET | `/api/auth/google/start` → Google → `/api/auth/google/callback` | |
 | GET | `/api/state` | |
 | POST, PUT `/{id}`, DELETE `/{id}` | `/api/accounts` | `{name, kind, balance, cur}`; у DELETE — `?replace=<id>`: перенести операции на этот счёт |
+| PUT | `/api/accounts/order` | `{ids}` — все счета пользователя в новом порядке |
 | POST, PUT `/{id}`, DELETE `/{id}` | `/api/transactions` | `{date, title, type: expense\|income\|transfer\|buy\|sell, category, account, toAccount, amount, received, coin, close, closeDate}` — `close` и `closeDate` только у закрытой покупки |
 | POST, PUT `/{id}`, DELETE `/{id}` | `/api/categories` | `{name, parent, kind: expense\|income, icon}` — `icon` один эмодзи из 100 на выбор или пустая строка |
 | POST, PUT `/{id}`, DELETE `/{id}` | `/api/crypto/portfolios` | `{name, place}` |
@@ -200,6 +201,12 @@ docker compose exec api /api users   # список: почта, имя, спо�
 Валюта — рубли, доллары, евро или любая монета из списка курсов (`coinIDs` в `backend/rates.go`).
 У крипто-счёта валюта — то, чем на нём расплачиваются (обычно USDT), а купленные монеты лежат
 на нём же сделками, отдельных счетов под них не заводится.
+
+Кнопка **«Порядок»** рядом с «Группировать» (видна, когда счетов больше одного) открывает список счетов
+с кнопками «в начало», «выше», «ниже»; сдвинутый последним подсвечен, порядок сохраняется по «Сохранить».
+Он общий для всей страницы: таблица, группы по типу (внутри типа), выбор счёта в операциях и другие списки.
+Хранится в `accounts.position` (`PUT /api/accounts/order`); новый счёт без позиции встаёт в конец. Бекап
+хранит счета в этом порядке, поэтому восстановление его сохраняет.
 
 Строка счёта в таблице открывает **движение по счёту**, окно счёта — только кнопка «Изменить» (она же
 в шапке движения, в том числе на телефоне). Сверху — период, как в «Отчётах» (даты от и до, готовые

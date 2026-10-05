@@ -71,6 +71,8 @@ func (a *API) Handler() http.Handler {
 	mux.HandleFunc("GET /api/state", a.withState(func(*http.Request, int64) error { return nil }))
 
 	mux.HandleFunc("POST /api/accounts", a.withData(withBody(s.CreateAccount)))
+	// порядок счетов — часть данных: бекап хранит счета в нём
+	mux.HandleFunc("PUT /api/accounts/order", a.withData(withBody(s.OrderAccounts)))
 	mux.HandleFunc("PUT /api/accounts/{id}", a.withData(withIDBody(s.UpdateAccount)))
 	// ?replace=<id> переносит операции на другой счёт вместо того, чтобы удалить их
 	mux.HandleFunc("DELETE /api/accounts/{id}", a.withData(func(r *http.Request, uid int64) error {

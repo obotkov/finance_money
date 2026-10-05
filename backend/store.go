@@ -238,7 +238,7 @@ func (s *Store) State(ctx context.Context, uid int64) (*State, error) {
 
 	rows, _ := s.db.Query(ctx, `
 		SELECT id, name, kind, balance, currency, to_char(created_at, 'YYYY-MM-DD')
-		FROM accounts WHERE user_id = $1 ORDER BY id`, uid)
+		FROM accounts WHERE user_id = $1 ORDER BY position, id`, uid)
 	st.Accounts, err = pgx.CollectRows(rows, func(r pgx.CollectableRow) (Account, error) {
 		var a Account
 		err := r.Scan(&a.ID, &a.Name, &a.Kind, &a.Balance, &a.Cur, &a.CreatedAt)
@@ -401,6 +401,35 @@ func (s *Store) CreateAccount(ctx context.Context, uid int64, in AccountInput) e
 	_, err := s.db.Exec(ctx, `INSERT INTO accounts (user_id, name, kind, balance, currency) VALUES ($1, $2, $3, $4, $5)`,
 		uid, in.Name, in.Kind, in.Balance, in.Cur)
 	return err
+}
+
+// OrderAccounts задаёт порядок счетов: ids — все счета пользователя в нужном порядке.
+func (s *Store) OrderAccounts(ctx context.Context, uid int64, in struct {
+	IDs []int64 `json:"ids"`
+}) error {
+	return pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) error {
+		var n int
+		if err := tx.QueryRow(ctx, `SELECT count(*) FROM accounts WHERE user_id = $1`, uid).Scan(&n); err != nil {
+			return err
+		}
+		seen := map[int64]bool{}
+		for _, id := range in.IDs {
+			seen[id] = true
+		}
+		if len(in.IDs) != n || len(seen) != n {
+			return badRequest("Список счетов устарел — обновите страницу")
+		}
+		for i, id := range in.IDs {
+			tag, err := tx.Exec(ctx, `UPDATE accounts SET position = $1 WHERE id = $2 AND user_id = $3`, i+1, id, uid)
+			if err != nil {
+				return err
+			}
+			if tag.RowsAffected() == 0 {
+				return badRequest("Список счетов устарел — обновите страницу")
+			}
+		}
+		return nil
+	})
 }
 
 // UpdateAccount sets the balance directly, like the page's account dialog.
