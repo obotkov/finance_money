@@ -98,6 +98,12 @@
   .rowline:hover { background: var(--hover-soft); }
   /* строки таблиц — прямые, без скруглений: иначе разделитель загибается по углам */
   .rowline, .crcoin { border-radius: 0 !important; }
+  .calc-wrap { position: relative; }
+  .calc-bar { position: absolute; left: 0; top: calc(100% + 6px); z-index: 30; display: flex; gap: 4px; padding: 4px; background: var(--card); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 6px 20px rgba(0,0,0,.14); }
+  .calc-op { border: 0; background: var(--fill); color: var(--ink); border-radius: 9px; min-width: 38px; height: 36px; padding: 0 10px; font-size: 18px; cursor: pointer; white-space: nowrap; }
+  .calc-op:hover { background: var(--line); }
+  .calc-eq { background: var(--accent); color: #fff; font-size: 15px; font-weight: 500; }
+  .calc-eq:hover { background: var(--accent); opacity: .9; }
   .inp { width: 100%; background: var(--fill); border: 1px solid transparent; border-radius: 11px; padding: 9px 12px; font-size: 15px; }
   .inp:focus { background: var(--card); border-color: var(--accent); outline: none; }
   /* summary */
@@ -2413,13 +2419,27 @@
         </div>
         <sc-if value="{{ isTransfer }}" hint-placeholder-val="{{ false }}">
           <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px;margin-top:16px">
-            <div><span class="lbl">Списать, {{ fromSym }}</span><input class="inp" inputMode="decimal" value="{{ amount }}" onChange="{{ onAmount }}" placeholder="0"></div>
+            <div class="calc-wrap"><span class="lbl">Списать, {{ fromSym }}</span><input class="inp" inputMode="decimal" data-calc="amount" value="{{ amount }}" onChange="{{ onAmount }}" onFocus="{{ onAmountFocus }}" onBlur="{{ onAmountBlur }}" placeholder="0">
+              <sc-if value="{{ amountCalc }}" hint-placeholder-val="{{ false }}">
+                <div class="calc-bar">
+                  <sc-for list="{{ amountOps }}" as="o" hint-placeholder-count="4"><button class="calc-op" onMouseDown="{{ o.press }}">{{ o.label }}</button></sc-for>
+                  <button class="calc-op calc-eq" onMouseDown="{{ amountEquals }}">{{ amountEq }}</button>
+                </div>
+              </sc-if>
+            </div>
             <div><span class="lbl">Со счёта</span>
               <select class="inp" value="{{ acc }}" onChange="{{ onAcc }}">
                 <sc-for list="{{ accountOptions }}" as="o" hint-placeholder-count="5"><option value="{{ o.value }}">{{ o.label }}</option></sc-for>
               </select>
             </div>
-            <div><span class="lbl">Зачислить, {{ toSym }}</span><input class="inp" inputMode="decimal" value="{{ receiveAmount }}" onChange="{{ onReceive }}" placeholder="0"></div>
+            <div class="calc-wrap"><span class="lbl">Зачислить, {{ toSym }}</span><input class="inp" inputMode="decimal" data-calc="receive" value="{{ receiveAmount }}" onChange="{{ onReceive }}" onFocus="{{ onReceiveFocus }}" onBlur="{{ onReceiveBlur }}" placeholder="0">
+              <sc-if value="{{ receiveCalc }}" hint-placeholder-val="{{ false }}">
+                <div class="calc-bar">
+                  <sc-for list="{{ receiveOps }}" as="o" hint-placeholder-count="4"><button class="calc-op" onMouseDown="{{ o.press }}">{{ o.label }}</button></sc-for>
+                  <button class="calc-op calc-eq" onMouseDown="{{ receiveEquals }}">{{ receiveEq }}</button>
+                </div>
+              </sc-if>
+            </div>
             <div><span class="lbl">На счёт</span>
               <select class="inp" value="{{ accTo }}" onChange="{{ onAccTo }}">
                 <sc-for list="{{ accountOptions }}" as="o" hint-placeholder-count="5"><option value="{{ o.value }}">{{ o.label }}</option></sc-for>
@@ -2433,7 +2453,14 @@
         </sc-if>
         <sc-if value="{{ showCats }}" hint-placeholder-val="{{ true }}">
         <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px;margin-top:16px">
-          <div><span class="lbl">{{ amountLabel }}</span><input class="inp" inputMode="decimal" value="{{ amount }}" onChange="{{ onAmount }}" placeholder="0"></div>
+          <div class="calc-wrap"><span class="lbl">{{ amountLabel }}</span><input class="inp" inputMode="decimal" data-calc="amount" value="{{ amount }}" onChange="{{ onAmount }}" onFocus="{{ onAmountFocus }}" onBlur="{{ onAmountBlur }}" placeholder="0">
+            <sc-if value="{{ amountCalc }}" hint-placeholder-val="{{ false }}">
+                <div class="calc-bar">
+                  <sc-for list="{{ amountOps }}" as="o" hint-placeholder-count="4"><button class="calc-op" onMouseDown="{{ o.press }}">{{ o.label }}</button></sc-for>
+                  <button class="calc-op calc-eq" onMouseDown="{{ amountEquals }}">{{ amountEq }}</button>
+                </div>
+              </sc-if>
+          </div>
           <div><span class="lbl">Счёт</span>
             <select class="inp" value="{{ acc }}" onChange="{{ onAcc }}">
               <sc-for list="{{ accountOptions }}" as="o" hint-placeholder-count="5"><option value="{{ o.value }}">{{ o.label }}</option></sc-for>
@@ -3246,6 +3273,34 @@ const groupDigits = (raw, allowNegative) => {
 };
 // A number as digits, never as "1.2e-7": tiny crypto amounts go into fields too.
 const plainNum = n => (n !== 0 && Math.abs(n) < 1e-4 ? n.toFixed(12).replace(/0+$/, "") : String(n));
+// Сумма с действиями, как на калькуляторе: «1 200 + 350 × 2». Знаки приводятся к + − × ÷
+// (* x х → ×, / : → ÷), числа группируются, как в обычном поле; без знаков — просто число.
+const calcFormat = raw => {
+  const s = String(raw).replace(/\s/g, "").replace(/\./g, ",").replace(/[*xXхХ]/g, "×").replace(/[/:]/g, "÷")
+    .replace(/[-–—]/g, "−").replace(/[^\d,+−×÷()]/g, "");
+  if (!calcHasOps(s)) return groupDigits(s);
+  return s.replace(/[\d,]+/g, m => groupDigits(m)).replace(/[+−×÷]/g, " $& ").replace(/\s+/g, " ").replace(/^ /, "");
+};
+const calcHasOps = s => /[+−×÷()]/.test(String(s));
+// Значение выражения или NaN, если оно не дописано («2 +») или не считается (деление на ноль)
+const calcEval = raw => {
+  const t = String(raw).replace(/\s/g, "").replace(/,/g, ".");
+  let i = 0;
+  const num = () => { const m = /^(\d+\.?\d*|\.\d+)/.exec(t.slice(i)); if (!m) return NaN; i += m[0].length; return parseFloat(m[0]); };
+  const atom = () => {
+    if (t[i] === "−") { i++; return -atom(); }
+    if (t[i] !== "(") return num();
+    i++;
+    const v = sum();
+    if (t[i] !== ")") return NaN;
+    i++;
+    return v;
+  };
+  const prod = () => { let v = atom(); while (t[i] === "×" || t[i] === "÷") { const op = t[i++], r = atom(); v = op === "×" ? v * r : v / r; } return v; };
+  const sum = () => { let v = prod(); while (t[i] === "+" || t[i] === "−") { const op = t[i++], r = prod(); v = op === "+" ? v + r : v - r; } return v; };
+  const v = sum();
+  return i === t.length && isFinite(v) ? v : NaN;
+};
 // Columns of the operations CSV, for export here and import on the server (backend/import.go)
 const CSV_HEADER = ["Дата", "Сумма (откуда)", "Счёт (откуда)", "Сумма (куда)", "Счёт (куда)", "Баланс", "Категория", "Описание", "Тип"];
 const csvCell = v => { const s = v == null ? "" : String(v); return /[";\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
@@ -3394,7 +3449,7 @@ class Component extends DCLogic {
     catId: null, catName: "", catParent: "", catKind: "expense", catIcon: "", catTab: "expense",
     anaPreset: "month", anaFrom: THIS_MONTH + "-01", anaTo: TODAY,
     anaGran: "day", anaHover: null, anaCats: null, anaCatGran: "week", anaCatHover: null,
-    dataText: "", dataMsg: "", dataAdminMsg: "", bkMsg: "", bkEdit: null,
+    dataText: "", dataMsg: "", dataAdminMsg: "", bkMsg: "", bkEdit: null, calcField: null,
     // повторяющиеся операции: rcId — какое правило изменяется, null — новое
     budgets: [], budgetAlert: { on: true, pct: 90 }, pushKey: "", pushDevices: 0, pushStatus: "", pushMsg: "", alertPctDraft: "",
     bgId: null, bgCat: "", bgAmount: "",
@@ -5305,14 +5360,22 @@ class Component extends DCLogic {
 
   // Stores a number field grouped by thousands and puts the caret back after the
   // same digit — otherwise re-formatting would throw it to the end on every key.
-  setNumber(key, e, allowNegative, extra) {
+  // calc — поле суммы с действиями (calcFormat), число знаков после запятой у итога: в нём значимы
+  // и знаки, а «=» в конце сразу считает.
+  setNumber(key, e, allowNegative, extra, calc) {
     const el = e.target, raw = el.value;
+    if (calc && /=\s*$/.test(raw)) {
+      const r = calcEval(calcFormat(raw));
+      this.setState(Object.assign({ [key]: r > 0 ? groupDigits(plainNum(Number(r.toFixed(calc)))) : calcFormat(raw) }, extra));
+      return;
+    }
+    const sig = calc ? /[\d,+−×÷()]/ : /[\d,-]/;
     const pos = el.selectionStart == null ? raw.length : el.selectionStart;
-    const before = raw.slice(0, pos).replace(/[^\d.,-]/g, "").length;
-    const value = groupDigits(raw, allowNegative);
+    const before = (calc ? calcFormat(raw.slice(0, pos)).replace(/\s/g, "") : raw.slice(0, pos).replace(/[^\d.,-]/g, "")).length;
+    const value = calc ? calcFormat(raw) : groupDigits(raw, allowNegative);
     this.setState(Object.assign({ [key]: value }, extra), () => {
       let i = 0, seen = 0;
-      while (i < value.length && seen < before) { if (/[\d,-]/.test(value[i])) seen++; i++; }
+      while (i < value.length && seen < before) { if (sig.test(value[i])) seen++; i++; }
       try { el.setSelectionRange(i, i); } catch (_) { /* the field is gone */ }
     });
   }
@@ -5845,7 +5908,43 @@ class Component extends DCLogic {
   sig(n) {
     return n.toLocaleString("ru-RU", { maximumSignificantDigits: 6, maximumFractionDigits: n >= 1000 ? 0 : 6 }).replace(/\u00a0/g, " ");
   }
-  num(x) { return Math.abs(parseFloat(String(x).replace(/[^\d.,-]/g, "").replace(",", "."))) || 0; }
+  num(x) {
+    if (calcHasOps(x)) { const v = calcEval(x); return v > 0 ? v : 0; }
+    return Math.abs(parseFloat(String(x).replace(/[^\d.,-]/g, "").replace(",", "."))) || 0;
+  }
+  // Поле суммы, в котором можно считать: пока оно в фокусе, под ним кнопки + − × ÷ и «= итог»
+  // (на телефоне в цифровой клавиатуре плюса нет). При выходе из поля или по «=» выражение
+  // заменяется итогом — с копейками, у монет — до 8 знаков.
+  calcVals(key, value, cur, extra) {
+    const st = this.state;
+    const active = document.activeElement;
+    const open = st.calcField === key && !!active && active.dataset && active.dataset.calc === key;
+    const v = calcHasOps(value) ? calcEval(value) : NaN;
+    const digits = CRYPTO_CURS.indexOf(cur) !== -1 && cur !== "USDT" && cur !== "USDC" ? 8 : 2;
+    const round = n => Number(n.toFixed(digits));
+    const done = el => {
+      const now = el ? el.value : value;
+      if (!calcHasOps(now)) return;
+      const r = calcEval(now);
+      if (r > 0) this.setState(Object.assign({ [key]: groupDigits(plainNum(round(r))) }, extra));
+    };
+    const put = (el, text) => {
+      const raw = el.value, a = el.selectionStart == null ? raw.length : el.selectionStart, b = el.selectionEnd == null ? a : el.selectionEnd;
+      this.setNumber(key, { target: { value: raw.slice(0, a) + text + raw.slice(b), selectionStart: a + text.length, setSelectionRange: (x, y) => el.setSelectionRange(x, y) } }, false, extra, digits);
+    };
+    return {
+      open, digits,
+      eq: v > 0 ? "= " + groupDigits(plainNum(round(v))) : "=",
+      onFocus: () => this.set("calcField", key),
+      onBlur: e => { done(e.target); this.set("calcField", null); },
+      // кнопки жмутся без потери фокуса: mousedown с preventDefault не уводит его из поля
+      ops: ["+", "−", "×", "÷"].map(op => ({
+        key: op, label: op,
+        press: e => { e.preventDefault(); const el = document.querySelector('[data-calc="' + key + '"]'); if (el) put(el, op); }
+      })),
+      equals: e => { e.preventDefault(); done(document.querySelector('[data-calc="' + key + '"]')); }
+    };
+  }
   autoReceive() {
     const st = this.state;
     const from = this.curOf(st.acc), to = this.curOf(st.accTo);
@@ -6961,7 +7060,6 @@ class Component extends DCLogic {
       fromSym: CUR[this.curOf(st.acc)].sym,
       toSym: CUR[this.curOf(st.accTo)].sym,
       receiveAmount: st.receiveTouched ? st.receive : groupDigits(this.autoReceive()),
-      onReceive: e => this.setNumber("receive", e, false, { receiveTouched: true }),
       rateLabel: (() => {
         const from = this.curOf(st.acc), to = this.curOf(st.accTo);
         if (st.acc === st.accTo) return "выберите разные счета";
@@ -6977,7 +7075,13 @@ class Component extends DCLogic {
       rateColor: st.acc === st.accTo ? "var(--neg)" : "var(--ink)",
       setExpense: () => this.setState({ type: "expense", catNav: null, cat: this.firstLeaf("expense") }),
       setIncome: () => this.setState({ type: "income", catNav: null, cat: this.firstLeaf("income") }),
-      amount: st.amount, onAmount: e => this.setNumber("amount", e, false),
+      amount: st.amount,
+      ...(c => ({ onAmount: e => this.setNumber("amount", e, false, undefined, c.digits),
+        amountCalc: c.open, amountEq: c.eq, onAmountFocus: c.onFocus, onAmountBlur: c.onBlur, amountOps: c.ops, amountEquals: c.equals }))(
+        this.calcVals("amount", st.amount, this.curOf(st.acc))),
+      ...(c => ({ onReceive: e => this.setNumber("receive", e, false, { receiveTouched: true }, c.digits),
+        receiveCalc: c.open, receiveEq: c.eq, onReceiveFocus: c.onFocus, onReceiveBlur: c.onBlur, receiveOps: c.ops, receiveEquals: c.equals }))(
+        this.calcVals("receive", st.receiveTouched ? st.receive : "", this.curOf(st.accTo), { receiveTouched: true })),
       note: st.note, onNote: e => this.set("note", e.target.value),
       acc: st.acc, onAcc: e => this.set("acc", e.target.value),
       catChips, catPicked: st.cat ? " — " + catPath(st.cat) : "",
@@ -7035,7 +7139,9 @@ class Component extends DCLogic {
       prevMonth: () => this.setState(s => ({ calM: s.calM === 0 ? 11 : s.calM - 1, calY: s.calM === 0 ? s.calY - 1 : s.calY })),
       nextMonth: () => this.setState(s => ({ calM: s.calM === 11 ? 0 : s.calM + 1, calY: s.calM === 11 ? s.calY + 1 : s.calY })),
       saveOp: () => {
-        const v = Math.abs(parseFloat(String(st.amount).replace(/[^\d.,-]/g, "").replace(",", "."))) || 0;
+        const v = this.num(st.amount);
+        const bad = [st.amount, st.type === "transfer" && st.receiveTouched ? st.receive : ""].find(x => calcHasOps(x) && !(calcEval(x) > 0));
+        if (bad) { window.alert("Не получается посчитать «" + bad.trim() + "» — проверьте сумму."); return; }
         if (!v || (st.type === "transfer" && st.acc === st.accTo)) { this.setState({ dialog: null }); return; }
         const transfer = st.type === "transfer";
         const to = this.curOf(st.accTo);
