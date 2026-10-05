@@ -100,6 +100,10 @@
   .rowline, .crcoin { border-radius: 0 !important; }
   .ord-row { display: flex; align-items: center; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--line); }
   .ord-row[data-moved="1"] { background: var(--accent-soft); margin: 0 -10px; padding-left: 10px; padding-right: 10px; }
+  .ord-row { user-select: none; -webkit-user-select: none; cursor: grab; position: relative; }
+  .ord-row[data-drag="1"] { z-index: 2; cursor: grabbing; background: var(--card); box-shadow: 0 8px 24px rgba(0,0,0,.18); border-radius: 12px; margin: 0 -10px; padding-left: 10px; padding-right: 10px; }
+  .ord-grip { flex: none; display: inline-flex; color: var(--ink3); padding: 8px 4px; margin: -8px 0 -8px -4px; touch-action: none; cursor: grab; }
+  .ord-grip svg { width: 18px; height: 18px; }
   .calc-wrap { position: relative; }
   .calc-bar { position: absolute; left: 0; top: calc(100% + 6px); z-index: 30; display: flex; gap: 4px; padding: 4px; background: var(--card); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 6px 20px rgba(0,0,0,.14); }
   .calc-op { border: 0; background: var(--fill); color: var(--ink); border-radius: 9px; min-width: 38px; height: 36px; padding: 0 10px; font-size: 18px; cursor: pointer; white-space: nowrap; }
@@ -2771,10 +2775,11 @@
     <div class="dlg" style="position:fixed;inset:0;display:grid;place-items:center;padding:24px;overflow:auto;background:var(--overlay);backdrop-filter:blur(6px)" onClick="{{ close }}">
       <div class="card" style="width:min(480px,100%);max-height:calc(100vh - 48px);overflow-y:auto;padding:24px;border-radius:22px;box-shadow:0 24px 60px rgba(0,0,0,.22)" onClick="{{ stop }}">
         <div class="big" style="font-size:21px">Порядок счетов</div>
-        <div style="font-size:13px;color:var(--ink2);margin-top:6px">В таком порядке счета идут в списке, в группах по типу и в выборе счёта у операций.</div>
+        <div style="font-size:13px;color:var(--ink2);margin-top:6px">Перетащите счёт за <span style="letter-spacing:-1px">⠿</span> на нужное место, ⤒ поднимает его в начало. В таком порядке счета идут в списке, в группах по типу и в выборе счёта у операций.</div>
         <div style="margin-top:14px;border-top:1px solid var(--line)">
           <sc-for list="{{ accOrdList }}" as="o" hint-placeholder-count="4">
-            <div class="ord-row" data-moved="{{ o.moved }}">
+            <div class="ord-row" data-name="{{ o.name }}" data-moved="{{ o.moved }}" data-drag="{{ o.dragging }}" onPointerDown="{{ o.drag }}">
+              <span class="ord-grip" title="Перетащить" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.6"></circle><circle cx="15" cy="6" r="1.6"></circle><circle cx="9" cy="12" r="1.6"></circle><circle cx="15" cy="12" r="1.6"></circle><circle cx="9" cy="18" r="1.6"></circle><circle cx="15" cy="18" r="1.6"></circle></svg></span>
               <span class="coin" data-len="{{ o.iconLen }}" style="{{ o.iconStyle }}">{{ o.icon }}</span>
               <span style="flex:1;min-width:0">
                 <span style="display:block;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ o.name }}</span>
@@ -2782,8 +2787,6 @@
               </span>
               <span style="display:inline-flex;gap:2px;flex:none">
                 <button class="btn btn-t wg-ic" style="opacity:{{ o.topOpacity }}" onClick="{{ o.top }}" title="В начало" aria-label="В начало">⤒</button>
-                <button class="btn btn-t wg-ic" style="opacity:{{ o.upOpacity }}" onClick="{{ o.up }}" title="Выше" aria-label="Выше">↑</button>
-                <button class="btn btn-t wg-ic" style="opacity:{{ o.downOpacity }}" onClick="{{ o.down }}" title="Ниже" aria-label="Ниже">↓</button>
               </span>
             </div>
           </sc-for>
@@ -3484,7 +3487,7 @@ class Component extends DCLogic {
     catId: null, catName: "", catParent: "", catKind: "expense", catIcon: "", catTab: "expense",
     anaPreset: "month", anaFrom: THIS_MONTH + "-01", anaTo: TODAY,
     anaGran: "day", anaHover: null, anaCats: null, anaCatGran: "week", anaCatHover: null,
-    dataText: "", dataMsg: "", dataAdminMsg: "", bkMsg: "", bkEdit: null, calcField: null, accOrdDraft: [], accOrdLast: null,
+    dataText: "", dataMsg: "", dataAdminMsg: "", bkMsg: "", bkEdit: null, calcField: null, accOrdDraft: [], accOrdLast: null, accOrdDrag: null,
     // повторяющиеся операции: rcId — какое правило изменяется, null — новое
     budgets: [], budgetAlert: { on: true, pct: 90 }, pushKey: "", pushDevices: 0, pushStatus: "", pushMsg: "", alertPctDraft: "",
     bgId: null, bgCat: "", bgAmount: "",
@@ -3983,6 +3986,58 @@ class Component extends DCLogic {
     };
   }
 
+  // Перетаскивание в «Порядке счетов». Мышью — за любое место строки, пальцем — только за ⠿,
+  // чтобы список можно было листать. Строка едет за указателем через transform прямо в DOM
+  // (без перерисовки страницы на каждое движение), а в черновике сдвигается, когда указатель
+  // проходит полстроки соседа.
+  accOrdDragStart(name, e) {
+    const grip = e.target.closest && e.target.closest(".ord-grip");
+    if (e.button > 0 || (e.pointerType !== "mouse" && !grip) || (e.target.closest && e.target.closest("button"))) return;
+    const row = e.currentTarget;
+    const rowH = row.getBoundingClientRect().height || 1;
+    e.preventDefault();
+    const startY = e.clientY, startIdx = this.state.accOrdDraft.indexOf(name);
+    if (startIdx === -1) return;
+    let idx = startIdx, shift = 0, moved = false;
+    // строки перерисовываются по месту, а не по имени: сдвиг ставится той, где сейчас этот счёт,
+    // а с остальных снимается
+    const place = shift => document.querySelectorAll(".ord-row").forEach(r => {
+      r.style.transform = shift && r.dataset.name === name ? "translateY(" + shift + "px)" : "";
+    });
+    const move = ev => {
+      const n = this.state.accOrdDraft.length;
+      if (Math.abs(ev.clientY - startY) > 3) moved = true;
+      const dy = Math.max(-startIdx * rowH, Math.min((n - 1 - startIdx) * rowH, ev.clientY - startY));
+      const to = Math.max(0, Math.min(n - 1, startIdx + Math.round(dy / rowH)));
+      shift = dy - (to - startIdx) * rowH;
+      if (to !== idx) {
+        idx = to;
+        // сдвиг ставится после перерисовки, когда счёт уже на новом месте
+        this.setState(s => { const d = s.accOrdDraft.filter(x => x !== name); d.splice(to, 0, name); return { accOrdDraft: d }; },
+          () => { if (this.state.accOrdDrag === name) place(shift); });
+        return;
+      }
+      place(shift);
+    };
+    const end = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", end);
+      window.removeEventListener("pointercancel", end);
+      place(0);
+      this.setState({ accOrdDrag: null });
+      // отпущенная за окном мышь даёт click по затемнению — он закрыл бы диалог
+      if (moved) {
+        const swallow = ev => { ev.stopPropagation(); ev.preventDefault(); };
+        window.addEventListener("click", swallow, { capture: true, once: true });
+        setTimeout(() => window.removeEventListener("click", swallow, { capture: true }), 0);
+      }
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", end);
+    window.addEventListener("pointercancel", end);
+    this.setState({ accOrdDrag: name, accOrdLast: name });
+  }
+
   // Диалог «Порядок счетов»: черновик — имена счетов в новом порядке, сохраняется целиком
   accOrderVals() {
     const st = this.state;
@@ -4004,10 +4059,10 @@ class Component extends DCLogic {
           key: name, name,
           kind: a.cur === "RUB" ? a.kind : a.kind + " · " + a.cur,
           moved: name === st.accOrdLast ? "1" : "0", // подсвечен тот, что только что сдвинули
-          topOpacity: i ? "1" : "0.3", upOpacity: i ? "1" : "0.3", downOpacity: i < draft.length - 1 ? "1" : "0.3",
+          dragging: name === st.accOrdDrag ? "1" : "0",
+          topOpacity: i ? "1" : "0.3",
           top: () => { if (i) move(i, 0); },
-          up: () => { if (i) move(i, i - 1); },
-          down: () => { if (i < draft.length - 1) move(i, i + 1); }
+          drag: e => this.accOrdDragStart(name, e)
         });
       }),
       accOrdSave: () => {
