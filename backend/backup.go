@@ -429,7 +429,8 @@ func dumpBackup(ctx context.Context, tx pgx.Tx, uid int64) (*backupFile, error) 
 		}
 	}
 
-	rows, _ = tx.Query(ctx, `SELECT id, name, parent_id, kind, icon FROM categories WHERE user_id = $1 ORDER BY id`, uid)
+	// в порядке на странице: восстановление вставляет их по очереди, а родителей ставит вторым проходом
+	rows, _ = tx.Query(ctx, `SELECT id, name, parent_id, kind, icon FROM categories WHERE user_id = $1 ORDER BY position, id`, uid)
 	f.Categories, err = pgx.CollectRows(rows, func(r pgx.CollectableRow) (backupCategory, error) {
 		var c backupCategory
 		err := r.Scan(&c.ID, &c.Name, &c.Parent, &c.Kind, &c.Icon)

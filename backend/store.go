@@ -255,7 +255,7 @@ func (s *Store) State(ctx context.Context, uid int64) (*State, error) {
 		st.Accounts[i].Pools = accPools[st.Accounts[i].ID]
 	}
 
-	rows, _ = s.db.Query(ctx, `SELECT id, name, parent_id, kind, icon FROM categories WHERE user_id = $1 ORDER BY id`, uid)
+	rows, _ = s.db.Query(ctx, `SELECT id, name, parent_id, kind, icon FROM categories WHERE user_id = $1 ORDER BY position, id`, uid)
 	st.Cats, err = pgx.CollectRows(rows, func(r pgx.CollectableRow) (Category, error) {
 		var c Category
 		err := r.Scan(&c.ID, &c.Name, &c.Parent, &c.Kind, &c.Icon)
@@ -1170,6 +1170,77 @@ func checkParent(ctx context.Context, tx pgx.Tx, uid, id int64, in CategoryInput
 		return badRequest("Вложенность — не больше четырёх уровней")
 	}
 	return nil
+}
+
+// CategoryOrder — всё дерево категорий одного типа после перетаскивания: каждая
+// со своим родителем, в порядке обхода (родитель, потом его вложенные по порядку).
+type CategoryOrder struct {
+	Kind  string          `json:"kind"`
+	Items []CategoryPlace `json:"items"`
+}
+
+type CategoryPlace struct {
+	ID     int64  `json:"id"`
+	Parent *int64 `json:"parent"`
+}
+
+// checkTree проверяет новое дерево: ровно категории have, родители — из них же,
+// без циклов и не глубже четырёх уровней.
+func (in CategoryOrder) checkTree(have map[int64]bool) error {
+	stale := badRequest("Список категорий устарел — обновите страницу")
+	if len(in.Items) != len(have) {
+		return stale
+	}
+	parent := map[int64]*int64{}
+	for _, it := range in.Items {
+		if _, dup := parent[it.ID]; dup || !have[it.ID] {
+			return stale
+		}
+		if it.Parent != nil && !have[*it.Parent] {
+			return stale
+		}
+		parent[it.ID] = it.Parent
+	}
+	for _, it := range in.Items {
+		depth := 0
+		for p := parent[it.ID]; p != nil; p = parent[*p] {
+			if *p == it.ID || depth > len(in.Items) {
+				return badRequest("Категорию нельзя вложить в саму себя")
+			}
+			depth++
+		}
+		if depth > maxCategoryDepth {
+			return badRequest("Вложенность — не больше четырёх уровней")
+		}
+	}
+	return nil
+}
+
+// OrderCategories переставляет категории одного типа: родитель и место среди соседей.
+// Операции ссылаются на категорию по id и названию, поэтому их это не трогает.
+func (s *Store) OrderCategories(ctx context.Context, uid int64, in CategoryOrder) error {
+	if in.Kind != "expense" && in.Kind != "income" {
+		return badRequest("Категория бывает только расходной или доходной")
+	}
+	return pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) error {
+		rows, _ := tx.Query(ctx, `SELECT id FROM categories WHERE user_id = $1 AND kind = $2 FOR UPDATE`, uid, in.Kind)
+		ids, err := pgx.CollectRows(rows, pgx.RowTo[int64])
+		if err != nil {
+			return err
+		}
+		have := map[int64]bool{}
+		for _, id := range ids {
+			have[id] = true
+		}
+		if err := in.checkTree(have); err != nil {
+			return err
+		}
+		batch := &pgx.Batch{}
+		for i, it := range in.Items {
+			batch.Queue(`UPDATE categories SET parent_id = $1, position = $2 WHERE id = $3 AND user_id = $4`, it.Parent, i+1, it.ID, uid)
+		}
+		return tx.SendBatch(ctx, batch).Close()
+	})
 }
 
 // DeleteCategory lifts the children one level up. Operations keep the category name.

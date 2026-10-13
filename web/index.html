@@ -76,6 +76,23 @@
   .btn-s:hover { background: var(--btn-s-hover); }
   .btn-t { background: transparent; color: var(--accent); padding: 8px 10px; }
   .btn-t:hover { background: var(--accent-soft); }
+  .cat-lead { display: inline-flex; align-items: center; flex: none; margin-left: -6px; }
+  .cat-fold { border: 0; background: none; color: var(--ink3); width: 24px; height: 28px; padding: 0; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; border-radius: 6px; }
+  .cat-fold:hover { color: var(--ink); background: var(--fill); }
+  .cat-fold svg { width: 15px; height: 15px; transition: transform .15s; }
+  .cat-fold[data-open="1"] svg { transform: rotate(90deg); }
+  .cat-grip { display: inline-flex; color: var(--ink3); padding: 6px 2px; touch-action: none; cursor: grab; }
+  .cat-grip svg { width: 18px; height: 18px; }
+  .catrow { user-select: none; -webkit-user-select: none; }
+  .catrow[data-drag="1"] { opacity: .35; }
+  .cat-ghost { position: fixed; z-index: 100; pointer-events: none; display: flex; align-items: center; gap: 8px; padding: 6px 12px 6px 6px; background: var(--card); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 10px 28px rgba(0,0,0,.22); font-size: 14px; max-width: 260px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--ink); }
+  .cat-ghost .catic { width: 28px; height: 28px; border-radius: 8px; font-size: 13px; }
+  .cat-ghost .catic[data-emoji="1"] { font-size: 16px; }
+  .catrow[data-drop="before"] { box-shadow: inset 0 3px 0 var(--accent); }
+  .catrow[data-drop="after"] { box-shadow: inset 0 -3px 0 var(--accent); }
+  .catrow[data-drop="into"] { background: var(--accent-soft); box-shadow: inset 0 0 0 2px var(--accent); }
+  .catrow[data-drop="no"] { box-shadow: inset 0 0 0 2px var(--neg); }
+  @media (hover: hover) { .catrow { cursor: grab; } }
   .catic { width: 36px; height: 36px; border-radius: 10px; background: var(--fill); display: inline-flex; align-items: center; justify-content: center; flex: none; font-size: 15px; font-weight: 600; color: var(--ink2); }
   .catic[data-emoji="1"] { font-size: 20px; font-weight: 400; }
   .catic-lg { width: 44px; height: 44px; border-radius: 12px; }
@@ -2008,14 +2025,24 @@
           <!-- Категории -->
           <sc-if value="{{ isCategories }}" hint-placeholder-val="{{ false }}">
           <div class="screen" style="padding:22px 28px 32px;display:flex;flex-direction:column;gap:14px">
-            <div class="seg" style="align-self:flex-start">
-              <span class="segopt" data-on="{{ catTabExp }}" onClick="{{ showExpenseCats }}">Расходы</span>
-              <span class="segopt" data-on="{{ catTabInc }}" onClick="{{ showIncomeCats }}">Доходы</span>
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+              <div class="seg">
+                <span class="segopt" data-on="{{ catTabExp }}" onClick="{{ showExpenseCats }}">Расходы</span>
+                <span class="segopt" data-on="{{ catTabInc }}" onClick="{{ showIncomeCats }}">Доходы</span>
+              </div>
+              <span style="margin-left:auto;display:inline-flex;gap:2px">
+                <button class="btn btn-t" onClick="{{ catExpandAll }}">Развернуть всё</button>
+                <button class="btn btn-t" onClick="{{ catCollapseAll }}">Свернуть всё</button>
+              </span>
             </div>
             <div class="card" style="padding:6px 4px 10px">
               <sc-for list="{{ tabCats }}" as="c" hint-placeholder-count="11">
-                <div class="rowline catrow" style="display:flex;align-items:center;gap:8px;padding:11px 14px;margin:0 4px;border-radius:12px">
+                <div class="rowline catrow" data-id="{{ c.id }}" data-drag="{{ c.dragging }}" onPointerDown="{{ c.drag }}" style="display:flex;align-items:center;gap:8px;padding:11px 14px;margin:0 4px;border-radius:12px">
                   <div style="flex:1;min-width:0;padding-left:{{ c.indent }};display:flex;align-items:center;gap:12px">
+                    <span class="cat-lead">
+                      <button class="cat-fold" data-open="{{ c.foldOpen }}" style="visibility:{{ c.foldVis }}" onClick="{{ c.fold }}" title="{{ c.foldTitle }}" aria-label="{{ c.foldTitle }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"></path></svg></button>
+                      <span class="cat-grip" title="Перетащить"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.6"></circle><circle cx="15" cy="6" r="1.6"></circle><circle cx="9" cy="12" r="1.6"></circle><circle cx="15" cy="12" r="1.6"></circle><circle cx="9" cy="18" r="1.6"></circle><circle cx="15" cy="18" r="1.6"></circle></svg></span>
+                    </span>
                     <span class="catic" data-emoji="{{ c.iconEmoji }}">{{ c.icon }}</span>
                     <div style="min-width:0">
                       <div style="font-size:{{ c.size }};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ c.name }}</div>
@@ -2029,8 +2056,8 @@
               </sc-for>
             </div>
             <div class="wrap-sm" style="display:flex;align-items:center;gap:12px">
-              <button class="btn btn-p" onClick="{{ openNewTabCat }}">{{ addCatLabel }}</button>
-              <span style="font-size:13px;color:var(--ink3)">Карандаш позволяет перенести категорию к другому родителю внутри своего типа</span>
+              <button class="btn btn-p" style="flex:none;white-space:nowrap" onClick="{{ openNewTabCat }}">{{ addCatLabel }}</button>
+              <span style="font-size:13px;color:var(--ink3)">Перетащите категорию за ⠿: на середину строки — вложить в неё, к верхнему или нижнему краю — поставить рядом. В таком порядке категории идут и при выборе в операции.</span>
             </div>
           </div>
           </sc-if>
@@ -3256,6 +3283,10 @@ const applyTheme = t => {
 const initialCents = (() => {
   try { return localStorage.getItem("cents") === "1"; } catch (_) { return false; }
 })();
+// свёрнутые ветки на странице «Категории» — id категорий, помнит браузер
+const initialCatFold = (() => {
+  try { return Object.fromEntries(JSON.parse(localStorage.getItem("catFold") || "[]").map(id => [id, true])); } catch (_) { return {}; }
+})();
 // «Всего» в боковой панели можно спрятать глазиком — выбор помнит браузер
 const initialHideTotal = (() => {
   try { return localStorage.getItem("hideTotal") === "1"; } catch (_) { return false; }
@@ -3487,7 +3518,7 @@ class Component extends DCLogic {
     catId: null, catName: "", catParent: "", catKind: "expense", catIcon: "", catTab: "expense",
     anaPreset: "month", anaFrom: THIS_MONTH + "-01", anaTo: TODAY,
     anaGran: "day", anaHover: null, anaCats: null, anaCatGran: "week", anaCatHover: null,
-    dataText: "", dataMsg: "", dataAdminMsg: "", bkMsg: "", bkEdit: null, calcField: null, accOrdDraft: [], accOrdLast: null, accOrdDrag: null,
+    dataText: "", dataMsg: "", dataAdminMsg: "", bkMsg: "", bkEdit: null, calcField: null, accOrdDraft: [], accOrdLast: null, accOrdDrag: null, catFold: initialCatFold, catDrag: null,
     // повторяющиеся операции: rcId — какое правило изменяется, null — новое
     budgets: [], budgetAlert: { on: true, pct: 90 }, pushKey: "", pushDevices: 0, pushStatus: "", pushMsg: "", alertPctDraft: "",
     bgId: null, bgCat: "", bgAmount: "",
@@ -3984,6 +4015,137 @@ class Component extends DCLogic {
         this.setState({ widgets, dialog: null });
       }
     };
+  }
+
+  // свёрнутые ветки категорий; true в объекте — свёрнута
+  setCatFold(fold) {
+    const clean = Object.fromEntries(Object.entries(fold).filter(([, v]) => v));
+    this.setState({ catFold: clean });
+    try { localStorage.setItem("catFold", JSON.stringify(Object.keys(clean).map(Number))); } catch (_) { /* storage off: until reload */ }
+  }
+
+  // Куда встанет категория, брошенная на строку target: zone "into" — последней вложенной,
+  // "before"/"after" — соседкой сверху или снизу; "after" у раскрытой ветки — её первой вложенной.
+  // Возвращает родителя (null — верхний уровень) и место среди его вложенных.
+  catDropPlace(target, zone) {
+    const st = this.state, open = st.cats.some(c => c.parent === target.id) && !(st.catFold || {})[target.id];
+    if (zone === "into") return { parent: target.id, at: Infinity };
+    if (zone === "after" && open) return { parent: target.id, at: 0 };
+    return { parent: target.parent == null ? null : target.parent, beside: target.id, after: zone === "after" };
+  }
+
+  // Перетаскивание на «Категориях». Мышью — за любое место строки, пальцем — за ⠿, чтобы список
+  // листался. Ветка остаётся на месте приглушённой, за указателем едет ярлычок с названием,
+  // строка под указателем показывает, куда она встанет; у края экрана список прокручивается сам.
+  catDragStart(id, e) {
+    const grip = e.target.closest && e.target.closest(".cat-grip");
+    if (e.button > 0 || (e.pointerType !== "mouse" && !grip) || (e.target.closest && e.target.closest("button"))) return;
+    const st = this.state, cats = st.cats, me = cats.find(c => c.id === id);
+    if (!me) return;
+    e.preventDefault();
+    const byId = x => cats.find(c => c.id === x);
+    const kidsOf = x => cats.filter(c => c.parent === x);
+    const sub = new Set();
+    const mark = x => { sub.add(x); kidsOf(x).forEach(k => mark(k.id)); };
+    mark(id);
+    const height = x => Math.max(0, ...kidsOf(x).map(k => 1 + height(k.id)));
+    const depth = x => { let d = 0; for (let c = byId(x); c && c.parent != null; c = byId(c.parent)) d++; return d; };
+    const tall = height(id);
+    // прокручивается ближайший предок с прокруткой, иначе сама страница
+    let scroller = e.currentTarget.parentElement;
+    while (scroller && scroller !== document.body && !(scroller.scrollHeight > scroller.clientHeight && /auto|scroll/.test(getComputedStyle(scroller).overflowY))) scroller = scroller.parentElement;
+    if (!scroller || scroller === document.body) scroller = document.scrollingElement || document.documentElement;
+    const page = scroller === document.scrollingElement || scroller === document.documentElement;
+    const view = () => (page ? { top: 0, bottom: window.innerHeight } : scroller.getBoundingClientRect());
+    const startY = e.clientY, touch = e.pointerType !== "mouse";
+    let x = e.clientX, y = startY, target = null, timer = 0, moved = false;
+    // ярлычок рисуется прямо в DOM: он живёт только пока тянут
+    const ghost = document.createElement("div");
+    ghost.className = "cat-ghost";
+    const src = e.currentTarget.querySelector(".catic");
+    if (src) ghost.appendChild(src.cloneNode(true));
+    ghost.appendChild(document.createTextNode(me.name));
+    // под пальцем ярлычок не видно — он идёт над ним
+    const follow = () => { ghost.style.left = (x + 14) + "px"; ghost.style.top = (touch ? y - 56 : y + 12) + "px"; };
+    const rows = () => [...document.querySelectorAll(".catrow[data-id]")];
+    const update = () => {
+      target = null;
+      let best = null;
+      rows().forEach(r => {
+        const rid = Number(r.dataset.id);
+        delete r.dataset.drop;
+        if (sub.has(rid) || !moved) return;
+        const b = r.getBoundingClientRect();
+        const dist = y < b.top ? b.top - y : y > b.bottom ? y - b.bottom : 0;
+        if (!best || dist < best.dist) best = { r, b, dist, rid };
+      });
+      if (!best) return;
+      const f = (y - best.b.top) / best.b.height;
+      const zone = f < 0.3 ? "before" : f > 0.7 ? "after" : "into";
+      const place = this.catDropPlace(byId(best.rid), zone);
+      const ok = (place.parent == null ? 0 : depth(place.parent) + 1) + tall <= 3;
+      best.r.dataset.drop = ok ? zone : "no";
+      if (ok) target = { id: best.rid, zone };
+    };
+    const tick = () => {
+      const v = view(), edge = 60;
+      const speed = y < v.top + edge ? -(v.top + edge - y) : y > v.bottom - edge ? y - (v.bottom - edge) : 0;
+      if (speed) { scroller.scrollTop += Math.max(-24, Math.min(24, speed / 2)); update(); }
+    };
+    const move = ev => {
+      x = ev.clientX;
+      y = ev.clientY;
+      if (!moved && Math.abs(y - startY) > 3) { moved = true; document.body.appendChild(ghost); }
+      follow();
+      update();
+    };
+    const end = ev => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", end);
+      window.removeEventListener("pointercancel", end);
+      clearInterval(timer);
+      ghost.remove();
+      rows().forEach(r => { delete r.dataset.drop; });
+      this.setState({ catDrag: null });
+      if (moved) {
+        // отпущенная мышь даёт click — он не должен нажать кнопку под ней
+        const swallow = x => { x.stopPropagation(); x.preventDefault(); };
+        window.addEventListener("click", swallow, { capture: true, once: true });
+        setTimeout(() => window.removeEventListener("click", swallow, { capture: true }), 0);
+      }
+      if (ev.type === "pointerup" && target) this.catMove(id, target.id, target.zone);
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", end);
+    window.addEventListener("pointercancel", end);
+    timer = setInterval(tick, 16); // таймер, а не requestAnimationFrame: тот стоит в фоновой вкладке
+    this.setState({ catDrag: id });
+  }
+
+  // Переносит категорию id к строке targetId (см. catDropPlace) и сохраняет всё дерево её типа
+  catMove(id, targetId, zone) {
+    const st = this.state, me = st.cats.find(c => c.id === id), target = st.cats.find(c => c.id === targetId);
+    if (!me || !target || id === targetId) return;
+    const kind = me.kind, key = p => (p == null ? "root" : String(p));
+    const kids = {};
+    st.cats.filter(c => c.kind === kind).forEach(c => (kids[key(c.parent)] = kids[key(c.parent)] || []).push(c.id));
+    const flat = () => { const out = []; const walk = p => (kids[key(p)] || []).forEach(x => { out.push(x + ":" + key(p)); walk(x); }); walk(null); return out.join(); };
+    const before = flat();
+    const from = kids[key(me.parent)];
+    from.splice(from.indexOf(id), 1);
+    const place = this.catDropPlace(target, zone);
+    const list = kids[key(place.parent)] = kids[key(place.parent)] || [];
+    const at = place.beside != null ? list.indexOf(place.beside) + (place.after ? 1 : 0) : Math.min(place.at, list.length);
+    list.splice(at, 0, id);
+    if (flat() === before) return;
+    const items = [];
+    const walk = p => (kids[key(p)] || []).forEach(x => { items.push({ id: x, parent: p }); walk(x); });
+    walk(null);
+    // вложили в свёрнутую — раскрываем, чтобы было видно, куда она делась
+    if (zone === "into" && (st.catFold || {})[targetId]) this.setCatFold({ ...st.catFold, [targetId]: false });
+    if (st.online) { this.api("PUT", "categories/order", { kind, items }).catch(() => {}); return; }
+    const moved = items.map(it => ({ ...st.cats.find(c => c.id === it.id), parent: it.parent }));
+    this.setState({ cats: st.cats.filter(c => c.kind !== kind).concat(moved) });
   }
 
   // Перетаскивание в «Порядке счетов». Мышью — за любое место строки, пальцем — только за ⠿,
@@ -6655,11 +6817,20 @@ class Component extends DCLogic {
       icon: c.icon || (c.name ? c.name[0].toUpperCase() : "?"),
       iconEmoji: c.icon ? "1" : "0"
     });
+    const fold = st.catFold || {};
+    const dragSub = new Set();
+    const markSub = id => { dragSub.add(id); kidsOf(id).forEach(k => markSub(k.id)); };
+    if (st.catDrag != null) markSub(st.catDrag);
     const shapeCat = (c, depth) => {
       const n = countTree(c), amount = sumTree(c);
-      void 0;
+      const branch = kidsOf(c.id).length > 0, open = branch && !fold[c.id];
       return {
-        key: "c" + c.id, name: c.name,
+        key: "c" + c.id, id: String(c.id), name: c.name,
+        foldVis: branch ? "visible" : "hidden", foldOpen: open ? "1" : "0",
+        foldTitle: open ? "Свернуть" : "Развернуть",
+        fold: () => this.setCatFold({ ...this.state.catFold, [c.id]: open }),
+        dragging: dragSub.has(c.id) ? "1" : "0",
+        drag: e => this.catDragStart(c.id, e),
         ...catBadge(c),
         indent: depth * 22 + "px",
         size: depth === 0 ? "16px" : (depth === 1 ? "15px" : "14px"),
@@ -6679,9 +6850,10 @@ class Component extends DCLogic {
       };
     };
     const walk = (parent, depth) => kidsOf(parent).reduce((acc, c) => acc.concat([shapeCat(c, depth)], walk(c.id, depth + 1)), []);
+    // свёрнутая ветка показывает только саму категорию
     const walkKind = (parent, depth, kind) => kidsOf(parent)
       .filter(c => depth > 0 || c.kind === kind)
-      .reduce((acc, c) => acc.concat([shapeCat(c, depth)], walkKind(c.id, depth + 1, kind)), []);
+      .reduce((acc, c) => acc.concat([shapeCat(c, depth)], fold[c.id] ? [] : walkKind(c.id, depth + 1, kind)), []);
     const categories = walk(null, 0);
     const expenseCats = walkKind(null, 0, "expense");
     const incomeCats = walkKind(null, 0, "income");
@@ -7231,6 +7403,8 @@ class Component extends DCLogic {
       showExpenseCats: () => this.set("catTab", "expense"),
       showIncomeCats: () => this.set("catTab", "income"),
       tabCats: st.catTab === "income" ? incomeCats : expenseCats,
+      catExpandAll: () => this.setCatFold({}),
+      catCollapseAll: () => this.setCatFold(Object.fromEntries(st.cats.filter(c => kidsOf(c.id).length).map(c => [c.id, true]))),
       addCatLabel: st.catTab === "income" ? "Новая категория дохода" : "Новая категория расхода",
       openNewTabCat: () => this.setState({ dialog: "cat", catId: null, catName: "", catParent: "", catKind: st.catTab, catIcon: "" }),
       catIconOptions: [{ key: "none", icon: "", none: "1", tip: "Без иконки" }].concat(CAT_ICONS.map(i => ({ key: i, icon: i, none: "0", tip: "" })))
