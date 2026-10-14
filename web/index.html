@@ -121,6 +121,8 @@
   .ord-row[data-drag="1"] { z-index: 2; cursor: grabbing; background: var(--card); box-shadow: 0 8px 24px rgba(0,0,0,.18); border-radius: 12px; margin: 0 -10px; padding-left: 10px; padding-right: 10px; }
   .ord-grip { flex: none; display: inline-flex; color: var(--ink3); padding: 8px 4px; margin: -8px 0 -8px -4px; touch-action: none; cursor: grab; }
   .ord-grip svg { width: 18px; height: 18px; }
+  .cal-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+  .cal-head .cal-today { padding: 0 2px; font-size: 13px; margin-bottom: 6px; }
   .calc-wrap { position: relative; }
   .calc-bar { position: absolute; left: 0; top: calc(100% + 6px); z-index: 30; display: flex; gap: 4px; padding: 4px; background: var(--card); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 6px 20px rgba(0,0,0,.14); }
   .calc-op { border: 0; background: var(--fill); color: var(--ink); border-radius: 9px; min-width: 38px; height: 36px; padding: 0 10px; font-size: 18px; cursor: pointer; white-space: nowrap; }
@@ -2436,7 +2438,7 @@
           <span class="segopt" data-on="{{ trOn }}" onClick="{{ setTransfer }}">Перевод</span>
         </div>
         <!-- дата первой: операцию чаще вносят не в тот день, когда она была -->
-        <div style="margin-top:16px"><span class="lbl">Дата — {{ dateLabel }}</span>
+        <div style="margin-top:16px"><div class="cal-head"><span class="lbl">Дата — {{ dateLabel }}</span><button class="btn btn-t cal-today" onClick="{{ opToday }}">Сегодня</button></div>
           <div style="background:var(--fill);border-radius:16px;padding:12px">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
               <button class="btn btn-t" onClick="{{ prevMonth }}">‹</button>
@@ -2595,7 +2597,7 @@
         </div>
         <!-- дата первой, как в новой операции -->
         <sc-if value="{{ dealReady }}" hint-placeholder-val="{{ true }}">
-        <div style="margin-top:16px"><span class="lbl">Дата — {{ dealDateLabel }}</span>
+        <div style="margin-top:16px"><div class="cal-head"><span class="lbl">Дата — {{ dealDateLabel }}</span><button class="btn btn-t cal-today" onClick="{{ dealToday }}">Сегодня</button></div>
           <div style="background:var(--fill);border-radius:16px;padding:12px">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
               <button class="btn btn-t" onClick="{{ prevMonth }}">‹</button>
@@ -2706,7 +2708,7 @@
           <button class="btn btn-t" style="padding:0;font-size:12px" onClick="{{ closeUseMarket }}">{{ closeMarketBtn }}</button>
           </sc-if>
         </div>
-        <div style="margin-top:14px"><span class="lbl">Дата закрытия — {{ closeDateLabel }}</span>
+        <div style="margin-top:14px"><div class="cal-head"><span class="lbl">Дата закрытия — {{ closeDateLabel }}</span><button class="btn btn-t cal-today" onClick="{{ closeToday }}">Сегодня</button></div>
           <div style="background:var(--fill);border-radius:16px;padding:12px">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
               <button class="btn btn-t" onClick="{{ prevMonth }}">‹</button>
@@ -3694,6 +3696,7 @@ class Component extends DCLogic {
       closeHasMarketBtn: !st.closeAuto && market > 0,
       closeUseMarket: () => this.setState({ closeAuto: true, closePrice: "" }),
       closeDays: this.calendarCells("closeDate"),
+      closeToday: this.calToday("closeDate"),
       closeDateLabel: Number(dd) + " " + months[Number(dm) - 1] + " " + dy,
       closeProceeds: price > 0 ? this.pnlMoney(proceeds, cur) : "—",
       closeCost: this.pnlMoney(-cost, cur),
@@ -6275,6 +6278,10 @@ class Component extends DCLogic {
     return cells;
   }
 
+  // «Сегодня» над календарём: ставит сегодняшнюю дату и листает календарь на текущий месяц
+  calToday(field) {
+    return () => this.setState({ [field]: TODAY, calY: TODAY_Y, calM: TODAY_M });
+  }
   calendarCells(field = "date") {
     const y = this.state.calY, m = this.state.calM;
     const lead = (new Date(y, m, 1).getDay() + 6) % 7;
@@ -7391,6 +7398,7 @@ class Component extends DCLogic {
       catInside: !!navCat,
       catBack: () => this.setState({ catNav: navCat && navCat.parent != null ? navCat.parent : null }),
       days: this.calendarCells(),
+      opToday: this.calToday("date"),
       catDialog: st.dialog === "cat",
       catDialogTitle: st.catId === null ? "Новая категория" : "Категория",
       openNewCat: () => this.setState({ dialog: "cat", catId: null, catName: "", catParent: "", catKind: "expense", catIcon: "" }),
@@ -7725,6 +7733,7 @@ class Component extends DCLogic {
       dealTitle: dealEdit ? "Сделка" : "Новая сделка",
       dealNew: !dealEdit, dealEditing: !!dealEdit,
       dealDays: st.dialog === "crdeal" ? this.calendarCells("dealDate") : [],
+      dealToday: this.calToday("dealDate"),
       dealDateLabel: (d => Number(d[2]) + " " + months[Number(d[1]) - 1] + " " + d[0])((st.dealDate || TODAY).split("-")),
       delDeal: () => { if (dealEdit) this.deleteOp(dealEdit); },
       // ---- диалог сделки ----
