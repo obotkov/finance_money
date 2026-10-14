@@ -985,7 +985,7 @@
               <sc-for list="{{ visibleTxs }}" as="t" hint-placeholder-count="10">
                 <div class="rowline txrow txgrid" title="Изменить операцию" onClick="{{ t.edit }}" style="cursor:pointer;align-items:center;padding:12px 14px;margin:0 4px;border-radius:12px">
                   <span class="num tx-date" style="font-size:13px;color:var(--ink3)">{{ t.dateLabel }}</span>
-                  <span class="tx-cat" style="font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="{{ t.catPath }}">{{ t.catPath }}</span>
+                  <span class="tx-cat" style="font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="{{ t.catPath }}">{{ t.catLeaf }}</span>
                   <span class="tx-note" style="font-size:14px;color:var(--ink2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="{{ t.note }}">{{ t.note }}</span>
                   <span class="tx-from d-cell" style="font-size:13px;color:var(--ink3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="{{ t.fromAcc }}">{{ t.fromAcc }}</span>
                   <span class="tx-to d-cell" style="font-size:13px;color:var(--ink3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="{{ t.toAcc }}">{{ t.toAcc }}</span>
@@ -6658,7 +6658,7 @@ class Component extends DCLogic {
         const cur = this.curOf(t.a), pnl = this.txEffect(t, t.a);
         return {
           key: t.d + i + t.t, dateLabel: this.dayLabel(t.d), title: t.t,
-          note: t.t + " · закрыта " + this.dayLabel(t.closeD), cat: t.c, catPath: "Сделка",
+          note: t.t + " · закрыта " + this.dayLabel(t.closeD), cat: t.c, catPath: "Сделка", catLeaf: "Сделка",
           acc: t.a + " · " + t.gotCur, fromAcc: t.a, toAcc: t.a,
           fromAmt: this.signed(t.v, cur), toAmt: "+" + this.fmt(this.closeProceeds(t), cur),
           amountLabel: this.pnlMoney(pnl, cur) + " · сделка закрыта",
@@ -6672,7 +6672,9 @@ class Component extends DCLogic {
         // the comment column: empty when the title is just the default — the category's name
         note: t.t === t.c || (transfer && t.t === "Перевод") ? "" : t.t,
         cat: t.c,
+        // в колонке — сама категория, при наведении — весь путь от верхней
         catPath: transfer ? "Перевод" : trade ? "Сделка" : catPath(t.c),
+        catLeaf: transfer ? "Перевод" : trade ? "Сделка" : t.c,
         acc: trade ? t.a + " · " + t.gotCur : transfer ? t.a + " → " + t.to : t.a,
         // таблица на широком экране: откуда ушло и куда пришло, каждой стороне своя сумма
         fromAcc: trade ? (t.type === "buy" ? t.a : t.gotCur) : transfer || t.v < 0 ? t.a : "",
