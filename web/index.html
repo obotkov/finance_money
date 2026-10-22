@@ -12,6 +12,23 @@
 <meta name="apple-mobile-web-app-title" content="Penny">
 <meta name="theme-color" content="#0071e3">
 <script src="./support.js"></script>
+<!-- WildMetrics counter: только на боевом домене, локальные запуски не считаются -->
+<script>
+  if (location.hostname === "penny.place") {
+    (function(w,d,s,c,t,a,m){
+      w[t]=w[t]||function(){
+          (w[t].q=w[t].q||[]).push(arguments)
+      },w[t].l=1*new Date();
+      a=d.createElement(s), m=d.getElementsByTagName(s)[0];
+      a.async=1;
+      a.src=c;
+      m.parentNode.insertBefore(a,m)}
+    )(window,document,'script','https://wba.wb.ru/sdk/sdk.js','wba');
+    wba("init", {"counterId": 1001232});
+    wba("pageview");
+  }
+</script>
+<!-- /WildMetrics counter -->
 </head>
 <body>
 <x-dc>
