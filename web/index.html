@@ -2716,12 +2716,13 @@
             <span class="num" style="display:block;font-size:12px;color:var(--ink3)">{{ closeBought }}</span>
           </span>
         </div>
-        <div class="seg" style="margin-top:14px">
-          <span class="segopt" data-on="{{ closeByPriceOn }}" onClick="{{ closeByPrice }}">Цена за 1 {{ closeCoin }}</span>
-          <span class="segopt" data-on="{{ closeBySumOn }}" onClick="{{ closeBySum }}">Получено всего</span>
-        </div>
-        <div style="margin-top:10px"><span class="lbl">{{ closeFieldLabel }}</span>
-          <input class="inp" inputMode="decimal" value="{{ closeFieldValue }}" onChange="{{ onCloseField }}" placeholder="0">
+        <div class="close2" style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;margin-top:14px;align-items:end">
+          <div><span class="lbl">Цена за 1 {{ closeCoin }}, {{ closeSym }}</span>
+            <input class="inp" inputMode="decimal" value="{{ closePriceValue }}" onChange="{{ onClosePrice }}" placeholder="0">
+          </div>
+          <div><span class="lbl">{{ closeSumLabel }}</span>
+            <input class="inp" inputMode="decimal" value="{{ closeSumValue }}" onChange="{{ onCloseSum }}" placeholder="0">
+          </div>
         </div>
         <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:8px">
           <span class="num" style="font-size:12px;color:var(--ink3)">{{ closeMarketNote }}</span>
@@ -3667,8 +3668,8 @@ class Component extends DCLogic {
     const cur = this.curOf(t.a), sym = CUR[cur] ? CUR[cur].sym : cur;
     const qty = Math.abs(t.got || 0), cost = Math.abs(t.v);
     const market = this.coinRub(cur) > 0 ? this.coinRub(t.gotCur) / this.coinRub(cur) : 0;
-    // закрыть можно по цене за монету или по сумме, что пришла целиком: тогда цена — сумма / количество,
-    // и на счёт вернётся ровно она (сервер хранит цену с 12 знаками)
+    // два поля: цена за монету и сколько пришло всего. Вводят в одно, второе считается из него;
+    // от суммы цена — сумма / количество, и на счёт вернётся ровно она (сервер хранит цену с 12 знаками)
     const bySum = st.closeBy === "sum";
     const price = st.closeAuto ? market : bySum ? (qty > 0 ? this.num(st.closeSum) / qty : 0) : this.num(st.closePrice);
     const fmtNum = (n, digits) => (n > 0 ? groupDigits(plainNum(Number(n.toFixed(digits)))) : "");
@@ -3715,18 +3716,13 @@ class Component extends DCLogic {
       closeWhat: t.t,
       closeBought: "куплено " + this.dayLabel(t.d) + " по " + this.fmt(buyPrice, cur) + " · потрачено " + this.fmt(cost, cur),
       closeSym: sym, closeCoin: t.gotCur,
-      closeByPriceOn: bySum ? "0" : "1", closeBySumOn: bySum ? "1" : "0",
-      // при переключении введённое переносится: цена превращается в сумму и обратно
-      closeByPrice: () => { if (bySum) this.setState({ closeBy: "price", closePrice: st.closeAuto ? "" : fmtNum(price, price < 1 ? 8 : 6) }); },
-      closeBySum: () => { if (!bySum) this.setState({ closeBy: "sum", closeSum: st.closeAuto ? "" : fmtNum(proceeds, 8) }); },
-      closeFieldLabel: bySum ? "Получено за " + this.sig(qty) + " " + t.gotCur + ", " + sym : "Цена закрытия за 1 " + t.gotCur + ", " + sym,
-      closeFieldValue: bySum
-        ? (st.closeAuto ? fmtNum(market * qty, 2) : st.closeSum)
-        : (st.closeAuto ? fmtNum(market, market < 1 ? 6 : 4) : st.closePrice),
-      onCloseField: e => this.setNumber(bySum ? "closeSum" : "closePrice", e, false, { closeAuto: false }),
-      closeMarketNote: st.closeAuto ? (bySum ? "сумма по текущему курсу" : "цена по текущему курсу")
-        : bySum ? (price > 0 ? "цена закрытия — " + this.fmt(price, cur) + " за 1 " + t.gotCur : "")
-        : market ? "курс сейчас " + this.fmt(market, cur) : "",
+      closeSumLabel: "Получено всего, " + sym,
+      // введённое поле показывается как набрано, второе — посчитанным
+      closePriceValue: !st.closeAuto && !bySum ? st.closePrice : fmtNum(price, price < 1 ? 6 : 4),
+      closeSumValue: !st.closeAuto && bySum ? st.closeSum : fmtNum(proceeds, 2),
+      onClosePrice: e => this.setNumber("closePrice", e, false, { closeAuto: false, closeBy: "price" }),
+      onCloseSum: e => this.setNumber("closeSum", e, false, { closeAuto: false, closeBy: "sum" }),
+      closeMarketNote: st.closeAuto ? "по текущему курсу" : market ? "курс сейчас " + this.fmt(market, cur) : "",
       closeMarketBtn: st.closeAuto ? "" : "по курсу",
       closeHasMarketBtn: !st.closeAuto && market > 0,
       closeUseMarket: () => this.setState({ closeAuto: true, closePrice: "", closeSum: "" }),
@@ -3738,7 +3734,7 @@ class Component extends DCLogic {
       closePnl: price > 0 ? this.pnlMoney(pnl, cur) + (pct ? " · " + pct : "") : "—",
       closePnlLabel: !(price > 0) ? "Результат" : pnl > 0 ? "Доход" : pnl < 0 ? "Убыток" : "Результат",
       closePnlColor: price > 0 ? color(pnl) : "var(--ink3)",
-      closeHint: (bySum ? "Вся монета продаётся за эту сумму, она вернётся" : "Вся монета продаётся по этой цене, выручка вернётся") + " на остаток «" + t.a
+      closeHint: "Вся монета продаётся по этой цене, выручка вернётся на остаток «" + t.a
         + "». Покупка и закрытие останутся одной строкой.",
       closeIsClosed: this.isClosed(t),
       closeSaveLabel: this.isClosed(t) ? "Сохранить" : "Закрыть сделку",
