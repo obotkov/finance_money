@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-webauthn/webauthn/webauthn"
 	"github.com/jackc/pgx/v5/pgconn"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
@@ -32,6 +33,9 @@ type API struct {
 	origin string         // the site's own origin: writes from other origins are refused
 	secure bool           // cookies only over HTTPS
 	google *oauth2.Config // nil when Google sign-in isn't configured
+	// вход по passkey (passkeys.go); nil — PUBLIC_URL не задан
+	webauthn *webauthn.WebAuthn
+	passkeys passkeyFlows
 }
 
 func NewAPI(store *Store, rates *RateUpdater, push *Pusher, cfg Config, log *slog.Logger) *API {
@@ -42,6 +46,12 @@ func NewAPI(store *Store, rates *RateUpdater, push *Pusher, cfg Config, log *slo
 		log:    log,
 		origin: cfg.PublicURL,
 		secure: strings.HasPrefix(cfg.PublicURL, "https://"),
+	}
+	if cfg.PublicURL != "" {
+		var err error
+		if a.webauthn, err = newWebAuthn(cfg.PublicURL); err != nil {
+			log.Warn("passkeys off", "err", err)
+		}
 	}
 	if cfg.GoogleClientID != "" && cfg.GoogleClientSecret != "" {
 		a.google = &oauth2.Config{
@@ -67,6 +77,12 @@ func (a *API) Handler() http.Handler {
 	mux.HandleFunc("POST /api/auth/logout", a.logout)
 	mux.HandleFunc("GET /api/auth/google/start", a.googleStart)
 	mux.HandleFunc("GET /api/auth/google/callback", a.googleCallback)
+	mux.HandleFunc("POST /api/auth/passkey/start", a.passkeyLoginStart)
+	mux.HandleFunc("POST /api/auth/passkey/finish", a.passkeyLoginFinish)
+	mux.HandleFunc("POST /api/passkeys/start", a.passkeyAddStart)
+	mux.HandleFunc("POST /api/passkeys", a.withState(a.addPasskey))
+	mux.HandleFunc("PUT /api/passkeys/{id}", a.withState(withIDBody(s.RenamePasskey)))
+	mux.HandleFunc("DELETE /api/passkeys/{id}", a.withState(withID(s.DeletePasskey)))
 
 	mux.HandleFunc("GET /api/state", a.withState(func(*http.Request, int64) error { return nil }))
 

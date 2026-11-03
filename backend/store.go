@@ -132,9 +132,11 @@ type State struct {
 	// уведомления о бюджетах и пуши: ключ для подписки браузера, сколько устройств подписано
 	BudgetAlert BudgetAlert `json:"budgetAlert"`
 	// виджеты на Сводке (widgets.go); null — не настраивались
-	Widgets     []Widget `json:"widgets"`
-	PushKey     string   `json:"pushKey,omitempty"`
-	PushDevices int      `json:"pushDevices"`
+	Widgets []Widget `json:"widgets"`
+	// passkeys для входа (passkeys.go)
+	Passkeys    []PasskeyInfo `json:"passkeys"`
+	PushKey     string        `json:"pushKey,omitempty"`
+	PushDevices int           `json:"pushDevices"`
 	// бекап, с которым данные сейчас совпадают; null — их меняли после сохранения
 	CurrentBackup *int64          `json:"currentBackup"`
 	Rates         map[string]Rate `json:"rates"`
@@ -318,6 +320,9 @@ func (s *Store) State(ctx context.Context, uid int64) (*State, error) {
 		return nil, err
 	}
 	if st.Widgets, err = s.widgets(ctx, uid); err != nil {
+		return nil, err
+	}
+	if st.Passkeys, err = s.Passkeys(ctx, uid); err != nil {
 		return nil, err
 	}
 	if st.BudgetAlert, err = s.budgetAlert(ctx, uid); err != nil {

@@ -40,8 +40,21 @@
 
 ## Вход
 
-Вход только через Google (нужны `GOOGLE_CLIENT_ID` и `GOOGLE_CLIENT_SECRET`, иначе войти нельзя — экран входа
-так и скажет). Первый вход создаёт аккаунт по почте из Google.
+Вход через Google (нужны `GOOGLE_CLIENT_ID` и `GOOGLE_CLIENT_SECRET`, иначе войти нельзя — экран входа
+так и скажет) или по passkey. Первый вход через Google создаёт аккаунт по почте из Google; через passkey
+аккаунт не создаётся.
+
+- **Passkeys** (WebAuthn, `passkeys.go`, библиотека go-webauthn). Добавляются в Настройках → «Вход по passkey»,
+  когда уже вошли: браузер создаёт ключ в менеджере паролей устройства (iCloud, Google, Windows Hello,
+  аппаратный ключ), название по умолчанию — устройство и браузер («Mac · Safari»), его можно поменять
+  карандашом. На экране входа «Войти с passkey» — браузер сам предлагает ключи этого сайта
+  (discoverable credentials, без ввода почты). Ключ обязан быть резидентным и проверять человека
+  (отпечаток, лицо, PIN). RP ID — домен из `PUBLIC_URL`, принимается только его origin; без `PUBLIC_URL`
+  passkeys выключены. Вызов (challenge) живёт 5 минут в памяти сервера под токеном из cookie
+  `passkey_flow` и годится один раз; одновременно — не больше 5000 начатых входов. В базе (`passkeys`) —
+  открытый ключ со счётчиком подписей, название, даты добавления и последнего входа; до 20 ключей на
+  пользователя. Удалённый в Настройках ключ войти не даст, даже если остался на устройстве. В бекапы
+  не попадают.
 
 - Аккаунты, заведённые раньше по почте и паролю, не потерялись: первый вход через Google с той же почтой
   забирает такой аккаунт со всеми данными — пароль стирается, другие сессии завершаются.
@@ -78,6 +91,9 @@ docker compose exec api /api users   # список: почта, имя, спо�
 | POST | `/api/auth/logout` | `{}` |
 | GET | `/api/auth/me`, `/api/auth/config` | |
 | GET | `/api/auth/google/start` → Google → `/api/auth/google/callback` | |
+| POST | `/api/auth/passkey/start` → `/api/auth/passkey/finish` | `{}` → параметры WebAuthn; затем ответ браузера (`PublicKeyCredential.toJSON()`) → пользователь и сессия |
+| POST | `/api/passkeys/start` → `/api/passkeys` | `{}` → параметры создания ключа; затем `{name, credential}` — добавить passkey вошедшему |
+| PUT, DELETE | `/api/passkeys/{id}` | `{name}` — переименовать; DELETE — удалить |
 | GET | `/api/state` | |
 | POST, PUT `/{id}`, DELETE `/{id}` | `/api/accounts` | `{name, kind, balance, cur}`; у DELETE — `?replace=<id>`: перенести операции на этот счёт |
 | PUT | `/api/accounts/order` | `{ids}` — все счета пользователя в новом порядке |

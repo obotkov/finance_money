@@ -23,7 +23,7 @@ const (
 )
 
 func (a *API) authConfig(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, map[string]bool{"google": a.google != nil})
+	writeJSON(w, http.StatusOK, map[string]bool{"google": a.google != nil, "passkey": a.webauthn != nil})
 }
 
 func (a *API) me(w http.ResponseWriter, r *http.Request) {
