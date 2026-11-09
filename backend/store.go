@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"math"
 	"strings"
 	"time"
 
@@ -767,6 +768,73 @@ func insertTx(ctx context.Context, tx pgx.Tx, uid int64, in TxInput, id *int64) 
 }
 
 // DeleteTx removes an operation and rolls its effect back from the balances.
+// maxSplitParts — на сколько частей можно разделить операцию
+const maxSplitParts = 5
+
+// SplitTx делит расход, доход или перевод на части: первая остаётся под тем же id,
+// остальные записываются новыми операциями. Части в сумме — ровно исходная операция
+// (и у перевода — зачисленное), поэтому остатки счетов не меняются.
+func (s *Store) SplitTx(ctx context.Context, uid, id int64, in struct {
+	Parts []TxInput `json:"parts"`
+}) error {
+	if len(in.Parts) < 2 || len(in.Parts) > maxSplitParts {
+		return badRequest(fmt.Sprintf("Разделить можно на 2–%d части", maxSplitParts))
+	}
+	var amount, received float64
+	for i := range in.Parts {
+		p := &in.Parts[i]
+		if err := p.validate(); err != nil {
+			return err
+		}
+		if p.Type != in.Parts[0].Type || p.Account != in.Parts[0].Account || p.ToAccount != in.Parts[0].ToAccount {
+			return badRequest("У частей должны быть тот же тип и те же счета")
+		}
+		amount += p.Amount
+		if p.Type == "transfer" && p.Received != nil {
+			received += *p.Received
+		}
+	}
+	return pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) error {
+		var typ string
+		var was float64
+		var wasGot *float64
+		err := tx.QueryRow(ctx, `SELECT type, amount, received FROM transactions WHERE id = $1 AND user_id = $2 FOR UPDATE`, id, uid).
+			Scan(&typ, &was, &wasGot)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return notFound("Операция не найдена")
+		}
+		if err != nil {
+			return err
+		}
+		if typ != "expense" && typ != "income" && typ != "transfer" {
+			return badRequest("Разделить можно только расход, доход или перевод")
+		}
+		if typ != in.Parts[0].Type {
+			return badRequest("Операция изменилась — обновите страницу")
+		}
+		// числа приходят из браузера float'ами: допуск — доля копейки
+		stale := badRequest("Сумма частей не совпадает с операцией — обновите страницу")
+		if math.Abs(amount-was) > 1e-6 {
+			return stale
+		}
+		if typ == "transfer" && wasGot != nil && math.Abs(received-*wasGot) > 1e-6 {
+			return stale
+		}
+		if err := removeTx(ctx, tx, uid, id); err != nil {
+			return err
+		}
+		if err := insertTx(ctx, tx, uid, in.Parts[0], &id); err != nil {
+			return err
+		}
+		for _, p := range in.Parts[1:] {
+			if err := insertTx(ctx, tx, uid, p, nil); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
 func (s *Store) DeleteTx(ctx context.Context, uid, id int64) error {
 	return pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) error { return removeTx(ctx, tx, uid, id) })
 }

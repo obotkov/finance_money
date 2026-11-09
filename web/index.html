@@ -140,6 +140,19 @@
   .ord-grip svg { width: 18px; height: 18px; }
   .cal-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
   .cal-head .cal-today { padding: 0 2px; font-size: 13px; margin-bottom: 6px; }
+  @media (max-width: 760px) {
+    /* в окне операции четыре кнопки в ряд не влезают: «Удалить» и «Разделить» — строкой выше */
+    .op-edit-btns { flex-basis: 100%; }
+  }
+  .spl-row { display: grid; grid-template-columns: 64px minmax(0,1fr) 34px; gap: 10px; align-items: end; }
+  .spl-row[data-rec="1"] { grid-template-columns: 64px minmax(0,1fr) minmax(0,1fr) 34px; }
+  .spl-n { font-size: 13px; color: var(--ink2); padding-bottom: 11px; }
+  .spl-row .inp[data-first="1"] { background: transparent; border-color: var(--line); color: var(--ink2); }
+  @media (max-width: 760px) {
+    .spl-row, .spl-row[data-rec="1"] { grid-template-columns: minmax(0,1fr) minmax(0,1fr) 34px; }
+    .spl-row:not([data-rec="1"]) { grid-template-columns: minmax(0,1fr) 34px; }
+    .spl-n { grid-column: 1 / -1; padding-bottom: 0; }
+  }
   .calc-wrap { position: relative; }
   .calc-bar { position: absolute; left: 0; top: calc(100% + 6px); z-index: 30; display: flex; gap: 4px; padding: 4px; background: var(--card); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 6px 20px rgba(0,0,0,.14); }
   .calc-op { border: 0; background: var(--fill); color: var(--ink); border-radius: 9px; min-width: 38px; height: 36px; padding: 0 10px; font-size: 18px; cursor: pointer; white-space: nowrap; }
@@ -2565,12 +2578,47 @@
           </div>
         </div>
         </sc-if>
-        <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px">
+        <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px;flex-wrap:wrap">
           <sc-if value="{{ editing }}" hint-placeholder-val="{{ false }}">
-            <button class="btn btn-t" style="margin-right:auto;color:var(--neg)" onClick="{{ delEdited }}">Удалить</button>
+            <span class="op-edit-btns" style="margin-right:auto;display:inline-flex;gap:2px">
+              <button class="btn btn-t" style="color:var(--neg)" onClick="{{ delEdited }}">Удалить</button>
+              <button class="btn btn-t" title="Разделить операцию на части" onClick="{{ splOpen }}">Разделить</button>
+            </span>
           </sc-if>
           <button class="btn btn-s" onClick="{{ close }}">Отмена</button>
           <button class="btn btn-p" onClick="{{ saveOp }}">Сохранить</button>
+        </div>
+      </div>
+    </div>
+    </sc-if>
+
+    <!-- диалог: разделить операцию на части -->
+    <sc-if value="{{ splDialog }}" hint-placeholder-val="{{ false }}">
+    <div class="dlg" style="position:fixed;inset:0;display:grid;place-items:center;padding:24px;overflow:auto;background:var(--overlay);backdrop-filter:blur(6px)" onClick="{{ close }}">
+      <div class="card" style="width:min(520px,100%);max-height:calc(100vh - 48px);overflow-y:auto;padding:24px;border-radius:22px;box-shadow:0 24px 60px rgba(0,0,0,.22)" onClick="{{ stop }}">
+        <div class="big" style="font-size:21px">Разделить операцию</div>
+        <div style="font-size:13px;color:var(--ink2);margin-top:6px">{{ splWhat }}</div>
+        <div class="spl-rows" style="display:flex;flex-direction:column;gap:12px;margin-top:16px">
+          <sc-for list="{{ splRows }}" as="p" hint-placeholder-count="2">
+            <div class="spl-row" data-rec="{{ splRecOn }}">
+              <span class="spl-n">{{ p.label }}</span>
+              <div><span class="lbl">{{ splAmountLabel }}</span>
+                <input class="inp" inputMode="decimal" value="{{ p.amount }}" onChange="{{ p.onAmount }}" readOnly="{{ p.first }}" data-first="{{ p.firstFlag }}" placeholder="0">
+              </div>
+              <sc-if value="{{ splRecShow }}" hint-placeholder-val="{{ true }}">
+                <div><span class="lbl">{{ splRecLabel }}</span>
+                  <input class="inp" inputMode="decimal" value="{{ p.rec }}" onChange="{{ p.onRec }}" readOnly="{{ p.first }}" data-first="{{ p.firstFlag }}" placeholder="0">
+                </div>
+              </sc-if>
+              <button class="btn btn-t wg-ic" style="color:var(--neg);visibility:{{ p.delVis }}" onClick="{{ p.del }}" title="Убрать часть" aria-label="Убрать часть">✕</button>
+            </div>
+          </sc-for>
+        </div>
+        <sc-if value="{{ splCanAdd }}" hint-placeholder-val="{{ true }}"><button class="btn btn-s" style="margin-top:12px" onClick="{{ splAdd }}">+ Ещё часть</button></sc-if>
+        <div style="font-size:13px;color:{{ splNoteColor }};margin-top:14px">{{ splNote }}</div>
+        <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px">
+          <button class="btn btn-s" onClick="{{ close }}">Отмена</button>
+          <button class="btn btn-p" onClick="{{ splSave }}">Разделить</button>
         </div>
       </div>
     </div>
@@ -3800,6 +3848,72 @@ class Component extends DCLogic {
       saveClose: () => save(true),
       reopenClose: () => save(false),
       editCloseBuy: () => this.editDeal(t)
+    };
+  }
+
+  // Разделить операцию: первая часть — остаток от всей суммы, остальные вводятся.
+  // Зачисленное у перевода делится в той же пропорции (у введённых частей его можно
+  // поправить), первой достаётся остаток — части в сумме ровно исходная операция.
+  splitVals() {
+    const st = this.state, t = st.dialog === "split" ? st.splTx : null;
+    if (!t) return { splDialog: false };
+    const transfer = t.type === "transfer";
+    const type = transfer ? "transfer" : t.v > 0 ? "income" : "expense";
+    const fromCur = this.curOf(t.a), toCur = transfer ? (t.gotCur || this.curOf(t.to)) : fromCur;
+    const total = Math.abs(t.v), gotTotal = transfer ? (t.got != null ? t.got : t.v) : 0;
+    const digits = cur => (CRYPTO_CURS.indexOf(cur) !== -1 && cur !== "USDT" && cur !== "USDC" ? 8 : 2);
+    const recOn = transfer && (fromCur !== toCur || Math.abs(gotTotal - total) > 1e-9);
+    const clean = n => Number(n.toFixed(10)); // без хвостов float: 150000 − 50000 ровно 100000
+    const show = n => (n > 0 ? groupDigits(plainNum(clean(n))) : n < 0 ? "−" + groupDigits(plainNum(clean(-n))) : "0");
+    const parts = st.splParts || [];
+    const amounts = parts.map(p => this.num(p.amount));
+    const recs = parts.map((p, i) => !transfer ? 0 : p.recTouched ? this.num(p.rec)
+      : !recOn ? amounts[i] : Number((gotTotal * amounts[i] / total).toFixed(digits(toCur))));
+    const first = clean(total - amounts.reduce((s, v) => s + v, 0));
+    const firstRec = transfer ? clean(gotTotal - recs.reduce((s, v) => s + v, 0)) : 0;
+    const setPart = (i, patch) => this.setState(s => ({ splParts: s.splParts.map((p, j) => (j === i ? { ...p, ...patch } : p)) }));
+    const problem = amounts.some(v => !(v > 0)) ? "Укажите сумму каждой части."
+      : !(first > 0) ? "Части больше всей операции — первой ничего не остаётся."
+      : transfer && (recs.some(v => !(v > 0)) || !(firstRec > 0)) ? "Зачисленное каждой части должно быть больше нуля." : "";
+    const all = [{ amount: first, rec: firstRec }].concat(amounts.map((a, i) => ({ amount: a, rec: recs[i] })));
+    const what = transfer ? "Перевод · " + t.a + " → " + t.to : (type === "income" ? "Доход · " : "Расход · ") + t.c + " · " + t.a;
+    const whole = this.fmt(total, fromCur) + (recOn ? " → " + this.fmt(gotTotal, toCur) : "");
+    return {
+      splDialog: true,
+      splWhat: what + " · " + this.dayLabel(t.d) + " · всего " + whole,
+      splRecOn: recOn ? "1" : "0", splRecShow: recOn,
+      splAmountLabel: (transfer ? "Списать, " : "Сумма, ") + CUR[fromCur].sym,
+      splRecLabel: "Зачислить, " + (CUR[toCur] ? CUR[toCur].sym : toCur),
+      splRows: all.map((p, i) => i === 0 ? {
+        key: "p0", label: "Часть 1", first: true, firstFlag: "1", delVis: "hidden",
+        amount: show(p.amount), rec: show(p.rec), onAmount: () => {}, onRec: () => {}, del: () => {}
+      } : {
+        key: "p" + i, label: "Часть " + (i + 1), first: false, firstFlag: "0",
+        delVis: parts.length > 1 ? "visible" : "hidden",
+        amount: parts[i - 1].amount,
+        rec: parts[i - 1].recTouched ? parts[i - 1].rec : (amounts[i - 1] > 0 ? show(p.rec) : ""),
+        onAmount: e => setPart(i - 1, { amount: groupDigits(e.target.value) }),
+        onRec: e => setPart(i - 1, { rec: groupDigits(e.target.value), recTouched: e.target.value.trim() !== "" }),
+        del: () => this.setState(s => ({ splParts: s.splParts.filter((_, j) => j !== i - 1) }))
+      }),
+      splCanAdd: all.length < 5,
+      splAdd: () => this.setState(s => ({ splParts: s.splParts.concat({ amount: "", rec: "", recTouched: false }) })),
+      splNote: problem || "Первая часть — остаток. Части останутся отдельными операциями с той же датой, категорией и комментарием; остатки счетов не изменятся.",
+      splNoteColor: problem ? "var(--neg)" : "var(--ink3)",
+      splSave: () => {
+        if (problem) { window.alert(problem); return; }
+        if (st.online) {
+          const base = { date: t.d, time: t.tm || "", title: t.t, type, category: transfer ? "" : t.c, account: t.a, toAccount: transfer ? t.to : "" };
+          this.api("POST", "transactions/" + t.id + "/split", {
+            parts: all.map(p => ({ ...base, amount: p.amount, ...(transfer ? { received: p.rec } : {}) }))
+          }).then(() => this.setState({ dialog: null, splTx: null, editTx: null }), () => {});
+          return;
+        }
+        const sign = type === "expense" ? -1 : 1;
+        const made = all.map(p => ({ ...t, v: sign * p.amount, ...(transfer ? { got: p.rec } : {}) }));
+        const txs = st.txs.flatMap(x => (x === t ? made : [x]));
+        this.setState({ txs, dialog: null, splTx: null, editTx: null });
+      }
     };
   }
 
@@ -7496,6 +7610,8 @@ class Component extends DCLogic {
       editing: st.dialog === "op" && !!st.editTx,
       opTitle: st.editTx ? "Изменить операцию" : "Новая операция",
       delEdited: () => { if (st.editTx) this.deleteOp(st.editTx); },
+      splOpen: () => { if (st.editTx) this.setState({ dialog: "split", splTx: st.editTx, splParts: [{ amount: "", rec: "", recTouched: false }] }); },
+      ...this.splitVals(),
       openOp: () => {
         if (this.needAccount()) return;
         this.setState(s => ({ dialog: "op", catNav: null, ...(s.editTx ? { amount: "", note: "", receive: "", receiveTouched: false } : {}), editTx: null, cat: s.cat || this.firstLeaf(s.type === "income" ? "income" : "expense") }));
