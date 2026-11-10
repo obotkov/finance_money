@@ -6320,12 +6320,16 @@ class Component extends DCLogic {
     }));
     const step = Math.max(1, Math.ceil(n / 12)); // at most 12 labels, every other one hidden on phones
     const at = bs.findIndex(b => b.from === hover);
-    // the tooltip sits beside the hovered slot, on the side with more room, so it never covers the bar
+    // the tooltip sits beside the hovered slot, on the side with more room, so it never covers the bar;
+    // a wide slot (one to three buckets) would push it off the chart — then it sits beside the bars themselves
     const pct = x => (x / 620 * 100).toFixed(2) + "%";
-    const toRight = at >= 0 && cx(at) < 310;
+    const toRight = at >= 0 && cx(at) <= 310;
+    const wide = slot > 150;
+    const leftEdge = at >= 0 ? (wide ? cx(at) - inner / 2 : X0 + slot * at) : 0;
+    const rightEdge = at >= 0 ? (wide ? cx(at) + inner / 2 : X0 + slot * (at + 1)) : 0;
     return {
-      tipL: at >= 0 && toRight ? "calc(" + pct(X0 + slot * (at + 1)) + " + 8px)" : "auto",
-      tipR: at >= 0 && !toRight ? "calc(" + pct(620 - X0 - slot * at) + " + 8px)" : "auto",
+      tipL: at >= 0 && toRight ? "calc(" + pct(rightEdge) + " + 8px)" : "auto",
+      tipR: at >= 0 && !toRight ? "calc(" + pct(620 - leftEdge) + " + 8px)" : "auto",
       bars,
       hits: bs.map((b, i) => ({ key: "h" + i, x: r1(X0 + slot * i), w: r1(slot),
         fill: hover === b.from ? "var(--fill)" : "transparent", enter: () => this.set(hoverKey, b.from) })),
