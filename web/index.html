@@ -144,6 +144,12 @@
     /* в окне операции четыре кнопки в ряд не влезают: «Удалить» и «Разделить» — строкой выше */
     .op-edit-btns { flex-basis: 100%; }
   }
+  .flow-leg[data-link="1"] { cursor: pointer; }
+  /* на телефоне подсказка не влезает рядом со столбцом — встаёт блоком под графиком */
+  @media (max-width: 760px) {
+    .flow-tip { position: static !important; width: auto !important; min-width: 0 !important; max-width: none !important; margin-top: 10px; box-shadow: none !important; }
+  }
+  .flow-leg[data-link="1"]:hover { color: var(--ink); }
   .spl-row { display: grid; grid-template-columns: 64px minmax(0,1fr) 34px; gap: 10px; align-items: end; }
   .spl-row[data-rec="1"] { grid-template-columns: 64px minmax(0,1fr) minmax(0,1fr) 34px; }
   .spl-n { font-size: 13px; color: var(--ink2); padding-bottom: 11px; }
@@ -1824,25 +1830,31 @@
                 <sc-if value="{{ repFlowOn }}" hint-placeholder-val="{{ true }}">
                 <div style="padding-bottom:16px;border-bottom:1px solid var(--line)">
                 <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
-                  <div class="big" style="font-size:15px">Доходы и траты</div>
+                  <div class="big" style="font-size:15px">{{ flowTitle }}</div>
                   <div class="seg">
                     <sc-for list="{{ flowGrans }}" as="g" hint-placeholder-count="3"><span class="segopt" data-on="{{ g.on }}" onClick="{{ g.pick }}">{{ g.label }}</span></sc-for>
                   </div>
                 </div>
                 <div style="display:flex;flex-wrap:wrap;gap:4px 18px;font-size:12px;color:var(--ink2);margin-top:6px">
-                  <span style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius:3px;background:var(--accent)"></span>доходы <span class="num" style="color:var(--ink)" hidden="{{ flowHovering }}">{{ flowIncLabel }}</span></span>
-                  <span style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius:3px;background:var(--bar-muted)"></span>траты <span class="num" style="color:var(--ink)" hidden="{{ flowHovering }}">{{ flowExpLabel }}</span></span>
+                  <sc-for list="{{ flowLegend }}" as="l" hint-placeholder-count="2">
+                    <span class="flow-leg" data-link="{{ l.link }}" style="display:flex;align-items:center;gap:6px" onClick="{{ l.open }}"><span style="width:10px;height:10px;border-radius:3px;flex:none;background:{{ l.color }}"></span>{{ l.label }} <span class="num" style="color:var(--ink)" hidden="{{ flowHovering }}">{{ l.value }}</span></span>
+                  </sc-for>
                 </div>
-                <div style="position:relative;margin-top:14px">
-                  <svg viewBox="0 0 620 210" style="display:block;width:100%;height:auto" role="img" aria-label="{{ flowAria }}" onMouseLeave="{{ flowLeave }}">
-                    <sc-for list="{{ flowHits }}" as="h" hint-placeholder-count="6"><rect x="{{ h.x }}" y="24" width="{{ h.w }}" height="176" rx="4" style="fill:{{ h.fill }}" onMouseEnter="{{ h.enter }}" onClick="{{ h.enter }}"></rect></sc-for>
-                    <line x1="16" y1="40" x2="604" y2="40" style="stroke:var(--grid);stroke-dasharray:3 4;pointer-events:none"></line>
-                    <sc-for list="{{ flowBars }}" as="b" hint-placeholder-count="12"><rect x="{{ b.x }}" y="{{ b.y }}" width="{{ b.w }}" height="{{ b.h }}" rx="{{ b.rx }}" style="fill:{{ b.color }};pointer-events:none"></rect></sc-for>
-                    <line x1="16" y1="200" x2="604" y2="200" style="stroke:var(--grid);pointer-events:none"></line>
-                  </svg>
-                  <span class="num" style="position:absolute;left:0;top:19%;transform:translateY(-115%);font-size:11px;color:var(--ink3);pointer-events:none">{{ flowMaxLabel }}</span>
+                <div style="position:relative">
+                  <div style="position:relative;margin-top:14px">
+                    <svg viewBox="0 0 620 210" style="display:block;width:100%;height:auto" role="img" aria-label="{{ flowAria }}" onMouseLeave="{{ flowLeave }}">
+                      <sc-for list="{{ flowHits }}" as="h" hint-placeholder-count="6"><rect x="{{ h.x }}" y="24" width="{{ h.w }}" height="176" rx="4" style="fill:{{ h.fill }}" onMouseEnter="{{ h.enter }}" onClick="{{ h.enter }}"></rect></sc-for>
+                      <line x1="16" y1="40" x2="604" y2="40" style="stroke:var(--grid);stroke-dasharray:3 4;pointer-events:none"></line>
+                      <sc-for list="{{ flowBars }}" as="b" hint-placeholder-count="12"><rect x="{{ b.x }}" y="{{ b.y }}" width="{{ b.w }}" height="{{ b.h }}" rx="{{ b.rx }}" style="fill:{{ b.color }};cursor:{{ b.cursor }}" onClick="{{ b.open }}" onMouseEnter="{{ b.enter }}"></rect></sc-for>
+                      <line x1="16" y1="200" x2="604" y2="200" style="stroke:var(--grid);pointer-events:none"></line>
+                    </svg>
+                    <span class="num" style="position:absolute;left:0;top:19%;transform:translateY(-115%);font-size:11px;color:var(--ink3);pointer-events:none">{{ flowMaxLabel }}</span>
+                  </div>
+                  <div style="position:relative;height:16px;margin-top:4px">
+                    <sc-for list="{{ flowTicks }}" as="t" hint-placeholder-count="6"><span class="tick" data-minor="{{ t.minor }}" style="position:absolute;left:{{ t.left }};transform:translateX(-50%);font-size:11px;color:var(--ink3);white-space:nowrap">{{ t.label }}</span></sc-for>
+                  </div>
                   <sc-if value="{{ flowTip }}" hint-placeholder-val="{{ false }}">
-                    <div style="position:absolute;top:6%;left:{{ flowTipL }};right:{{ flowTipR }};width:max-content;min-width:min(150px,40%);max-width:40%;padding:10px 12px;border-radius:12px;background:var(--raised);border:1px solid var(--line);box-shadow:0 8px 24px rgba(0,0,0,.22);font-size:12px;pointer-events:none;z-index:2">
+                    <div class="flow-tip" style="position:absolute;top:6%;left:{{ flowTipL }};right:{{ flowTipR }};width:max-content;min-width:min(150px,40%);max-width:40%;padding:10px 12px;border-radius:12px;background:var(--raised);border:1px solid var(--line);box-shadow:0 8px 24px rgba(0,0,0,.22);font-size:12px;pointer-events:none;z-index:2">
                       <div style="font-size:13px;font-weight:600;margin-bottom:6px">{{ flowTipTitle }}</div>
                       <sc-for list="{{ flowTipRows }}" as="r" hint-placeholder-count="3">
                         <div style="display:flex;align-items:center;gap:8px;padding:3px 0;font-weight:{{ r.weight }};border-top:{{ r.border }}">
@@ -1853,9 +1865,6 @@
                       </sc-for>
                     </div>
                   </sc-if>
-                </div>
-                <div style="position:relative;height:16px;margin-top:4px">
-                  <sc-for list="{{ flowTicks }}" as="t" hint-placeholder-count="6"><span class="tick" data-minor="{{ t.minor }}" style="position:absolute;left:{{ t.left }};transform:translateX(-50%);font-size:11px;color:var(--ink3);white-space:nowrap">{{ t.label }}</span></sc-for>
                 </div>
                 <p style="margin:10px 0 0;font-size:13px;color:var(--ink2);max-width:52ch">{{ flowNote }}</p>
                 </div>
@@ -6153,7 +6162,7 @@ class Component extends DCLogic {
       levelLabel = "Доходы и расходы";
       items = ["income", "expense"].map(k => {
         const list = flow.filter(t => kindOf(t) === k);
-        return { key: k, label: KINDS[k].label, total: sum(list), color: KINDS[k].color,
+        return { key: k, label: KINDS[k].label, total: sum(list), color: KINDS[k].color, ops: list,
           hint: opsWord(list.length) + (list.length ? " ›" : ""), open: list.length ? go([k]) : null };
       });
     } else {
@@ -6162,18 +6171,18 @@ class Component extends DCLogic {
       // every root shows up whatever its own kind, so no operation gets lost
       items = (parent ? kids(parent.id) : st.cats.filter(c => c.parent == null)).map(c => {
         const list = tree(c), sub = kids(c.id).filter(k => tree(k).length);
-        return { key: "c" + c.id, label: c.name, total: sum(list),
+        return { key: "c" + c.id, label: c.name, total: sum(list), ops: list,
           hint: sub.length ? pluralRu(sub.length, "подкатегория", "подкатегории", "подкатегорий") + " ›" : opsWord(list.length) + " ›",
           open: sub.length ? go(st.repPath.concat([c.id])) : go(st.repPath, { name: c.name, label: c.name }) };
       }).filter(it => it.total > 0);
       if (parent && own(parent.name).length) {
         const list = own(parent.name), label = parent.name + " (без подкатегории)";
-        items.push({ key: "own", label, total: sum(list), hint: opsWord(list.length) + " ›", open: go(st.repPath, { name: parent.name, label }) });
+        items.push({ key: "own", label, total: sum(list), ops: list, hint: opsWord(list.length) + " ›", open: go(st.repPath, { name: parent.name, label }) });
       }
       if (!parent) { // operations whose category was deleted keep its name
         const orphans = {};
         ops.forEach(t => { if (!byName[t.c]) (orphans[t.c] = orphans[t.c] || []).push(t); });
-        Object.keys(orphans).forEach(name => items.push({ key: "o" + name, label: name, total: sum(orphans[name]),
+        Object.keys(orphans).forEach(name => items.push({ key: "o" + name, label: name, total: sum(orphans[name]), ops: orphans[name],
           hint: opsWord(orphans[name].length) + " ›", open: go(st.repPath, { name, label: name }) }));
       }
       items.forEach(it => { it.color = KINDS[kind].color; });
@@ -6187,6 +6196,9 @@ class Component extends DCLogic {
       it.pctLabel = total ? Math.round((it.total / total) * 100) + " %" : "";
       it.width = max && it.total ? Math.max(1, Math.round((it.total / max) * 100)) + "%" : "0%";
       it.swatch = !kind ? it.color : (i < SLOTS ? PALETTE[i] : OTHER);
+      // полоса категории — того же цвета, что её часть столбца на графике сверху
+      if (kind) it.color = it.swatch;
+      it.link = it.open; // для графика: без перехода — некуда проваливаться
       if (!it.open) it.open = () => {};
     });
 
@@ -6224,13 +6236,19 @@ class Component extends DCLogic {
     trail.forEach((id, i) => crumbs.push({ label: byId[id] ? byId[id].name : "…", path: [kind].concat(trail.slice(0, i + 1)) }));
     if (list) crumbs.push({ label: list.label, path: null });
     const empty = list ? !listOps.length : !total;
+    // график сверху: в корне доходы и расходы рядом, глубже — категории стопкой
+    // (сверх палитры — в «Другое», как в круге), у списка операций — одна категория
+    const flowSpec = list ? { title: list.label, stacked: true, series: [{ key: "l", label: list.label, color: KINDS[kind].color, ops: listOps }] }
+      : !kind ? { title: "Доходы и траты", stacked: false, series: items.map(it => ({ key: it.key, label: it.label === "Расходы" ? "траты" : it.label.toLowerCase(), color: it.color, ops: it.ops, open: it.link })) }
+      : { title: levelLabel, stacked: true, series: (folded ? items.slice(0, SLOTS) : items).map(it => ({ key: it.key, label: it.label, color: it.swatch, ops: it.ops, open: it.link }))
+          .concat(folded ? [{ key: "other", label: "Другое", color: OTHER, ops: items.slice(SLOTS).flatMap(it => it.ops) }] : []) };
 
     return {
       repDetail: st.repMode !== "months", repMonths: st.repMode === "months",
       repDetailOn: st.repMode !== "months" ? "1" : "0", repMonthsOn: st.repMode === "months" ? "1" : "0",
       showRepDetail: () => this.set("repMode", "detail"), showRepMonths: () => this.set("repMode", "months"),
       repFrom: st.repFrom, repTo: st.repTo, repPreset: st.repPreset,
-      ...(st.screen === "reports" && st.repMode !== "months" ? this.flowVals(st.repFrom, st.repTo, flow, inRub) : { repFlowOn: false }),
+      ...(st.screen === "reports" && st.repMode !== "months" ? this.flowVals(st.repFrom, st.repTo, flowSpec, inRub) : { repFlowOn: false }),
       repPresets: [{ key: "all", value: "all", label: "Весь период" }]
         .concat(this.presets().map(p => ({ key: p.id, value: p.id, label: p.label })))
         .concat([{ key: "custom", value: "custom", label: "Произвольно" }]),
@@ -6302,22 +6320,30 @@ class Component extends DCLogic {
   }
   // grouped bars in the 620×210 chart box: a slot per bucket, a bar per series;
   // hovering (or tapping) a slot puts its key into state[hoverKey]
-  barChart(bs, series, hover, hoverKey) {
-    const X0 = 20, W = 580, BASE = 200, H = 160, n = bs.length, k = series.length;
+  // stacked: one bar per bucket with the series piled up (their sum is the height);
+  // a series with open() makes its bars clickable
+  barChart(bs, series, hover, hoverKey, stacked) {
+    const X0 = 20, W = 580, BASE = 200, H = 160, n = bs.length, k = stacked ? 1 : series.length;
     const r1 = x => Math.round(x * 10) / 10;
-    const max = Math.max(0, ...series.map(s => Math.max(0, ...s.values)));
+    const max = stacked ? Math.max(0, ...bs.map((b, i) => series.reduce((sum, s) => sum + Math.max(0, s.values[i]), 0)))
+      : Math.max(0, ...series.map(s => Math.max(0, ...s.values)));
     const slot = n ? W / n : W;
     const inner = Math.min(slot * 0.76, k * 24 + (k - 1) * 3);
     const gap = k > 1 && slot >= k * 7 ? 2 : 0;
     const w = Math.max(0.6, (inner - gap * (k - 1)) / k);
     const cx = i => X0 + slot * i + slot / 2;
     const bars = [];
-    bs.forEach((b, i) => series.forEach((s, j) => {
-      const v = s.values[i];
-      if (!(v > 0) || !max) return;
-      const h = Math.max(1, (v / max) * H);
-      bars.push({ key: s.key + ":" + i, x: r1(cx(i) - inner / 2 + j * (w + gap)), y: r1(BASE - h), w: r1(w), h: r1(h), rx: r1(Math.min(4, w / 2)), color: s.color });
-    }));
+    const extra = (s, b) => ({ color: s.color, open: s.open || (() => {}), cursor: s.open ? "pointer" : "default", enter: () => this.set(hoverKey, b.from) });
+    bs.forEach((b, i) => {
+      let top = BASE;
+      series.forEach((s, j) => {
+        const v = s.values[i];
+        if (!(v > 0) || !max) return;
+        const h = Math.max(stacked ? 0.6 : 1, (v / max) * H);
+        if (stacked) { top -= h; bars.push({ key: s.key + ":" + i, x: r1(cx(i) - w / 2), y: r1(top), w: r1(w), h: r1(h), rx: 0, ...extra(s, b) }); return; }
+        bars.push({ key: s.key + ":" + i, x: r1(cx(i) - inner / 2 + j * (w + gap)), y: r1(BASE - h), w: r1(w), h: r1(h), rx: r1(Math.min(4, w / 2)), ...extra(s, b) });
+      });
+    });
     const step = Math.max(1, Math.ceil(n / 12)); // at most 12 labels, every other one hidden on phones
     const at = bs.findIndex(b => b.from === hover);
     // the tooltip sits beside the hovered slot, on the side with more room, so it never covers the bar;
@@ -6340,11 +6366,12 @@ class Component extends DCLogic {
       at
     };
   }
-  // «Доходы и траты» в детализации отчёта: доходы и траты за период отчёта по дням,
-  // неделям или месяцам, по тем же счетам. За всё время — с первой операции.
-  flowVals(from, to, flow, inRub) {
-    const st = this.state;
-    if (!from) from = flow.reduce((m, t) => (t.d < m ? t.d : m), to || TODAY);
+  // Верхний график детализации отчёта — тот же уровень, что и нижний, но по отрезкам периода.
+  // spec: title, series [{key, label, color, ops, open}], stacked (категории стопкой; в корне
+  // доходы и расходы рядом), total — сумма уровня для подписи. За всё время — с первой операции.
+  flowVals(from, to, spec, inRub) {
+    const st = this.state, all = spec.series.flatMap(x => x.ops);
+    if (!from) from = all.reduce((m, t) => (t.d < m ? t.d : m), to || TODAY);
     if (!to) to = TODAY;
     const days = from <= to ? Math.round((Date.parse(to) - Date.parse(from)) / 864e5) + 1 : 0;
     // слишком много столбцов не прочесть: длинный период переходит на шаг крупнее
@@ -6357,29 +6384,38 @@ class Component extends DCLogic {
       while (lo <= hi) { const mid = (lo + hi) >> 1; if (fb[mid].from <= d) { r = mid; lo = mid + 1; } else hi = mid - 1; }
       return r;
     };
-    const inc = fb.map(() => 0), exp = fb.map(() => 0);
-    flow.forEach(t => { const i = locate(t.d); if (i < 0) return; const v = inRub(t); if (v > 0) inc[i] += v; else exp[i] -= v; });
-    const fc = this.barChart(fb, [{ key: "inc", color: "var(--accent)", values: inc }, { key: "exp", color: "var(--bar-muted)", values: exp }], st.repFlowHover, "repFlowHover");
-    const sumOf = a => a.reduce((s, v) => s + v, 0), totalInc = sumOf(inc), totalExp = sumOf(exp);
+    const series = spec.series.map(x => {
+      const values = fb.map(() => 0);
+      x.ops.forEach(t => { const i = locate(t.d); if (i >= 0) values[i] += Math.abs(inRub(t)); });
+      return { ...x, values, total: values.reduce((a, v) => a + v, 0) };
+    });
+    const fc = this.barChart(fb, series, st.repFlowHover, "repFlowHover", spec.stacked);
+    const at = fc.at, root = !spec.stacked && series.length === 2;
+    const bucketSum = at >= 0 ? series.reduce((a, x) => a + x.values[at], 0) : 0;
+    const row = (key, label, color, value, bold) => ({ key, label, color, value: this.money(value), weight: bold ? "600" : "400", border: bold ? "1px solid var(--line)" : "0" });
+    const coarse = fg !== want ? " Для такого длинного периода показано по " + (fg === "week" ? "неделям" : "месяцам") + "." : "";
     return {
       repFlowOn: fb.length > 0,
+      flowTitle: spec.title,
       flowGrans: [["day", "День"], ["week", "Неделя"], ["month", "Месяц"]].map(([g, label]) => ({
         key: g, label, on: fg === g ? "1" : "0", pick: () => this.setState({ repFlowGran: g, repFlowHover: null }) })),
-      flowHovering: fc.at >= 0,
-      flowIncLabel: this.money(totalInc), flowExpLabel: this.money(totalExp),
-      flowTip: fc.at >= 0, flowTipL: fc.tipL, flowTipR: fc.tipR,
-      flowTipTitle: fc.at >= 0 ? fb[fc.at].title : "",
-      flowTipRows: fc.at < 0 ? [] : [
-        { key: "i", label: "доходы", color: "var(--accent)", value: this.money(inc[fc.at]), weight: "400", border: "0" },
-        { key: "e", label: "траты", color: "var(--bar-muted)", value: this.money(exp[fc.at]), weight: "400", border: "0" },
-        { key: "d", label: "разница", color: "transparent", value: this.money(inc[fc.at] - exp[fc.at]), weight: "600", border: "1px solid var(--line)" }
-      ],
+      flowHovering: at >= 0,
+      flowLegend: series.map(x => ({ key: x.key, label: x.label, color: x.color, value: this.money(x.total),
+        open: x.open || (() => {}), link: x.open ? "1" : "0" })),
+      flowTip: at >= 0, flowTipL: fc.tipL, flowTipR: fc.tipR,
+      flowTipTitle: at >= 0 ? fb[at].title : "",
+      flowTipRows: at < 0 ? [] : root
+        ? series.map(x => row(x.key, x.label, x.color, x.values[at], false))
+          .concat([row("d", "разница", "transparent", series[0].values[at] - series[1].values[at], true)])
+        : series.filter(x => x.values[at] > 0).map(x => row(x.key, x.label, x.color, x.values[at], false))
+          .concat(series.length > 1 ? [row("t", "всего", "transparent", bucketSum, true)] : []),
       flowBars: fc.bars, flowHits: fc.hits, flowTicks: fc.ticks, flowMaxLabel: fc.maxLabel, flowLeave: fc.leave,
-      flowAria: "Доходы и траты по " + (fg === "day" ? "дням" : fg === "week" ? "неделям" : "месяцам") + ": доходы " + this.money(totalInc) + ", траты " + this.money(totalExp),
-      flowNote: (fb.length < 2
-        ? "Чтобы сравнить периоды между собой, выберите интервал длиннее или шаг помельче."
-        : "За период доход " + this.money(totalInc) + ", траты " + this.money(totalExp) + ". Отложено " + this.money(totalInc - totalExp) + ".")
-        + (fg !== want ? " Для такого длинного периода показано по " + (fg === "week" ? "неделям" : "месяцам") + "." : "")
+      flowAria: spec.title + " по " + (fg === "day" ? "дням" : fg === "week" ? "неделям" : "месяцам") + ": "
+        + series.map(x => x.label + " " + this.money(x.total)).join(", "),
+      flowNote: (fb.length < 2 ? "Чтобы сравнить периоды между собой, выберите интервал длиннее или шаг помельче."
+        : root ? "За период доход " + this.money(series[0].total) + ", траты " + this.money(series[1].total) + ". Отложено " + this.money(series[0].total - series[1].total) + "."
+        : series.length > 1 ? "Столбец — сумма за отрезок, цвет — категория, как в списке ниже; нажмите на цвет, чтобы открыть её."
+        : "Столбец — сумма за отрезок.") + coarse
     };
   }
   anaCharts(inRub) {
