@@ -1820,6 +1820,46 @@
                   <span class="segopt" data-on="{{ repDonutOn }}" onClick="{{ showRepDonut }}">Круг</span>
                 </div>
               </div>
+                <!-- доходы и траты по дням, неделям или месяцам — за период и по счетам отчёта -->
+                <sc-if value="{{ repFlowOn }}" hint-placeholder-val="{{ true }}">
+                <div style="padding-bottom:16px;border-bottom:1px solid var(--line)">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+                  <div class="big" style="font-size:15px">Доходы и траты</div>
+                  <div class="seg">
+                    <sc-for list="{{ flowGrans }}" as="g" hint-placeholder-count="3"><span class="segopt" data-on="{{ g.on }}" onClick="{{ g.pick }}">{{ g.label }}</span></sc-for>
+                  </div>
+                </div>
+                <div style="display:flex;flex-wrap:wrap;gap:4px 18px;font-size:12px;color:var(--ink2);margin-top:6px">
+                  <span style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius:3px;background:var(--accent)"></span>доходы <span class="num" style="color:var(--ink)" hidden="{{ flowHovering }}">{{ flowIncLabel }}</span></span>
+                  <span style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius:3px;background:var(--bar-muted)"></span>траты <span class="num" style="color:var(--ink)" hidden="{{ flowHovering }}">{{ flowExpLabel }}</span></span>
+                </div>
+                <div style="position:relative;margin-top:14px">
+                  <svg viewBox="0 0 620 210" style="display:block;width:100%;height:auto" role="img" aria-label="{{ flowAria }}" onMouseLeave="{{ flowLeave }}">
+                    <sc-for list="{{ flowHits }}" as="h" hint-placeholder-count="6"><rect x="{{ h.x }}" y="24" width="{{ h.w }}" height="176" rx="4" style="fill:{{ h.fill }}" onMouseEnter="{{ h.enter }}" onClick="{{ h.enter }}"></rect></sc-for>
+                    <line x1="16" y1="40" x2="604" y2="40" style="stroke:var(--grid);stroke-dasharray:3 4;pointer-events:none"></line>
+                    <sc-for list="{{ flowBars }}" as="b" hint-placeholder-count="12"><rect x="{{ b.x }}" y="{{ b.y }}" width="{{ b.w }}" height="{{ b.h }}" rx="{{ b.rx }}" style="fill:{{ b.color }};pointer-events:none"></rect></sc-for>
+                    <line x1="16" y1="200" x2="604" y2="200" style="stroke:var(--grid);pointer-events:none"></line>
+                  </svg>
+                  <span class="num" style="position:absolute;left:0;top:19%;transform:translateY(-115%);font-size:11px;color:var(--ink3);pointer-events:none">{{ flowMaxLabel }}</span>
+                  <sc-if value="{{ flowTip }}" hint-placeholder-val="{{ false }}">
+                    <div style="position:absolute;top:6%;left:{{ flowTipL }};right:{{ flowTipR }};width:max-content;min-width:min(150px,40%);max-width:40%;padding:10px 12px;border-radius:12px;background:var(--raised);border:1px solid var(--line);box-shadow:0 8px 24px rgba(0,0,0,.22);font-size:12px;pointer-events:none;z-index:2">
+                      <div style="font-size:13px;font-weight:600;margin-bottom:6px">{{ flowTipTitle }}</div>
+                      <sc-for list="{{ flowTipRows }}" as="r" hint-placeholder-count="3">
+                        <div style="display:flex;align-items:center;gap:8px;padding:3px 0;font-weight:{{ r.weight }};border-top:{{ r.border }}">
+                          <span style="width:8px;height:8px;border-radius:2px;flex:none;background:{{ r.color }}"></span>
+                          <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink2)">{{ r.label }}</span>
+                          <span class="num" style="white-space:nowrap;margin-left:8px">{{ r.value }}</span>
+                        </div>
+                      </sc-for>
+                    </div>
+                  </sc-if>
+                </div>
+                <div style="position:relative;height:16px;margin-top:4px">
+                  <sc-for list="{{ flowTicks }}" as="t" hint-placeholder-count="6"><span class="tick" data-minor="{{ t.minor }}" style="position:absolute;left:{{ t.left }};transform:translateX(-50%);font-size:11px;color:var(--ink3);white-space:nowrap">{{ t.label }}</span></sc-for>
+                </div>
+                <p style="margin:10px 0 0;font-size:13px;color:var(--ink2);max-width:52ch">{{ flowNote }}</p>
+                </div>
+                </sc-if>
               <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:14px">
                 <sc-if value="{{ repCanBack }}" hint-placeholder-val="{{ false }}">
                   <button class="btn btn-s" style="padding:5px 12px;margin-right:4px" onClick="{{ repBack }}">‹ Назад</button>
@@ -2011,44 +2051,6 @@
                 </sc-for>
               </div>
               <div style="font-size:13px;color:var(--ink3);margin-top:14px;display:{{ noSpendDisplay }}">За выбранный период трат нет.</div>
-            </div>
-            <div class="card" style="padding:20px 22px">
-              <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
-                <div class="big" style="font-size:17px">Доходы и траты</div>
-                <div class="seg">
-                  <sc-for list="{{ flowGrans }}" as="g" hint-placeholder-count="3"><span class="segopt" data-on="{{ g.on }}" onClick="{{ g.pick }}">{{ g.label }}</span></sc-for>
-                </div>
-              </div>
-              <div style="font-size:12px;color:var(--ink3);margin-top:2px">{{ flowCaption }}</div>
-              <div style="display:flex;flex-wrap:wrap;gap:4px 18px;font-size:12px;color:var(--ink2);margin-top:6px">
-                <span style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius:3px;background:var(--accent)"></span>доходы <span class="num" style="color:var(--ink)" hidden="{{ flowHovering }}">{{ flowIncLabel }}</span></span>
-                <span style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius:3px;background:var(--bar-muted)"></span>траты <span class="num" style="color:var(--ink)" hidden="{{ flowHovering }}">{{ flowExpLabel }}</span></span>
-              </div>
-              <div style="position:relative;margin-top:14px">
-                <svg viewBox="0 0 620 210" style="display:block;width:100%;height:auto" role="img" aria-label="{{ flowAria }}" onMouseLeave="{{ flowLeave }}">
-                  <sc-for list="{{ flowHits }}" as="h" hint-placeholder-count="6"><rect x="{{ h.x }}" y="24" width="{{ h.w }}" height="176" rx="4" style="fill:{{ h.fill }}" onMouseEnter="{{ h.enter }}" onClick="{{ h.enter }}"></rect></sc-for>
-                  <line x1="16" y1="40" x2="604" y2="40" style="stroke:var(--grid);stroke-dasharray:3 4;pointer-events:none"></line>
-                  <sc-for list="{{ flowBars }}" as="b" hint-placeholder-count="12"><rect x="{{ b.x }}" y="{{ b.y }}" width="{{ b.w }}" height="{{ b.h }}" rx="{{ b.rx }}" style="fill:{{ b.color }};pointer-events:none"></rect></sc-for>
-                  <line x1="16" y1="200" x2="604" y2="200" style="stroke:var(--grid);pointer-events:none"></line>
-                </svg>
-                <span class="num" style="position:absolute;left:0;top:19%;transform:translateY(-115%);font-size:11px;color:var(--ink3);pointer-events:none">{{ flowMaxLabel }}</span>
-                <sc-if value="{{ flowTip }}" hint-placeholder-val="{{ false }}">
-                  <div style="position:absolute;top:6%;left:{{ flowTipL }};right:{{ flowTipR }};width:max-content;min-width:min(150px,40%);max-width:40%;padding:10px 12px;border-radius:12px;background:var(--raised);border:1px solid var(--line);box-shadow:0 8px 24px rgba(0,0,0,.22);font-size:12px;pointer-events:none;z-index:2">
-                    <div style="font-size:13px;font-weight:600;margin-bottom:6px">{{ flowTipTitle }}</div>
-                    <sc-for list="{{ flowTipRows }}" as="r" hint-placeholder-count="3">
-                      <div style="display:flex;align-items:center;gap:8px;padding:3px 0;font-weight:{{ r.weight }};border-top:{{ r.border }}">
-                        <span style="width:8px;height:8px;border-radius:2px;flex:none;background:{{ r.color }}"></span>
-                        <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink2)">{{ r.label }}</span>
-                        <span class="num" style="white-space:nowrap;margin-left:8px">{{ r.value }}</span>
-                      </div>
-                    </sc-for>
-                  </div>
-                </sc-if>
-              </div>
-              <div style="position:relative;height:16px;margin-top:4px">
-                <sc-for list="{{ flowTicks }}" as="t" hint-placeholder-count="6"><span class="tick" data-minor="{{ t.minor }}" style="position:absolute;left:{{ t.left }};transform:translateX(-50%);font-size:11px;color:var(--ink3);white-space:nowrap">{{ t.label }}</span></sc-for>
-              </div>
-              <p style="margin:10px 0 0;font-size:13px;color:var(--ink2);max-width:52ch">{{ anaNote }}</p>
             </div>
             </div>
           </div>
@@ -3647,7 +3649,7 @@ class Component extends DCLogic {
     accName: "", accKind: "Карта", accCur: "RUB", accTo: "", receive: "", receiveTouched: false,
     catId: null, catName: "", catParent: "", catKind: "expense", catIcon: "", catTab: "expense",
     anaPreset: "month", anaFrom: THIS_MONTH + "-01", anaTo: TODAY,
-    anaGran: "day", anaHover: null, anaCats: null, anaCatGran: "week", anaCatHover: null,
+    repFlowGran: null, repFlowHover: null, anaCats: null, anaCatGran: "week", anaCatHover: null,
     dataText: "", dataMsg: "", dataAdminMsg: "", bkMsg: "", bkEdit: null, calcField: null, accOrdDraft: [], accOrdLast: null, accOrdDrag: null, catFold: initialCatFold, catDrag: null,
     // повторяющиеся операции: rcId — какое правило изменяется, null — новое
     budgets: [], budgetAlert: { on: true, pct: 90 }, pushKey: "", pushDevices: 0, pushStatus: "", pushMsg: "", alertPctDraft: "",
@@ -6228,6 +6230,7 @@ class Component extends DCLogic {
       repDetailOn: st.repMode !== "months" ? "1" : "0", repMonthsOn: st.repMode === "months" ? "1" : "0",
       showRepDetail: () => this.set("repMode", "detail"), showRepMonths: () => this.set("repMode", "months"),
       repFrom: st.repFrom, repTo: st.repTo, repPreset: st.repPreset,
+      ...(st.screen === "reports" && st.repMode !== "months" ? this.flowVals(st.repFrom, st.repTo, flow, inRub) : { repFlowOn: false }),
       repPresets: [{ key: "all", value: "all", label: "Весь период" }]
         .concat(this.presets().map(p => ({ key: p.id, value: p.id, label: p.label })))
         .concat([{ key: "custom", value: "custom", label: "Произвольно" }]),
@@ -6333,6 +6336,48 @@ class Component extends DCLogic {
       at
     };
   }
+  // «Доходы и траты» в детализации отчёта: доходы и траты за период отчёта по дням,
+  // неделям или месяцам, по тем же счетам. За всё время — с первой операции.
+  flowVals(from, to, flow, inRub) {
+    const st = this.state;
+    if (!from) from = flow.reduce((m, t) => (t.d < m ? t.d : m), to || TODAY);
+    if (!to) to = TODAY;
+    const days = from <= to ? Math.round((Date.parse(to) - Date.parse(from)) / 864e5) + 1 : 0;
+    // слишком много столбцов не прочесть: длинный период переходит на шаг крупнее
+    const fit = g => (g === "day" && days > 366 ? fit("week") : g === "week" && days > 366 * 5 ? "month" : g);
+    // пока шаг не выбран, он идёт от длины периода: месяц — по дням, до четырёх месяцев — по неделям
+    const want = st.repFlowGran || (days <= 31 ? "day" : days <= 124 ? "week" : "month");
+    const fg = fit(want), fb = this.buckets(from, to, fg);
+    const locate = d => {
+      let lo = 0, hi = fb.length - 1, r = -1;
+      while (lo <= hi) { const mid = (lo + hi) >> 1; if (fb[mid].from <= d) { r = mid; lo = mid + 1; } else hi = mid - 1; }
+      return r;
+    };
+    const inc = fb.map(() => 0), exp = fb.map(() => 0);
+    flow.forEach(t => { const i = locate(t.d); if (i < 0) return; const v = inRub(t); if (v > 0) inc[i] += v; else exp[i] -= v; });
+    const fc = this.barChart(fb, [{ key: "inc", color: "var(--accent)", values: inc }, { key: "exp", color: "var(--bar-muted)", values: exp }], st.repFlowHover, "repFlowHover");
+    const sumOf = a => a.reduce((s, v) => s + v, 0), totalInc = sumOf(inc), totalExp = sumOf(exp);
+    return {
+      repFlowOn: fb.length > 0,
+      flowGrans: [["day", "День"], ["week", "Неделя"], ["month", "Месяц"]].map(([g, label]) => ({
+        key: g, label, on: fg === g ? "1" : "0", pick: () => this.setState({ repFlowGran: g, repFlowHover: null }) })),
+      flowHovering: fc.at >= 0,
+      flowIncLabel: this.money(totalInc), flowExpLabel: this.money(totalExp),
+      flowTip: fc.at >= 0, flowTipL: fc.tipL, flowTipR: fc.tipR,
+      flowTipTitle: fc.at >= 0 ? fb[fc.at].title : "",
+      flowTipRows: fc.at < 0 ? [] : [
+        { key: "i", label: "доходы", color: "var(--accent)", value: this.money(inc[fc.at]), weight: "400", border: "0" },
+        { key: "e", label: "траты", color: "var(--bar-muted)", value: this.money(exp[fc.at]), weight: "400", border: "0" },
+        { key: "d", label: "разница", color: "transparent", value: this.money(inc[fc.at] - exp[fc.at]), weight: "600", border: "1px solid var(--line)" }
+      ],
+      flowBars: fc.bars, flowHits: fc.hits, flowTicks: fc.ticks, flowMaxLabel: fc.maxLabel, flowLeave: fc.leave,
+      flowAria: "Доходы и траты по " + (fg === "day" ? "дням" : fg === "week" ? "неделям" : "месяцам") + ": доходы " + this.money(totalInc) + ", траты " + this.money(totalExp),
+      flowNote: (fb.length < 2
+        ? "Чтобы сравнить периоды между собой, выберите интервал длиннее или шаг помельче."
+        : "За период доход " + this.money(totalInc) + ", траты " + this.money(totalExp) + ". Отложено " + this.money(totalInc - totalExp) + ".")
+        + (fg !== want ? " Для такого длинного периода показано по " + (fg === "week" ? "неделям" : "месяцам") + "." : "")
+    };
+  }
   anaCharts(inRub) {
     const st = this.state, from = st.anaFrom, to = st.anaTo;
     const range = from && to && from <= to ? this.rangeLabel(from, to) : "Выберите период";
@@ -6349,13 +6394,6 @@ class Component extends DCLogic {
       return r;
     };
     const sumOf = a => a.reduce((s, v) => s + v, 0);
-
-    // доходы и траты
-    const fg = fit(st.anaGran), fb = this.buckets(from, to, fg), fi = locate(fb);
-    const inc = fb.map(() => 0), exp = fb.map(() => 0);
-    flow.forEach(t => { const i = fi(t.d); if (i < 0) return; const v = inRub(t); if (v > 0) inc[i] += v; else exp[i] -= v; });
-    const fc = this.barChart(fb, [{ key: "inc", color: "var(--accent)", values: inc }, { key: "exp", color: "var(--bar-muted)", values: exp }], st.anaHover, "anaHover");
-    const totalInc = sumOf(inc), totalExp = sumOf(exp);
 
     // категории: a category counts with its whole subtree, expense ones by
     // spending and income ones by income
@@ -6385,24 +6423,6 @@ class Component extends DCLogic {
       .reduce((acc, c) => acc.concat([{ key: "o" + c.id, value: String(c.id), label: "  ".repeat(depth) + c.name, disabled: sel.indexOf(c.id) !== -1 }], tree(c.id, depth + 1, kind)), []);
 
     return {
-      flowGrans: grans(st.anaGran, "anaGran", "anaHover"),
-      // the header keeps the whole period; the hovered bar's figures are in the tooltip
-      flowCaption: range, flowHovering: fc.at >= 0,
-      flowIncLabel: this.money(totalInc), flowExpLabel: this.money(totalExp),
-      flowTip: fc.at >= 0, flowTipL: fc.tipL, flowTipR: fc.tipR,
-      flowTipTitle: fc.at >= 0 ? fb[fc.at].title : "",
-      flowTipRows: fc.at < 0 ? [] : [
-        { key: "i", label: "доходы", color: "var(--accent)", value: this.money(inc[fc.at]), weight: "400", border: "0" },
-        { key: "e", label: "траты", color: "var(--bar-muted)", value: this.money(exp[fc.at]), weight: "400", border: "0" },
-        { key: "d", label: "разница", color: "transparent", value: this.money(inc[fc.at] - exp[fc.at]), weight: "600", border: "1px solid var(--line)" }
-      ],
-      flowBars: fc.bars, flowHits: fc.hits, flowTicks: fc.ticks, flowMaxLabel: fc.maxLabel, flowLeave: fc.leave,
-      flowAria: "Доходы и траты по " + (fg === "day" ? "дням" : fg === "week" ? "неделям" : "месяцам") + ": доходы " + this.money(totalInc) + ", траты " + this.money(totalExp),
-      anaNote: (fb.length < 2
-        ? "Чтобы сравнить периоды между собой, выберите интервал длиннее или шаг помельче."
-        : "За период доход " + this.money(totalInc) + ", траты " + this.money(totalExp) + ". Отложено " + this.money(totalInc - totalExp) + ".")
-        + coarser(st.anaGran, fg),
-
       catGrans: grans(st.anaCatGran, "anaCatGran", "anaCatHover"),
       catCaption: range,
       // the chips only name the series — the figures are in the tooltip
