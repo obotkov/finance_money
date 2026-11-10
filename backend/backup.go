@@ -178,12 +178,6 @@ func (s *Store) DataChanged(ctx context.Context, uid int64) error {
 	return err
 }
 
-// CreateBackup сохраняет снимок текущих данных, и он становится текущей версией.
-func (s *Store) CreateBackup(ctx context.Context, uid int64) error {
-	_, err := s.createBackup(ctx, uid, "manual")
-	return err
-}
-
 // createBackup сохраняет бекап, делает его текущей версией и возвращает id.
 func (s *Store) createBackup(ctx context.Context, uid int64, kind string) (int64, error) {
 	var id int64

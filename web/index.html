@@ -2262,7 +2262,7 @@
             <div class="card" style="grid-column:1 / -1;padding:20px 22px;display:flex;flex-direction:column;gap:14px">
               <div>
                 <div class="big" style="font-size:17px">Telegram</div>
-                <div style="font-size:13px;color:var(--ink3)">Сводка по финансам и файл бекапа — каждый понедельник в 10:00 по Москве. В сводке: сколько на счетах, доходы и расходы за неделю и с начала месяца, куда ушло больше всего, бюджеты у лимита и платежи на ближайшую неделю.</div>
+                <div style="font-size:13px;color:var(--ink3)">Сводка по финансам и файл бекапа — каждый понедельник в 10:00 по Москве. В сводке: сколько на счетах, доходы и расходы за неделю и с начала месяца, куда ушло больше всего, бюджеты у лимита и платежи на ближайшую неделю. Бекап приходит и сам: если данные менялись, а бекапа нет больше 3 дней. Бекап, сделанный кнопкой в «Бекапах», тоже отправляется сюда.</div>
               </div>
               <sc-if value="{{ tgOff }}" hint-placeholder-val="{{ false }}">
                 <div style="font-size:13px;color:var(--ink2)">{{ tgOffText }}</div>
@@ -2277,7 +2277,7 @@
               <sc-if value="{{ tgLinked }}" hint-placeholder-val="{{ false }}">
                 <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
                   <span style="font-size:14px">Подключено: <b>{{ tgName }}</b></span>
-                  <span style="font-size:13px;color:var(--ink3);margin-left:auto">По понедельникам</span>
+                  <span style="font-size:13px;color:var(--ink3);margin-left:auto">Сводка и бекапы сами</span>
                   <div class="seg">
                     <span class="segopt" data-on="{{ tgWeeklyOn }}" onClick="{{ tgWeeklySet }}">Присылать</span>
                     <span class="segopt" data-on="{{ tgWeeklyOff }}" onClick="{{ tgWeeklyUnset }}">Нет</span>
@@ -5859,7 +5859,9 @@ class Component extends DCLogic {
       makeBackup: () => {
         if (!st.online) { this.set("bkMsg", "Без сервера бекапы не сохраняются."); return; }
         this.set("bkMsg", "");
-        this.api("POST", "backups").then(() => this.set("bkMsg", "Бекап сохранён.")).catch(() => {});
+        // при подключённом Telegram сервер сам отправит файл в чат
+        const tg = st.telegram || {};
+        this.api("POST", "backups").then(() => this.set("bkMsg", tg.linked && tg.ready ? "Бекап сохранён, копия уходит в Telegram." : "Бекап сохранён.")).catch(() => {});
       },
       onBackupFile: e => {
         const file = e.target.files && e.target.files[0];

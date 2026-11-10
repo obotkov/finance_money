@@ -28,6 +28,8 @@ import (
 const (
 	telegramLinkTTL = 15 * time.Minute
 	weeklyHour      = 10 // по Москве, в понедельник
+	// данные менялись, а бекапа нет дольше этого — бекап делается сам и уходит в чат
+	staleBackupAge = 3 * 24 * time.Hour
 )
 
 type Telegram struct {
@@ -179,6 +181,7 @@ func (t *Telegram) Run(ctx context.Context) {
 	_ = t.call(ctx, "deleteWebhook", map[string]any{}, nil)
 	go t.poll(ctx)
 	t.weekly(ctx)
+	t.staleBackups(ctx)
 	tick := time.NewTicker(10 * time.Minute)
 	defer tick.Stop()
 	for {
@@ -187,6 +190,7 @@ func (t *Telegram) Run(ctx context.Context) {
 			return
 		case <-tick.C:
 			t.weekly(ctx)
+			t.staleBackups(ctx)
 		}
 	}
 }
@@ -296,11 +300,19 @@ func (t *Telegram) SendSummary(ctx context.Context, uid int64, weekly bool) erro
 
 // SendBackup сохраняет бекап (он же появится в списке на сайте) и отправляет его файлом.
 func (t *Telegram) SendBackup(ctx context.Context, uid int64) error {
-	chat, err := t.store.telegramChat(ctx, uid)
-	if err != nil {
+	if _, err := t.store.telegramChat(ctx, uid); err != nil {
 		return err
 	}
 	id, err := t.store.createBackup(ctx, uid, "telegram")
+	if err != nil {
+		return err
+	}
+	return t.SendBackupFile(ctx, uid, id)
+}
+
+// SendBackupFile отправляет в чат уже сохранённый бекап.
+func (t *Telegram) SendBackupFile(ctx context.Context, uid, id int64) error {
+	chat, err := t.store.telegramChat(ctx, uid)
 	if err != nil {
 		return err
 	}
@@ -342,6 +354,35 @@ func (t *Telegram) weekly(ctx context.Context) {
 			t.log.Warn("telegram: weekly backup", "user", uid, "err", err)
 		}
 		t.log.Info("telegram: weekly sent", "user", uid, "week", week)
+	}
+}
+
+// staleBackups делает бекап и шлёт его в чат тем, у кого данные изменились после
+// последнего бекапа, а сам он старше staleBackupAge (бекапов не было — считаем от
+// регистрации). Новый бекап становится текущей версией, поэтому до следующих
+// изменений повтора не будет — и упавшая отправка не шлёт по кругу. Выключатель
+// «Присылать» в Настройках отключает и это.
+func (t *Telegram) staleBackups(ctx context.Context) {
+	if t.Username() == "" {
+		return
+	}
+	rows, _ := t.store.db.Query(ctx, `
+		SELECT u.id FROM users u
+		WHERE u.telegram_chat_id IS NOT NULL AND u.telegram_weekly AND u.current_backup_id IS NULL
+		  AND COALESCE((SELECT max(b.created_at) FROM backups b WHERE b.user_id = u.id), u.created_at) < now() - make_interval(secs => $1)
+		  AND (EXISTS (SELECT 1 FROM accounts a WHERE a.user_id = u.id) OR EXISTS (SELECT 1 FROM transactions x WHERE x.user_id = u.id))`,
+		staleBackupAge.Seconds())
+	ids, err := pgx.CollectRows(rows, pgx.RowTo[int64])
+	if err != nil {
+		t.log.Warn("telegram: stale backup users", "err", err)
+		return
+	}
+	for _, uid := range ids {
+		if err := t.SendBackup(ctx, uid); err != nil {
+			t.log.Warn("telegram: stale backup", "user", uid, "err", err)
+			continue
+		}
+		t.log.Info("telegram: stale backup sent", "user", uid)
 	}
 }
 

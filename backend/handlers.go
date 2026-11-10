@@ -228,7 +228,11 @@ func (a *API) Handler() http.Handler {
 	mux.HandleFunc("POST /api/import", a.importCSV)
 
 	mux.HandleFunc("POST /api/backups", a.withState(func(r *http.Request, uid int64) error {
-		return s.CreateBackup(r.Context(), uid)
+		id, err := s.createBackup(r.Context(), uid, "manual")
+		if err == nil {
+			a.sendBackupToTelegram(uid, id)
+		}
+		return err
 	}))
 	mux.HandleFunc("PUT /api/backups/{id}", a.withState(withIDBody(s.RenameBackup)))
 	mux.HandleFunc("DELETE /api/backups/{id}", a.withState(withID(s.DeleteBackup)))
@@ -337,6 +341,26 @@ func (a *API) searchCoins(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"coins": found})
+}
+
+// sendBackupToTelegram отправляет сохранённый бекап в чат, если Telegram подключён.
+// В фоне: кнопка «Сделать бекап» не ждёт Telegram, а неудача только пишется в лог.
+func (a *API) sendBackupToTelegram(uid, id int64) {
+	if a.tg == nil || a.tg.Username() == "" {
+		return
+	}
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+		defer cancel()
+		err := a.tg.SendBackupFile(ctx, uid, id)
+		var ae *APIError
+		if errors.As(err, &ae) {
+			return // чат не подключён — отправлять некуда
+		}
+		if err != nil {
+			a.log.Warn("telegram: manual backup", "user", uid, "err", err)
+		}
+	}()
 }
 
 // telegramLink выдаёт ссылку t.me/<бот>?start=<код> для привязки чата.
