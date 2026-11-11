@@ -280,6 +280,11 @@
   .crop-close { display: inline-block; margin-top: 3px; padding: 3px 10px; font-size: 12px; border-radius: 980px; background: var(--btn-s); color: var(--accent); }
   .crop-close:hover { filter: brightness(1.1); }
   .cr-seclabel { font-size: 13px; color: var(--ink2); padding: 0 4px; }
+  /* стоимость за 30 дней и состав — в ряд; на телефоне состав под графиком */
+  .cr-row { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(280px, 1fr); gap: 16px; align-items: stretch; }
+  .cr-row > :only-child { grid-column: 1 / -1; }
+  .cr-mix-body { display: flex; align-items: center; gap: 14px; margin-top: 14px; }
+  @media (max-width: 860px) { .cr-row { grid-template-columns: minmax(0, 1fr); } }
   .cr-total > i { font-style: normal; }
   .catback { flex: none; width: 31px; height: 31px; border: 0; border-radius: 50%; background: var(--fill); color: var(--ink); font-size: 20px; line-height: 1; cursor: pointer; padding: 0 0 2px; }
   /* The header stays on top only where it fits in one row; on a narrow screen it would eat the page */
@@ -1318,6 +1323,7 @@
               </div>
             </div>
 
+            <div class="cr-row">
             <!-- стоимость за 30 дней: линия по дням, подсказка по наведению -->
             <sc-if value="{{ crChartOn }}" hint-placeholder-val="{{ true }}">
             <div class="card" style="padding:18px 20px 14px">
@@ -1351,6 +1357,37 @@
               </div>
             </div>
             </sc-if>
+            <!-- состав: из каких монет сложена стоимость сейчас, в USDT -->
+            <sc-if value="{{ crMixOn }}" hint-placeholder-val="{{ true }}">
+            <div class="card cr-mix" style="padding:18px 20px 14px">
+              <div class="big" style="font-size:15px">Состав</div>
+              <div style="font-size:12px;color:var(--ink3);margin-top:2px">{{ crMixNote }}</div>
+              <div class="cr-mix-body">
+                <div style="position:relative;width:116px;height:116px;flex:none">
+                  <svg viewBox="0 0 120 120" width="116" height="116" role="img" aria-label="{{ crMixAria }}" style="display:block">
+                    <sc-for list="{{ crMixSegs }}" as="s" hint-placeholder-count="4">
+                      <circle cx="60" cy="60" r="48" fill="none" stroke-width="16" stroke-dasharray="{{ s.dash }}" stroke-dashoffset="{{ s.offset }}" transform="rotate(-90 60 60)" opacity="{{ s.opacity }}" style="stroke:{{ s.color }};transition:opacity .15s" onMouseEnter="{{ s.enter }}" onMouseLeave="{{ s.leave }}" onClick="{{ s.enter }}"></circle>
+                    </sc-for>
+                  </svg>
+                  <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;pointer-events:none">
+                    <div style="font-size:11px;color:var(--ink3);max-width:72px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ crMixLabel }}</div>
+                    <div class="num" style="font-size:12px;font-weight:600;white-space:nowrap">{{ crMixValue }}</div>
+                    <div class="num" style="font-size:11px;color:var(--ink3);min-height:14px">{{ crMixPct }}</div>
+                  </div>
+                </div>
+                <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:7px">
+                  <sc-for list="{{ crMixSegs }}" as="s" hint-placeholder-count="4">
+                    <div style="display:flex;align-items:center;gap:8px;font-size:13px;opacity:{{ s.opacity }};transition:opacity .15s" onMouseEnter="{{ s.enter }}" onMouseLeave="{{ s.leave }}" onClick="{{ s.enter }}">
+                      <span style="width:10px;height:10px;border-radius:3px;flex:none;background:{{ s.color }}"></span>
+                      <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ s.label }}</span>
+                      <span class="num" style="color:var(--ink3);white-space:nowrap">{{ s.pctLabel }}</span>
+                    </div>
+                  </sc-for>
+                </div>
+              </div>
+            </div>
+            </sc-if>
+            </div>
 
             <!-- счета с типом «Криптокошелёк» из раздела «Счета» -->
             <sc-if value="{{ crHasAccounts }}" hint-placeholder-val="{{ false }}">
@@ -3659,7 +3696,7 @@ class Component extends DCLogic {
     catId: null, catName: "", catParent: "", catKind: "expense", catIcon: "", catTab: "expense",
     anaPreset: "month", anaFrom: THIS_MONTH + "-01", anaTo: TODAY,
     repFlowGran: null, repFlowHover: null, anaCats: null, anaCatGran: "week", anaCatHover: null,
-    dataText: "", dataMsg: "", dataAdminMsg: "", bkMsg: "", bkEdit: null, calcField: null, accOrdDraft: [], accOrdLast: null, accOrdDrag: null, catFold: initialCatFold, catDrag: null,
+    dataText: "", dataMsg: "", dataAdminMsg: "", bkMsg: "", bkEdit: null, calcField: null, crMixHover: null, accOrdDraft: [], accOrdLast: null, accOrdDrag: null, catFold: initialCatFold, catDrag: null,
     // повторяющиеся операции: rcId — какое правило изменяется, null — новое
     budgets: [], budgetAlert: { on: true, pct: 90 }, pushKey: "", pushDevices: 0, pushStatus: "", pushMsg: "", alertPctDraft: "",
     bgId: null, bgCat: "", bgAmount: "",
@@ -4025,6 +4062,44 @@ class Component extends DCLogic {
   // по операциям: остаток — нынешний минус всё, что было позже дня, монеты — сумма
   // сделок до него включительно (закрытая покупка отдаёт монеты в день закрытия).
   // У портфеля истории состава нет, поэтому он считается в нынешнем составе.
+  // «Состав» рядом со стоимостью за 30 дней: монеты того же, что и график (всё, портфель или
+  // счёт), по стоимости в USDT сейчас — монеты собирает widgetSource, как для виджетов на Сводке.
+  // Слоты палитры — самым крупным, остальное складывается в серое «Другое», как в круге отчёта.
+  cryptoMixVals(port, acc) {
+    const st = this.state;
+    const src = this.widgetSource(port ? "p:" + port.id : acc ? "a:" + (acc.id != null ? acc.id : acc.name) : "all");
+    const coins = Object.entries(src ? src.coins : {})
+      .map(([code, n]) => ({ code, value: n * this.coinUsdt(code) }))
+      .filter(c => c.value > 0.005).sort((x, y) => y.value - x.value);
+    const total = coins.reduce((sum, c) => sum + c.value, 0);
+    if (!coins.length || !(total > 0)) return { crMixOn: false, crMixSegs: [] };
+    const PAL = isDarkTheme() ? ["var(--c1)", "var(--c2)", "var(--c3)", "var(--c5)"] : ["var(--c1)", "var(--c2)", "var(--c3)", "var(--c4)", "var(--c5)"];
+    const fold = coins.length > PAL.length;
+    const parts = (fold ? coins.slice(0, PAL.length - 1) : coins).map((c, i) => ({ key: c.code, label: c.code, value: c.value, color: PAL[i] }));
+    if (fold) parts.push({ key: "other", label: "Другое", value: coins.slice(PAL.length - 1).reduce((sum, c) => sum + c.value, 0), color: "var(--c-other)",
+      title: coins.slice(PAL.length - 1).map(c => c.code).join(", ") });
+    const RING = 2 * Math.PI * 48, GAP = 1.4;
+    const hov = parts.find(p => p.key === st.crMixHover) || null;
+    const pct = v => { const x = v / total * 100; return x >= 10 || x === 0 ? Math.round(x) + " %" : x.toFixed(1).replace(".", ",") + " %"; };
+    const usdt = v => Math.round(v).toLocaleString("ru-RU").replace(/\u00a0/g, " ") + " USDT";
+    let arc = 0;
+    const segs = parts.map(p => {
+      const frac = p.value / total, len = Math.max(frac * RING - (parts.length > 1 ? GAP : 0), 0.5);
+      const seg = { key: p.key, label: p.title ? p.label + " · " + p.title : p.label, color: p.color, pctLabel: pct(p.value),
+        dash: len.toFixed(2) + " " + (RING - len).toFixed(2), offset: (-arc).toFixed(2),
+        opacity: !hov || hov === p ? "1" : ".35",
+        enter: () => { if (this.state.crMixHover !== p.key) this.set("crMixHover", p.key); },
+        leave: () => this.set("crMixHover", null) };
+      arc += frac * RING;
+      return seg;
+    });
+    return {
+      crMixOn: true, crMixSegs: segs,
+      crMixNote: "по курсу сейчас · " + pluralRu(coins.length, "монета", "монеты", "монет"),
+      crMixLabel: hov ? hov.label : "всего", crMixValue: usdt(hov ? hov.value : total), crMixPct: hov ? pct(hov.value) : "",
+      crMixAria: "Состав: " + parts.map(p => p.label + " " + pct(p.value)).join(", ")
+    };
+  }
   cryptoSeries(ports, accs, days) {
     const events = accs.map(acc => {
       const list = [];
@@ -7312,7 +7387,7 @@ class Component extends DCLogic {
     const crSpan = Math.max(crHi0 - crLo0, Math.abs(crHi0) * 0.02, 1);
     const crLo = crLo0 >= 0 ? Math.max(0, crLo0 - crSpan * 0.15) : crLo0 - crSpan * 0.15, crHi = crHi0 + crSpan * 0.15;
     // plot: x 8..612, y 14..H−16 в viewBox 620×H; на телефоне график выше, иначе он сплющен
-    const crH = isNarrow() ? 320 : 180, crB = crH - 16;
+    const crH = isNarrow() ? 256 : 144, crB = crH - 16;
     const cx = i => 8 + i / Math.max(1, crDays.length - 1) * 604;
     const cy = v => crB - (v - crLo) / (crHi - crLo || 1) * (crB - 14);
     const crPts = crSeries.map((v, i) => cx(i).toFixed(1) + "," + cy(v).toFixed(1));
@@ -7816,6 +7891,7 @@ class Component extends DCLogic {
       // ---- Криптовалюта: виджеты, список портфелей и монеты внутри ----
       crInside: !!crOpenPort || !!crOpenAcc,
       crChartOn,
+      ...this.cryptoMixVals(crOpenPort, crOpenAcc),
       crChartLine: crPts.join(" "),
       crChartArea: crPts.length ? "M8," + crB + " L" + crPts.join(" L") + " L612," + crB + " Z" : "",
       crChartBox: "0 0 620 " + crH, crChartR: crH > 200 ? "8" : "4.5", crChartH: String(crH), crChartB: String(crB),
