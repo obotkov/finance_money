@@ -1859,10 +1859,6 @@
                   </select>
                 </div>
                 <button class="inp dfield accpick" data-open="{{ repAccOn }}" data-some="{{ repAccSomeFlag }}" onClick="{{ repAccOpen }}"><span>{{ repAccLabel }}</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"></path></svg></button>
-                <div class="seg" style="margin-left:auto">
-                  <span class="segopt" data-on="{{ repBarsOn }}" onClick="{{ showRepBars }}">Столбцы</span>
-                  <span class="segopt" data-on="{{ repDonutOn }}" onClick="{{ showRepDonut }}">Круг</span>
-                </div>
               </div>
                 <!-- доходы и траты по дням, неделям или месяцам — за период и по счетам отчёта -->
                 <sc-if value="{{ repFlowOn }}" hint-placeholder-val="{{ true }}">
@@ -1915,6 +1911,13 @@
                   <span style="color:var(--ink3);display:{{ c.sepDisplay }}">›</span>
                   <a href="#" style="color:{{ c.color }};font-weight:{{ c.weight }}" onClick="{{ c.go }}">{{ c.label }}</a>
                 </sc-for>
+                <!-- вид нижнего графика — у него самого, а не в общей строке периода -->
+                <sc-if value="{{ repViewOn }}" hint-placeholder-val="{{ true }}">
+                <div class="seg" style="margin-left:auto">
+                  <span class="segopt" data-on="{{ repBarsOn }}" onClick="{{ showRepBars }}">Столбцы</span>
+                  <span class="segopt" data-on="{{ repDonutOn }}" onClick="{{ showRepDonut }}">Круг</span>
+                </div>
+                </sc-if>
               </div>
               <div style="font-size:13px;color:var(--ink2)">{{ repSummary }}</div>
 
@@ -6356,6 +6359,8 @@ class Component extends DCLogic {
       repShowBars: !list && !empty && st.repView === "bars",
       repShowDonut: !list && !empty && st.repView === "donut",
       repShowList: !!list && !empty,
+      // у списка операций выбирать нечего
+      repViewOn: !list && !empty,
       repAria: levelLabel + ": " + items.map(it => it.label + " " + it.pctLabel).join(", "),
       repLevelLabel: hov ? hov.label : levelLabel, repTotalLabel: this.money(hov ? hov.total : total),
       repTotalSub: hov && total > 0 ? Math.round(hov.total / total * 100) + " %" : "",
