@@ -283,7 +283,7 @@
   /* стоимость за 30 дней и состав — в ряд; на телефоне состав под графиком */
   .cr-row { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(280px, 1fr); gap: 16px; align-items: stretch; }
   .cr-row > :only-child { grid-column: 1 / -1; }
-  .cr-mix-body { display: flex; align-items: center; gap: 14px; margin-top: 14px; }
+  .cr-mix-body { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 14px; margin-top: 14px; }
   @media (max-width: 860px) { .cr-row { grid-template-columns: minmax(0, 1fr); } }
   .cr-total > i { font-style: normal; }
   .catback { flex: none; width: 31px; height: 31px; border: 0; border-radius: 50%; background: var(--fill); color: var(--ink); font-size: 20px; line-height: 1; cursor: pointer; padding: 0 0 2px; }
@@ -1371,16 +1371,17 @@
                   </svg>
                   <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;pointer-events:none">
                     <div style="font-size:11px;color:var(--ink3);max-width:72px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ crMixLabel }}</div>
-                    <div class="num" style="font-size:12px;font-weight:600;white-space:nowrap">{{ crMixValue }}</div>
+                    <div class="num" style="font-size:13px;font-weight:600;white-space:nowrap">{{ crMixValue }}</div>
                     <div class="num" style="font-size:11px;color:var(--ink3);min-height:14px">{{ crMixPct }}</div>
                   </div>
                 </div>
-                <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:7px">
+                <div style="flex:1;min-width:190px;display:flex;flex-direction:column;gap:7px">
                   <sc-for list="{{ crMixSegs }}" as="s" hint-placeholder-count="4">
                     <div style="display:flex;align-items:center;gap:8px;font-size:13px;opacity:{{ s.opacity }};transition:opacity .15s" onMouseEnter="{{ s.enter }}" onMouseLeave="{{ s.leave }}" onClick="{{ s.enter }}">
                       <span style="width:10px;height:10px;border-radius:3px;flex:none;background:{{ s.color }}"></span>
-                      <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ s.label }}</span>
-                      <span class="num" style="color:var(--ink3);white-space:nowrap">{{ s.pctLabel }}</span>
+                      <span style="flex:1;min-width:40px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ s.label }}</span>
+                      <span class="num" style="color:var(--ink2);white-space:nowrap">{{ s.valueLabel }}</span>
+                      <span class="num" style="color:var(--ink3);white-space:nowrap;width:44px;text-align:right">{{ s.pctLabel }}</span>
                     </div>
                   </sc-for>
                 </div>
@@ -4081,11 +4082,14 @@ class Component extends DCLogic {
     const RING = 2 * Math.PI * 48, GAP = 1.4;
     const hov = parts.find(p => p.key === st.crMixHover) || null;
     const pct = v => { const x = v / total * 100; return x >= 10 || x === 0 ? Math.round(x) + " %" : x.toFixed(1).replace(".", ",") + " %"; };
-    const usdt = v => Math.round(v).toLocaleString("ru-RU").replace(/\u00a0/g, " ") + " USDT";
+    // число без «USDT»: валюта названа в подписи и под суммой в центре; миллионы — «1,25 млн»
+    const num = v => v >= 1e6 ? (v / 1e6).toLocaleString("ru-RU", { maximumFractionDigits: 2 }) + " млн"
+      : v >= 100 ? Math.round(v).toLocaleString("ru-RU").replace(/\u00a0/g, " ")
+      : v.toLocaleString("ru-RU", { maximumFractionDigits: 2 });
     let arc = 0;
     const segs = parts.map(p => {
       const frac = p.value / total, len = Math.max(frac * RING - (parts.length > 1 ? GAP : 0), 0.5);
-      const seg = { key: p.key, label: p.title ? p.label + " · " + p.title : p.label, color: p.color, pctLabel: pct(p.value),
+      const seg = { key: p.key, label: p.title ? p.label + " · " + p.title : p.label, color: p.color, pctLabel: pct(p.value), valueLabel: num(p.value),
         dash: len.toFixed(2) + " " + (RING - len).toFixed(2), offset: (-arc).toFixed(2),
         opacity: !hov || hov === p ? "1" : ".35",
         enter: () => { if (this.state.crMixHover !== p.key) this.set("crMixHover", p.key); },
@@ -4095,8 +4099,8 @@ class Component extends DCLogic {
     });
     return {
       crMixOn: true, crMixSegs: segs,
-      crMixNote: "по курсу сейчас · " + pluralRu(coins.length, "монета", "монеты", "монет"),
-      crMixLabel: hov ? hov.label : "всего", crMixValue: usdt(hov ? hov.value : total), crMixPct: hov ? pct(hov.value) : "",
+      crMixNote: "в USDT по курсу сейчас · " + pluralRu(coins.length, "монета", "монеты", "монет"),
+      crMixLabel: hov ? hov.label : "всего", crMixValue: num(hov ? hov.value : total), crMixPct: hov ? "USDT · " + pct(hov.value) : "USDT",
       crMixAria: "Состав: " + parts.map(p => p.label + " " + pct(p.value)).join(", ")
     };
   }
