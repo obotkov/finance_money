@@ -23,11 +23,12 @@ if ! grep -q '^DB_PASSWORD=.' .env; then
   echo "DB_PASSWORD=\$(openssl rand -hex 24)" >> .env
 fi
 docker compose up -d --build --remove-orphans
-docker image prune -f >/dev/null
-# кэш сборки растёт с каждой выкладкой и однажды занял весь диск — база легла.
-# Срок «три дня» не спасал при частых выкладках (к октябрю кэш дорос до 2 ГБ),
-# поэтому держим не больше 1 ГБ: старое удаляется первым
-docker builder prune -af --max-used-space 1gb >/dev/null
+# диск сервера — 10 ГБ, и однажды переполненный диск уронил базу. Поэтому после сборки
+# удаляются все образы, которыми не пользуется ни один контейнер (в том числе базовые
+# golang и caddy — следующая выкладка скачает их заново), а кэш сборки держим не больше
+# 0,5 ГБ: срок «три дня» при частых выкладках не спасал, кэш дорастал до 2 ГБ
+docker image prune -af >/dev/null
+docker builder prune -af --max-used-space 512mb >/dev/null
 docker compose ps
 df -h / | tail -1
 EOF
