@@ -1994,7 +1994,7 @@
               <sc-if value="{{ repShowList }}" hint-placeholder-val="{{ false }}">
                 <div style="display:flex;flex-direction:column">
                   <sc-for list="{{ repOps }}" as="o" hint-placeholder-count="6">
-                    <div class="rowline" style="display:flex;align-items:center;gap:12px;padding:11px 12px;border-radius:12px">
+                    <div class="rowline" style="display:flex;align-items:center;gap:12px;padding:11px 12px;border-radius:12px;cursor:pointer" title="Изменить операцию" onClick="{{ o.edit }}">
                       <div style="flex:1;min-width:0">
                         <div style="font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ o.title }}</div>
                         <div class="num" style="font-size:12px;color:var(--ink3)">{{ o.meta }}</div>
@@ -6529,7 +6529,9 @@ class Component extends DCLogic {
         key: "t" + (t.id || i), title: t.t,
         meta: dm(t.d) + (t.tm ? " " + t.tm : "") + " · " + t.a,
         amountLabel: (kind === "income" ? "+" : "−") + this.fmt(Math.abs(t.v), this.curOf(t.a)),
-        color: kind === "income" ? "var(--pos)" : "var(--neg)"
+        color: kind === "income" ? "var(--pos)" : "var(--neg)",
+        // то же окно, что в «Операциях»; после сохранения отчёт пересчитается сам
+        edit: () => this.editOp(t)
       })),
       repEmpty: empty,
       repEmptyText: list ? "В этой категории за период операций нет"
