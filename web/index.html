@@ -289,6 +289,21 @@
   .cr-mix-body { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 14px; margin-top: 14px; }
   @media (max-width: 860px) { .cr-row { grid-template-columns: minmax(0, 1fr); } }
   .cr-total > i { font-style: normal; }
+  /* категории в окне операции: сетка по пять, кружок с иконкой и подпись под ним */
+  .catgrid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px 6px; }
+  .cattile { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 2px 0; border: 0; background: none; color: var(--ink); cursor: pointer; font: inherit; min-width: 0; }
+  .cattile-ic { position: relative; width: 48px; height: 48px; border-radius: 50%; background: var(--fill); display: flex; align-items: center; justify-content: center; font-size: 17px; font-weight: 600; color: var(--ink2); transition: background .12s, box-shadow .12s; }
+  .cattile-ic[data-emoji="1"] { font-size: 23px; font-weight: 400; }
+  .cattile-back { font-size: 24px; font-weight: 400; color: var(--ink); padding-bottom: 3px; box-sizing: border-box; }
+  .cattile:hover .cattile-ic { background: var(--hover); }
+  .cattile-more { position: absolute; right: -3px; bottom: -3px; width: 18px; height: 18px; border-radius: 50%; background: var(--card); box-shadow: 0 0 0 1px var(--line); color: var(--ink2); font-size: 12px; font-weight: 700; line-height: 17px; text-align: center; }
+  .cattile-name { font-size: 12px; line-height: 1.25; text-align: center; max-width: 100%; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: anywhere; }
+  /* выбранная — залитый кружок; ветка, внутри которой выбор, — обводка; сама категория в своём списке — жирная подпись */
+  .cattile[data-on="1"] .cattile-ic { background: var(--accent); color: #fff; box-shadow: 0 0 0 3px var(--accent-soft); }
+  .cattile[data-on="1"] .cattile-name { color: var(--accent); font-weight: 600; }
+  .cattile[data-on="2"] .cattile-ic { box-shadow: inset 0 0 0 2px var(--accent); }
+  .cattile[data-self="1"] .cattile-name { font-weight: 600; }
+  @media (max-width: 760px) { .cattile-ic { width: 44px; height: 44px; } .cattile-name { font-size: 11px; } .catgrid { gap: 10px 4px; } }
   .catback { flex: none; width: 31px; height: 31px; border: 0; border-radius: 50%; background: var(--fill); color: var(--ink); font-size: 20px; line-height: 1; cursor: pointer; padding: 0 0 2px; }
   /* The header stays on top only where it fits in one row; on a narrow screen it would eat the page */
   /* wide screen: the app fills the window exactly; only the section content scrolls,
@@ -2626,14 +2641,15 @@
         <div style="margin-top:14px"><span class="lbl">Комментарий</span><textarea class="inp" rows="2" style="resize:vertical;min-height:52px;line-height:1.4;font-family:inherit" value="{{ note }}" onChange="{{ onNote }}" placeholder="например, продукты на неделю — Enter переносит строку"></textarea></div>
         <sc-if value="{{ showCats }}" hint-placeholder-val="{{ true }}">
         <div style="margin-top:14px"><span class="lbl">Категория{{ catPicked }}</span>
-          <!-- one level at a time: a category with subcategories (marked ›) opens
-               its own list, headed by the back arrow and the category itself -->
-          <div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px">
+          <!-- сетка по пять: кружок с иконкой (или первой буквой) и подпись под ним. Уровень
+               за раз: категория с вложенными (значок › на кружке) открывает свой список,
+               в нём первыми — «Назад» и сама категория -->
+          <div class="catgrid">
             <sc-if value="{{ catInside }}" hint-placeholder-val="{{ false }}">
-              <button class="catback" onClick="{{ catBack }}" aria-label="Назад">‹</button>
+              <button class="cattile" onClick="{{ catBack }}" aria-label="Назад"><span class="cattile-ic cattile-back">‹</span><span class="cattile-name">Назад</span></button>
             </sc-if>
-            <sc-for list="{{ catChips }}" as="c" hint-placeholder-count="6">
-              <span class="chip" data-on="{{ c.on }}" data-self="{{ c.self }}" onClick="{{ c.pick }}"><sc-if value="{{ c.icon }}" hint-placeholder-val="{{ false }}"><span class="chip-ic">{{ c.icon }}</span></sc-if>{{ c.name }}<sc-if value="{{ c.opens }}" hint-placeholder-val="{{ false }}"><span class="chip-more">›</span></sc-if></span>
+            <sc-for list="{{ catChips }}" as="c" hint-placeholder-count="10">
+              <button class="cattile" data-on="{{ c.on }}" data-self="{{ c.self }}" title="{{ c.name }}" onClick="{{ c.pick }}"><span class="cattile-ic" data-emoji="{{ c.emoji }}">{{ c.badge }}<sc-if value="{{ c.opens }}" hint-placeholder-val="{{ false }}"><span class="cattile-more">›</span></sc-if></span><span class="cattile-name">{{ c.name }}</span></button>
             </sc-for>
           </div>
         </div>
@@ -7413,6 +7429,7 @@ class Component extends DCLogic {
     const catChip = (c, self) => {
       const opens = !self && hasKids(c);
       return { key: "c" + c.id, name: c.name, icon: c.icon || "", self: self ? "1" : "0", opens,
+        badge: c.icon || (c.name ? c.name[0].toUpperCase() : "?"), emoji: c.icon ? "1" : "0",
         // "2": the pick sits somewhere inside this category
         on: st.cat === c.name ? "1" : pickedLine.has(c.id) ? "2" : "0",
         pick: () => this.setState(opens ? { catNav: c.id } : { cat: c.name }) };
