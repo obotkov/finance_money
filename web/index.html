@@ -7432,7 +7432,8 @@ class Component extends DCLogic {
         badge: c.icon || (c.name ? c.name[0].toUpperCase() : "?"), emoji: c.icon ? "1" : "0",
         // "2": the pick sits somewhere inside this category
         on: st.cat === c.name ? "1" : pickedLine.has(c.id) ? "2" : "0",
-        pick: () => this.setState(opens ? { catNav: c.id } : { cat: c.name }) };
+        // проваливаясь в категорию, сразу выбираем её саму — дальше можно уточнить вложенной
+        pick: () => this.setState(opens ? { catNav: c.id, cat: c.name } : { cat: c.name }) };
     };
     const catChips = navCat
       ? [catChip(navCat, true)].concat(kidsOf(navCat.id).map(c => catChip(c, false)))
