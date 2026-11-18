@@ -100,7 +100,7 @@ docker compose exec api /api users   # список: почта, имя, спо�
 | POST, PUT `/{id}`, DELETE `/{id}` | `/api/transactions` | `{date, title, type: expense\|income\|transfer\|buy\|sell, category, account, toAccount, amount, received, coin, close, closeDate}` — `close` и `closeDate` только у закрытой покупки |
 | POST | `/api/transactions/merge` | `{ids, result}` — операции одного дня, типа и счёта свести в одну `result` на их сумму |
 | POST | `/api/transactions/{id}/split` | `{parts: [операция, …]}` — 2–5 частей того же типа и с теми же счетами, в сумме ровно исходная; первая встаёт на место операции |
-| POST, PUT `/{id}`, DELETE `/{id}` | `/api/categories` | `{name, parent, kind: expense\|income, icon}` — `icon` один эмодзи из 100 на выбор или пустая строка |
+| POST, PUT `/{id}`, DELETE `/{id}` | `/api/categories` | `{name, parent, kind: expense\|income, icon}` — `icon` — один эмодзи (из 100 на выбор или свой) или пустая строка, до 32 байт |
 | PUT | `/api/categories/order` | `{kind, items: [{id, parent}]}` — все категории типа в порядке обхода дерева |
 | POST, PUT `/{id}`, DELETE `/{id}` | `/api/crypto/portfolios` | `{name, place}` |
 | POST, PUT `/{id}`, DELETE `/{id}` | `/api/crypto/assets` | `{portfolio, coin, amount, invested}` — `portfolio` только при создании |
@@ -265,6 +265,10 @@ docker compose exec api /api users   # список: почта, имя, спо�
 выбор помнит браузер.
 
 ## Категории
+
+Иконка категории — один из 100 эмодзи в сетке или свой: в поле «Своя» вставляют любой эмодзи (с клавиатуры
+эмодзи, из другого приложения); из вставленного берётся последний эмодзи целиком — со склейками и флагами,
+буквы и цифры иконкой не становятся. Своя иконка показывается в сетке отмеченной, сразу после «без иконки».
 
 Дерево категорий, отдельно расходы и доходы, до четырёх уровней. У ветки с вложенными — стрелка, которая
 её сворачивает; «Развернуть всё» и «Свернуть всё» — над списком. Какие ветки свёрнуты, помнит браузер
