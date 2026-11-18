@@ -108,6 +108,7 @@ func (a *API) Handler() http.Handler {
 	mux.HandleFunc("POST /api/transactions", a.withData(withBody(s.CreateTx)))
 	mux.HandleFunc("PUT /api/transactions/{id}", a.withData(withIDBody(s.UpdateTx)))
 	mux.HandleFunc("DELETE /api/transactions/{id}", a.withData(withID(s.DeleteTx)))
+	mux.HandleFunc("POST /api/transactions/merge", a.withData(withBody(s.MergeTx)))
 	mux.HandleFunc("POST /api/transactions/{id}/split", a.withData(withIDBody(s.SplitTx)))
 
 	mux.HandleFunc("POST /api/categories", a.withData(withBody(s.CreateCategory)))

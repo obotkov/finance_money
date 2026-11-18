@@ -144,6 +144,9 @@
     /* в окне операции четыре кнопки в ряд не влезают: «Удалить» и «Разделить» — строкой выше */
     .op-edit-btns { flex-basis: 100%; }
   }
+  .mrg-row { display: flex; align-items: center; gap: 12px; padding: 9px 2px; border-bottom: 1px solid var(--line); cursor: pointer; }
+  .mrg-row input { width: 18px; height: 18px; accent-color: var(--accent); flex: none; margin: 0; }
+  .mrg-row[data-on="0"] { opacity: .45; }
   .flow-leg[data-link="1"] { cursor: pointer; }
   /* на телефоне подсказка не влезает рядом со столбцом — встаёт блоком под графиком */
   @media (max-width: 760px) {
@@ -1001,7 +1004,12 @@
                     <div class="num big" style="font-size:20px;white-space:nowrap">{{ periodExpense }}</div>
                   </div>
                 </div>
-                <button class="btn btn-p ops-add" style="align-self:flex-start;margin-top:2px" aria-label="{{ addLabel }}" title="{{ addLabel }}" onClick="{{ openOpForDate }}"><span class="lbl-full">{{ addLabel }}</span><span class="lbl-plus" style="display:none;font-size:28px;line-height:1;font-weight:400;margin-top:-2px">+</span></button>
+                <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                  <button class="btn btn-p ops-add" style="align-self:flex-start;margin-top:2px" aria-label="{{ addLabel }}" title="{{ addLabel }}" onClick="{{ openOpForDate }}"><span class="lbl-full">{{ addLabel }}</span><span class="lbl-plus" style="display:none;font-size:28px;line-height:1;font-weight:400;margin-top:-2px">+</span></button>
+                  <sc-if value="{{ mrgCan }}" hint-placeholder-val="{{ false }}">
+                    <button class="btn btn-s" style="margin-top:2px" title="Свести операции дня в одну" onClick="{{ mrgOpen }}">Объединить</button>
+                  </sc-if>
+                </div>
               </div>
             </div>
             <div class="ops-main ops-filter" style="display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-bottom:16px">
@@ -2644,6 +2652,52 @@
     </div>
     </sc-if>
 
+    <!-- диалог: объединить операции дня в одну -->
+    <sc-if value="{{ mrgDialog }}" hint-placeholder-val="{{ false }}">
+    <div class="dlg" style="position:fixed;inset:0;display:grid;place-items:center;padding:24px;overflow:auto;background:var(--overlay);backdrop-filter:blur(6px)" onClick="{{ close }}">
+      <div class="card" style="width:min(560px,100%);max-height:calc(100vh - 48px);overflow-y:auto;padding:24px;border-radius:22px;box-shadow:0 24px 60px rgba(0,0,0,.22)" onClick="{{ stop }}">
+        <div class="big" style="font-size:21px">Объединить операции</div>
+        <div style="font-size:13px;color:var(--ink2);margin-top:6px">{{ mrgWhat }}</div>
+        <sc-if value="{{ mrgManyGroups }}" hint-placeholder-val="{{ false }}">
+          <div style="margin-top:14px"><span class="lbl">Что объединить</span>
+            <select class="inp" value="{{ mrgGroupKey }}" onChange="{{ onMrgGroup }}">
+              <sc-for list="{{ mrgGroups }}" as="g" hint-placeholder-count="2"><option value="{{ g.value }}">{{ g.label }}</option></sc-for>
+            </select>
+          </div>
+        </sc-if>
+        <div style="margin-top:12px;border-top:1px solid var(--line)">
+          <sc-for list="{{ mrgRows }}" as="m" hint-placeholder-count="3">
+            <label class="mrg-row" data-on="{{ m.onFlag }}">
+              <input type="checkbox" checked="{{ m.on }}" onChange="{{ m.toggle }}">
+              <span style="flex:1;min-width:0">
+                <span style="display:block;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ m.cat }}</span>
+                <span style="display:block;font-size:12px;color:var(--ink3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ m.note }}</span>
+              </span>
+              <span class="num" style="font-size:14px;white-space:nowrap">{{ m.amount }}</span>
+            </label>
+          </sc-for>
+        </div>
+        <div style="margin-top:14px"><span class="lbl">Категория объединённой операции</span>
+          <select class="inp" value="{{ mrgCat }}" onChange="{{ onMrgCat }}">
+            <sc-for list="{{ mrgCats }}" as="c" hint-placeholder-count="5"><option value="{{ c.value }}">{{ c.label }}</option></sc-for>
+          </select>
+        </div>
+        <div style="margin-top:14px">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px">
+            <span class="lbl">Комментарий</span>
+            <sc-if value="{{ mrgNoteTouched }}" hint-placeholder-val="{{ false }}"><button class="btn btn-t" style="padding:0 2px;font-size:12px;margin-bottom:5px" onClick="{{ mrgNoteReset }}">собрать заново</button></sc-if>
+          </div>
+          <textarea class="inp" rows="4" style="resize:vertical;min-height:84px;line-height:1.4;font-family:inherit" value="{{ mrgNote }}" onChange="{{ onMrgNote }}"></textarea>
+        </div>
+        <div style="font-size:13px;color:{{ mrgSumColor }};margin-top:12px">{{ mrgSum }}</div>
+        <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px">
+          <button class="btn btn-s" onClick="{{ close }}">Отмена</button>
+          <button class="btn btn-p" onClick="{{ mrgSave }}">Объединить</button>
+        </div>
+      </div>
+    </div>
+    </sc-if>
+
     <!-- диалог: разделить операцию на части -->
     <sc-if value="{{ splDialog }}" hint-placeholder-val="{{ false }}">
     <div class="dlg" style="position:fixed;inset:0;display:grid;place-items:center;padding:24px;overflow:auto;background:var(--overlay);backdrop-filter:blur(6px)" onClick="{{ close }}">
@@ -3900,6 +3954,80 @@ class Component extends DCLogic {
       saveClose: () => save(true),
       reopenClose: () => save(false),
       editCloseBuy: () => this.editDeal(t)
+    };
+  }
+
+  // Объединить операции выбранного дня: расходы (или доходы) одного счёта сводятся в одну на их
+  // сумму. В комментарии — строки «категория — сумма — комментарий» по убыванию суммы; его можно
+  // поправить, «собрать заново» возвращает собранный. Остаток счёта не меняется.
+  mergeVals() {
+    const st = this.state, day = st.opsDate;
+    if (!day) return { mrgCan: false, mrgDialog: false };
+    const typeOf = t => (t.v > 0 ? "income" : "expense");
+    const groups = {};
+    st.txs.filter(t => t.d === day && this.isFlow(t)).forEach(t => {
+      const k = typeOf(t) + "|" + t.a;
+      (groups[k] = groups[k] || []).push(t);
+    });
+    const keys = Object.keys(groups).filter(k => groups[k].length > 1)
+      .sort((a, b) => groups[b].length - groups[a].length || (a < b ? -1 : 1));
+    const open = st.dialog === "merge";
+    const base = { mrgCan: keys.length > 0, mrgDialog: open && keys.length > 0,
+      mrgOpen: () => this.setState({ dialog: "merge", mrgGroup: keys[0], mrgOff: [], mrgCatPick: null, mrgNoteText: "", mrgEdited: false }) };
+    if (!open || !keys.length) return base;
+    const key = keys.indexOf(st.mrgGroup) !== -1 ? st.mrgGroup : keys[0];
+    const [type, acc] = key.split("|"), cur = this.curOf(acc);
+    const list = groups[key].slice().sort((a, b) => Math.abs(b.v) - Math.abs(a.v));
+    const id = t => String(t.id != null ? t.id : st.txs.indexOf(t));
+    const off = st.mrgOff || [];
+    const chosen = list.filter(t => off.indexOf(id(t)) === -1);
+    const sum = Number(chosen.reduce((s, t) => s + Math.abs(t.v), 0).toFixed(8));
+    const comment = t => (t.t && t.t !== t.c ? t.t : "");
+    const built = chosen.map(t => [t.c, this.fmt(Math.abs(t.v), cur), comment(t)].filter(Boolean).join(" — ")).join("\n");
+    const note = st.mrgEdited ? st.mrgNoteText : built;
+    // категории того же типа деревом; по умолчанию — категория самой крупной операции
+    const kids = p => st.cats.filter(c => c.parent === p && (p != null || c.kind === type));
+    const flat = (p, d) => kids(p).reduce((acc2, c) => acc2.concat([{ key: "c" + c.id, value: c.name, label: "· ".repeat(d) + c.name }], flat(c.id, d + 1)), []);
+    const cats = flat(null, 0);
+    const cat = st.mrgCatPick && cats.some(c => c.value === st.mrgCatPick) ? st.mrgCatPick : (chosen[0] || list[0]).c;
+    if (!cats.some(c => c.value === cat)) cats.unshift({ key: "cur", value: cat, label: cat });
+    const kindWord = type === "income" ? "Доходы" : "Расходы";
+    const dayLabel = Number(day.slice(8)) + " " + ["января","февраля","марта","апреля","мая","июня","июля","августа","сентября","октября","ноября","декабря"][Number(day.slice(5, 7)) - 1];
+    return {
+      ...base,
+      mrgWhat: kindWord + " за " + dayLabel + " со счёта «" + acc + "» станут одной операцией на их сумму. Остаток счёта не изменится.",
+      mrgManyGroups: keys.length > 1,
+      mrgGroupKey: key,
+      mrgGroups: keys.map(k => { const [t2, a2] = k.split("|"); return { key: k, value: k, label: (t2 === "income" ? "Доходы" : "Расходы") + " · " + a2 + " · " + pluralRu(groups[k].length, "операция", "операции", "операций") }; }),
+      onMrgGroup: e => this.setState({ mrgGroup: e.target.value, mrgOff: [], mrgCatPick: null, mrgEdited: false }),
+      mrgRows: list.map(t => {
+        const on = off.indexOf(id(t)) === -1;
+        return { key: id(t), cat: t.c, note: comment(t) || (t.tm ? t.tm : ""), amount: this.fmt(Math.abs(t.v), cur), on, onFlag: on ? "1" : "0",
+          toggle: () => this.setState(s => ({ mrgOff: on ? (s.mrgOff || []).concat(id(t)) : (s.mrgOff || []).filter(x => x !== id(t)) })) };
+      }),
+      mrgCat: cat, mrgCats: cats, onMrgCat: e => this.set("mrgCatPick", e.target.value),
+      mrgNote: note, mrgNoteTouched: !!st.mrgEdited,
+      onMrgNote: e => this.setState({ mrgNoteText: e.target.value, mrgEdited: true }),
+      mrgNoteReset: () => this.setState({ mrgNoteText: "", mrgEdited: false }),
+      mrgSum: chosen.length < 2 ? "Отметьте хотя бы две операции."
+        : "Итого " + this.fmt(sum, cur) + " — одна операция вместо " + chosen.length + ".",
+      mrgSumColor: chosen.length < 2 ? "var(--neg)" : "var(--ink2)",
+      mrgSave: () => {
+        if (chosen.length < 2) { window.alert("Отметьте хотя бы две операции."); return; }
+        const tm = chosen.map(t => t.tm || "").sort().pop() || "";
+        const title = note.trim();
+        if (st.online) {
+          this.api("POST", "transactions/merge", {
+            ids: chosen.map(t => t.id),
+            result: { date: day, time: tm, title, type, category: cat, account: acc, amount: sum }
+          }).then(() => this.setState({ dialog: null }), () => {});
+          return;
+        }
+        const merged = { d: day, tm, t: title || cat, c: cat, a: acc, v: type === "income" ? sum : -sum };
+        const gone = new Set(chosen);
+        const txs = [merged].concat(st.txs.filter(x => !gone.has(x))).sort((a, b) => (a.d < b.d ? 1 : -1));
+        this.setState({ txs, dialog: null });
+      }
     };
   }
 
@@ -7612,6 +7740,7 @@ class Component extends DCLogic {
       addLabel: st.opsDate
         ? "Добавить за " + Number(st.opsDate.split("-")[2]) + " " + months[Number(st.opsDate.split("-")[1]) - 1]
         : "Новая операция",
+      ...this.mergeVals(),
       openOpForDate: () => {
         if (this.needAccount()) return;
         const iso = st.opsDate || (st.opsY + "-" + String(st.opsM + 1).padStart(2, "0") + "-01");

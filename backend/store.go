@@ -835,6 +835,75 @@ func (s *Store) SplitTx(ctx context.Context, uid, id int64, in struct {
 	})
 }
 
+// MergeTx сводит расходы (или доходы) одного дня и одного счёта в одну операцию на их
+// сумму: исходные удаляются, итоговая записывается под меньшим из их id. Остаток счёта
+// не меняется — сумма та же, счёт тот же.
+func (s *Store) MergeTx(ctx context.Context, uid int64, in struct {
+	IDs    []int64 `json:"ids"`
+	Result TxInput `json:"result"`
+}) error {
+	r := in.Result
+	if err := r.validate(); err != nil {
+		return err
+	}
+	if r.Type != "expense" && r.Type != "income" {
+		return badRequest("Объединить можно только расходы или доходы")
+	}
+	ids := map[int64]bool{}
+	for _, id := range in.IDs {
+		ids[id] = true
+	}
+	if len(ids) < 2 {
+		return badRequest("Выберите хотя бы две операции")
+	}
+	return pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) error {
+		list := make([]int64, 0, len(ids))
+		for id := range ids {
+			list = append(list, id)
+		}
+		rows, _ := tx.Query(ctx, `
+			SELECT t.id, t.type, a.name, t.amount, to_char(t.date, 'YYYY-MM-DD') FROM transactions t
+			JOIN accounts a ON a.id = t.account_id
+			WHERE t.user_id = $1 AND t.id = ANY($2) FOR UPDATE OF t`, uid, list)
+		type row struct {
+			id           int64
+			typ, account string
+			amount       float64
+			date         string
+		}
+		got, err := pgx.CollectRows(rows, func(cr pgx.CollectableRow) (row, error) {
+			var x row
+			err := cr.Scan(&x.id, &x.typ, &x.account, &x.amount, &x.date)
+			return x, err
+		})
+		if err != nil {
+			return err
+		}
+		stale := badRequest("Операции изменились — обновите страницу")
+		if len(got) != len(ids) {
+			return stale
+		}
+		var sum float64
+		keep := got[0].id
+		for _, x := range got {
+			if x.typ != r.Type || x.account != r.Account || x.date != r.Date {
+				return badRequest("Объединяются операции одного дня, одного типа и одного счёта")
+			}
+			sum += x.amount
+			keep = min(keep, x.id)
+		}
+		if math.Abs(sum-r.Amount) > 1e-6 {
+			return stale
+		}
+		for _, x := range got {
+			if err := removeTx(ctx, tx, uid, x.id); err != nil {
+				return err
+			}
+		}
+		return insertTx(ctx, tx, uid, r, &keep)
+	})
+}
+
 func (s *Store) DeleteTx(ctx context.Context, uid, id int64) error {
 	return pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) error { return removeTx(ctx, tx, uid, id) })
 }
