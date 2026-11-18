@@ -290,6 +290,9 @@
   @media (max-width: 860px) { .cr-row { grid-template-columns: minmax(0, 1fr); } }
   .cr-total > i { font-style: normal; }
   /* категории в окне операции: сетка по пять, кружок с иконкой и подпись под ним */
+  .op-catpick { display: flex; align-items: center; gap: 12px; margin-top: 16px; padding: 8px 10px 8px 8px; border-radius: 14px; background: var(--fill); cursor: pointer; }
+  .op-catpick .cattile-ic { width: 40px; height: 40px; background: var(--card); flex: none; }
+  .op-catpick .cattile-ic[data-emoji="1"] { font-size: 20px; }
   .catgrid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px 6px; }
   .cattile { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 2px 0; border: 0; background: none; color: var(--ink); cursor: pointer; font: inherit; min-width: 0; }
   .cattile-ic { position: relative; width: 48px; height: 48px; border-radius: 50%; background: var(--fill); display: flex; align-items: center; justify-content: center; font-size: 17px; font-weight: 600; color: var(--ink2); transition: background .12s, box-shadow .12s; }
@@ -2569,6 +2572,34 @@
           <span class="segopt" data-on="{{ incOn }}" onClick="{{ setIncome }}">Доход</span>
           <span class="segopt" data-on="{{ trOn }}" onClick="{{ setTransfer }}">Перевод</span>
         </div>
+        <!-- шаг 1 у расхода и дохода: сначала категория, потом сумма и остальное -->
+        <sc-if value="{{ opStepCat }}" hint-placeholder-val="{{ false }}">
+        <div style="margin-top:16px"><span class="lbl">Категория{{ catPicked }}</span>
+          <!-- сетка по пять: кружок с иконкой (или первой буквой) и подпись под ним. Уровень
+               за раз: категория с вложенными (значок › на кружке) открывает свой список,
+               в нём первыми — «Назад» и сама категория -->
+          <div class="catgrid">
+            <sc-if value="{{ catInside }}" hint-placeholder-val="{{ false }}">
+              <button class="cattile" onClick="{{ catBack }}" aria-label="Назад"><span class="cattile-ic cattile-back">‹</span><span class="cattile-name">Назад</span></button>
+            </sc-if>
+            <sc-for list="{{ catChips }}" as="c" hint-placeholder-count="10">
+              <button class="cattile" data-on="{{ c.on }}" data-self="{{ c.self }}" title="{{ c.name }}" onClick="{{ c.pick }}"><span class="cattile-ic" data-emoji="{{ c.emoji }}">{{ c.badge }}<sc-if value="{{ c.opens }}" hint-placeholder-val="{{ false }}"><span class="cattile-more">›</span></sc-if></span><span class="cattile-name">{{ c.name }}</span></button>
+            </sc-for>
+          </div>
+        </div>
+        </sc-if>
+        <!-- шаг 2: выбранная категория, дата, сумма, счёт, комментарий -->
+        <sc-if value="{{ opStepForm }}" hint-placeholder-val="{{ true }}">
+        <sc-if value="{{ showCats }}" hint-placeholder-val="{{ true }}">
+          <div class="op-catpick" onClick="{{ opChangeCat }}" title="Выбрать другую категорию">
+            <span class="cattile-ic" data-emoji="{{ opCatEmoji }}">{{ opCatBadge }}</span>
+            <span style="flex:1;min-width:0">
+              <span style="display:block;font-size:12px;color:var(--ink3)">Категория</span>
+              <span style="display:block;font-size:15px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ opCatPath }}</span>
+            </span>
+            <span class="btn btn-t" style="flex:none">Изменить</span>
+          </div>
+        </sc-if>
         <!-- дата первой: операцию чаще вносят не в тот день, когда она была -->
         <div style="margin-top:16px"><div class="cal-head"><span class="lbl">Дата — {{ dateLabel }}</span><button class="btn btn-t cal-today" onClick="{{ opToday }}">Сегодня</button></div>
           <div style="background:var(--fill);border-radius:16px;padding:12px">
@@ -2589,7 +2620,7 @@
         </div>
         <sc-if value="{{ isTransfer }}" hint-placeholder-val="{{ false }}">
           <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px;margin-top:16px">
-            <div class="calc-wrap"><span class="lbl">Списать, {{ fromSym }}</span><input class="inp" inputMode="decimal" data-calc="amount" value="{{ amount }}" onChange="{{ onAmount }}" onFocus="{{ onAmountFocus }}" onBlur="{{ onAmountBlur }}" placeholder="0">
+            <div class="calc-wrap"><span class="lbl">Списать, {{ fromSym }}</span><input class="inp" inputMode="decimal" data-calc="amount" autoFocus="{{ amountFocus }}" value="{{ amount }}" onChange="{{ onAmount }}" onFocus="{{ onAmountFocus }}" onBlur="{{ onAmountBlur }}" placeholder="0">
               <sc-if value="{{ amountCalc }}" hint-placeholder-val="{{ false }}">
                 <div class="calc-bar">
                   <sc-for list="{{ amountOps }}" as="o" hint-placeholder-count="4"><button class="calc-op" onMouseDown="{{ o.press }}">{{ o.label }}</button></sc-for>
@@ -2623,7 +2654,7 @@
         </sc-if>
         <sc-if value="{{ showCats }}" hint-placeholder-val="{{ true }}">
         <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px;margin-top:16px">
-          <div class="calc-wrap"><span class="lbl">{{ amountLabel }}</span><input class="inp" inputMode="decimal" data-calc="amount" value="{{ amount }}" onChange="{{ onAmount }}" onFocus="{{ onAmountFocus }}" onBlur="{{ onAmountBlur }}" placeholder="0">
+          <div class="calc-wrap"><span class="lbl">{{ amountLabel }}</span><input class="inp" inputMode="decimal" data-calc="amount" autoFocus="{{ amountFocus }}" value="{{ amount }}" onChange="{{ onAmount }}" onFocus="{{ onAmountFocus }}" onBlur="{{ onAmountBlur }}" placeholder="0">
             <sc-if value="{{ amountCalc }}" hint-placeholder-val="{{ false }}">
                 <div class="calc-bar">
                   <sc-for list="{{ amountOps }}" as="o" hint-placeholder-count="4"><button class="calc-op" onMouseDown="{{ o.press }}">{{ o.label }}</button></sc-for>
@@ -2639,20 +2670,6 @@
         </div>
         </sc-if>
         <div style="margin-top:14px"><span class="lbl">Комментарий</span><textarea class="inp" rows="2" style="resize:vertical;min-height:52px;line-height:1.4;font-family:inherit" value="{{ note }}" onChange="{{ onNote }}" placeholder="например, продукты на неделю — Enter переносит строку"></textarea></div>
-        <sc-if value="{{ showCats }}" hint-placeholder-val="{{ true }}">
-        <div style="margin-top:14px"><span class="lbl">Категория{{ catPicked }}</span>
-          <!-- сетка по пять: кружок с иконкой (или первой буквой) и подпись под ним. Уровень
-               за раз: категория с вложенными (значок › на кружке) открывает свой список,
-               в нём первыми — «Назад» и сама категория -->
-          <div class="catgrid">
-            <sc-if value="{{ catInside }}" hint-placeholder-val="{{ false }}">
-              <button class="cattile" onClick="{{ catBack }}" aria-label="Назад"><span class="cattile-ic cattile-back">‹</span><span class="cattile-name">Назад</span></button>
-            </sc-if>
-            <sc-for list="{{ catChips }}" as="c" hint-placeholder-count="10">
-              <button class="cattile" data-on="{{ c.on }}" data-self="{{ c.self }}" title="{{ c.name }}" onClick="{{ c.pick }}"><span class="cattile-ic" data-emoji="{{ c.emoji }}">{{ c.badge }}<sc-if value="{{ c.opens }}" hint-placeholder-val="{{ false }}"><span class="cattile-more">›</span></sc-if></span><span class="cattile-name">{{ c.name }}</span></button>
-            </sc-for>
-          </div>
-        </div>
         </sc-if>
         <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px;flex-wrap:wrap">
           <sc-if value="{{ editing }}" hint-placeholder-val="{{ false }}">
@@ -2662,7 +2679,7 @@
             </span>
           </sc-if>
           <button class="btn btn-s" onClick="{{ close }}">Отмена</button>
-          <button class="btn btn-p" onClick="{{ saveOp }}">Сохранить</button>
+          <sc-if value="{{ opStepForm }}" hint-placeholder-val="{{ true }}"><button class="btn btn-p" onClick="{{ saveOp }}">Сохранить</button></sc-if>
         </div>
       </div>
     </div>
@@ -3851,7 +3868,7 @@ class Component extends DCLogic {
     const transfer = t.type === "transfer";
     const [y, m] = t.d.split("-").map(Number);
     this.setState({
-      dialog: "op", editTx: t, catNav: null,
+      dialog: "op", editTx: t, catNav: null, opStep: "form",
       type: transfer ? "transfer" : t.v > 0 ? "income" : "expense",
       amount: groupDigits(Math.abs(t.v)),
       // an untouched title is the category's name (or «Перевод»): the field stays empty then
@@ -7101,7 +7118,7 @@ class Component extends DCLogic {
   // The operation dialog, fresh, for today and the given kind
   quickAdd(type) {
     if (this.needAccount()) return;
-    this.setState(s => ({ dialog: "op", catNav: null, editTx: null, amount: "", note: "", receive: "", receiveTouched: false,
+    this.setState(s => ({ dialog: "op", catNav: null, editTx: null, amount: "", note: "", receive: "", receiveTouched: false, opStep: s.type === "transfer" ? "form" : "cat",
       type, date: TODAY, calY: TODAY_Y, calM: TODAY_M, cat: type === "transfer" ? s.cat : this.firstLeaf(type) }));
   }
 
@@ -7432,8 +7449,15 @@ class Component extends DCLogic {
         badge: c.icon || (c.name ? c.name[0].toUpperCase() : "?"), emoji: c.icon ? "1" : "0",
         // "2": the pick sits somewhere inside this category
         on: st.cat === c.name ? "1" : pickedLine.has(c.id) ? "2" : "0",
-        // проваливаясь в категорию, сразу выбираем её саму — дальше можно уточнить вложенной
-        pick: () => this.setState(opens ? { catNav: c.id, cat: c.name } : { cat: c.name }) };
+        // проваливаясь в категорию, сразу выбираем её саму — дальше можно уточнить вложенной;
+        // категория без вложенных (или сама категория в своём списке) — выбор, переход ко второму шагу
+        pick: () => {
+          if (opens) { this.setState({ catNav: c.id, cat: c.name }); return; }
+          this.setState({ cat: c.name, opStep: "form" }, () => {
+            const card = document.querySelector(".dlg .card");
+            if (card) card.scrollTop = 0;
+          });
+        } };
     };
     const catChips = navCat
       ? [catChip(navCat, true)].concat(kidsOf(navCat.id).map(c => catChip(c, false)))
@@ -7762,7 +7786,7 @@ class Component extends DCLogic {
       openOpForDate: () => {
         if (this.needAccount()) return;
         const iso = st.opsDate || (st.opsY + "-" + String(st.opsM + 1).padStart(2, "0") + "-01");
-        this.setState(s => ({ dialog: "op", catNav: null, ...(s.editTx ? { amount: "", note: "", receive: "", receiveTouched: false } : {}), editTx: null, date: iso, calY: st.opsY, calM: st.opsM,
+        this.setState(s => ({ dialog: "op", catNav: null, ...(s.editTx ? { amount: "", note: "", receive: "", receiveTouched: false } : {}), editTx: null, date: iso, calY: st.opsY, calM: st.opsM, opStep: s.type === "transfer" ? "form" : "cat",
           cat: s.cat || this.firstLeaf(s.type === "income" ? "income" : "expense") }));
       },
       query: st.query, onQuery: e => this.set("query", e.target.value),
@@ -7907,7 +7931,7 @@ class Component extends DCLogic {
       ...this.splitVals(),
       openOp: () => {
         if (this.needAccount()) return;
-        this.setState(s => ({ dialog: "op", catNav: null, ...(s.editTx ? { amount: "", note: "", receive: "", receiveTouched: false } : {}), editTx: null, cat: s.cat || this.firstLeaf(s.type === "income" ? "income" : "expense") }));
+        this.setState(s => ({ dialog: "op", catNav: null, ...(s.editTx ? { amount: "", note: "", receive: "", receiveTouched: false } : {}), editTx: null, opStep: s.type === "transfer" ? "form" : "cat", cat: s.cat || this.firstLeaf(s.type === "income" ? "income" : "expense") }));
       },
       openAcc: () => this.setState({ dialog: "acc", editIndex: null, accName: "", accKind: "Карта", accCur: "RUB" }),
       close: () => this.setState({ dialog: null }),
@@ -7915,7 +7939,7 @@ class Component extends DCLogic {
       expOn: st.type === "expense" ? "1" : "0", incOn: st.type === "income" ? "1" : "0",
       trOn: st.type === "transfer" ? "1" : "0",
       isTransfer: st.type === "transfer", showCats: st.type !== "transfer",
-      setTransfer: () => this.setState({ type: "transfer" }),
+      setTransfer: () => this.setState({ type: "transfer", opStep: "form" }),
       amountLabel: "Сумма, " + CUR[this.curOf(st.acc)].sym,
       accFieldLabel: st.type === "transfer" ? "Со счёта" : "Счёт",
       accountOptions: st.accounts.map(a => ({
@@ -7939,8 +7963,9 @@ class Component extends DCLogic {
         return (!sent || !got) ? rate : rate + " · " + this.fmt(sent, from) + " → " + this.fmt(got, to);
       })(),
       rateColor: st.acc === st.accTo ? "var(--neg)" : "var(--ink)",
-      setExpense: () => this.setState({ type: "expense", catNav: null, cat: this.firstLeaf("expense") }),
-      setIncome: () => this.setState({ type: "income", catNav: null, cat: this.firstLeaf("income") }),
+      // сменили расход на доход (или наоборот) — категория другая, снова первый шаг
+      setExpense: () => { if (st.type !== "expense") this.setState({ type: "expense", catNav: null, cat: this.firstLeaf("expense"), opStep: "cat" }); },
+      setIncome: () => { if (st.type !== "income") this.setState({ type: "income", catNav: null, cat: this.firstLeaf("income"), opStep: "cat" }); },
       amount: st.amount,
       ...(c => ({ onAmount: e => this.setNumber("amount", e, false, undefined, c.digits),
         amountCalc: c.open, amountEq: c.eq, onAmountFocus: c.onFocus, onAmountBlur: c.onBlur, amountOps: c.ops, amountEquals: c.equals }))(
@@ -7952,6 +7977,14 @@ class Component extends DCLogic {
       acc: st.acc, onAcc: e => this.set("acc", e.target.value),
       catChips, catPicked: st.cat ? " — " + catPath(st.cat) : "",
       catInside: !!navCat,
+      opStepCat: st.type !== "transfer" && st.opStep === "cat",
+      opStepForm: st.type === "transfer" || st.opStep !== "cat",
+      amountFocus: !st.editTx,
+      opCatPath: st.cat ? catPath(st.cat) : "не выбрана",
+      opCatBadge: pickedCat ? (pickedCat.icon || pickedCat.name[0].toUpperCase()) : (st.cat ? st.cat[0].toUpperCase() : "?"),
+      opCatEmoji: pickedCat && pickedCat.icon ? "1" : "0",
+      // к сетке — на уровень, где лежит выбранная, чтобы были видны соседние
+      opChangeCat: () => this.setState({ opStep: "cat", catNav: pickedCat && pickedCat.parent != null ? pickedCat.parent : null }),
       catBack: () => this.setState({ catNav: navCat && navCat.parent != null ? navCat.parent : null }),
       days: this.calendarCells(),
       opToday: this.calToday("date"),
